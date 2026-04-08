@@ -1,5 +1,5 @@
 // ==================== وظائف API ====================
-const API_BASE = 'https://requests-backend.onrender.com/api';
+const API_BASE = '/api';
 async function apiCall(endpoint, method = 'GET', data = null) {
     try {
         const options = {
