@@ -1,28 +1,43 @@
-/* ==================== Reset & Base ==================== */
-* { margin: 0; padding: 0; box-sizing: border-box; }
+/* ==================== 1. Reset & Base Variables ==================== */
+:root {
+    --primary-gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    --success-gradient: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    --danger-gradient: linear-gradient(135deg, #eb3349 0%, #f45c43 100%);
+    --warning-gradient: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    --info-gradient: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    --bg-dark: #1a1a2e;
+    --card-bg: rgba(255, 255, 255, 0.07);
+    --text-main: #ffffff;
+    --text-muted: #a8b2d1;
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', system-ui, -apple-system, sans-serif; }
 
 body {
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background-attachment: fixed;
     min-height: 100vh;
-    color: #fff;
+    color: var(--text-main);
+    line-height: 1.6;
+    overflow-x: hidden;
 }
 
 .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
 
-/* ==================== Header ==================== */
+/* ==================== 2. Header & User Info ==================== */
 .header {
     text-align: center;
     padding: 30px;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    background: var(--primary-gradient);
     border-radius: 20px;
     margin-bottom: 30px;
     box-shadow: 0 10px 40px rgba(102, 126, 234, 0.3);
+    animation: fadeInDown 0.8s ease;
 }
-.header h1 { font-size: 2.5em; margin-bottom: 10px; }
-.header p { opacity: 0.9; }
 
-/* ==================== User Info ==================== */
+.header h1 { font-size: clamp(1.5rem, 5vw, 2.5rem); margin-bottom: 10px; text-shadow: 2px 2px 4px rgba(0,0,0,0.2); }
+
 .user-info {
     display: flex;
     align-items: center;
@@ -31,587 +46,224 @@ body {
     margin-top: 15px;
     flex-wrap: wrap;
 }
+
 .user-badge {
-    background: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.15);
     padding: 8px 20px;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    border-radius: 30px;
+    backdrop-filter: blur(5px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
 }
+
 .logout-btn {
-    background: rgba(235, 51, 73, 0.3);
+    background: rgba(235, 51, 73, 0.2);
     border: 1px solid #eb3349;
     color: #fff;
-    padding: 8px 20px;
-    border-radius: 20px;
+    padding: 8px 25px;
+    border-radius: 30px;
     cursor: pointer;
-    transition: all 0.3s;
+    transition: var(--transition);
 }
-.logout-btn:hover { background: rgba(235, 51, 73, 0.5); }
+.logout-btn:hover { background: #eb3349; transform: scale(1.05); }
 
-/* ==================== Navigation ==================== */
+/* ==================== 3. Navigation ==================== */
 .nav-section {
-    background: rgba(255,255,255,0.05);
+    background: var(--card-bg);
     padding: 15px;
     border-radius: 15px;
     margin-bottom: 25px;
+    backdrop-filter: blur(10px);
 }
-.nav-links {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    justify-content: center;
-}
+
+.nav-links { display: flex; gap: 10px; flex-wrap: wrap; justify-content: center; }
+
 .nav-link {
-    padding: 12px 20px;
-    background: rgba(255,255,255,0.1);
-    border: none;
+    padding: 12px 22px;
+    background: rgba(255, 255, 255, 0.05);
     border-radius: 12px;
     color: #fff;
-    cursor: pointer;
-    transition: all 0.3s;
     text-decoration: none;
-    font-size: 0.95em;
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
+    transition: var(--transition);
+    border: 1px solid transparent;
 }
+
 .nav-link:hover, .nav-link.active {
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    transform: translateY(-2px);
+    background: var(--primary-gradient);
+    border-color: rgba(255,255,255,0.2);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(102, 126, 234, 0.4);
 }
 
-/* ==================== Date Section ==================== */
-.date-section {
-    background: rgba(255,255,255,0.1);
-    padding: 15px 25px;
-    border-radius: 15px;
-    margin-bottom: 25px;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    flex-wrap: wrap;
-    gap: 15px;
-}
-.date-section label { font-weight: 600; }
-.date-section input[type="date"] {
-    padding: 12px 20px;
-    border-radius: 10px;
-    border: none;
-    font-size: 1.1em;
-    background: #fff;
-    color: #333;
-    cursor: pointer;
-}
-
-/* ==================== Buttons ==================== */
-.button-group { display: flex; gap: 10px; flex-wrap: wrap; }
-
-.btn {
-    padding: 15px 35px;
-    border: none;
-    border-radius: 12px;
-    cursor: pointer;
-    font-size: 1.1em;
-    font-weight: 600;
-    transition: all 0.3s;
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    text-decoration: none;
-}
-.btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; }
-.btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
-.btn-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
-.btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
-.btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
-.btn:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-.btn-sm { padding: 8px 15px; font-size: 0.9em; }
-.btn:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
-
-/* ==================== Forms ==================== */
-.form-group { display: flex; flex-direction: column; gap: 8px; }
-.form-group label { font-weight: 600; color: #a8b2d1; }
-.form-group select, .form-group input, .form-group textarea {
-    padding: 12px 15px;
-    border-radius: 10px;
-    border: 2px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.05);
-    color: #fff;
-    font-size: 1em;
-    transition: all 0.3s;
-}
-.form-group select:focus, .form-group input:focus, .form-group textarea:focus {
-    border-color: #667eea;
-    outline: none;
-    background: rgba(255,255,255,0.08);
-}
-.form-group select option { background: #1a1a2e; color: #fff; }
-
-.order-form {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-    gap: 20px;
-    margin-bottom: 25px;
-}
-
-/* ==================== Cards ==================== */
+/* ==================== 4. Cards & Stats ==================== */
 .content-card {
-    background: rgba(255,255,255,0.05);
+    background: var(--card-bg);
     border-radius: 20px;
     padding: 25px;
     margin-bottom: 25px;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
 }
-.content-card h2 { margin-bottom: 20px; color: #667eea; }
 
-/* ==================== Stats Grid ==================== */
 .stats-grid {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
     gap: 20px;
     margin-bottom: 30px;
 }
+
 .stat-card {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+    background: rgba(102, 126, 234, 0.1);
     border-radius: 15px;
     padding: 25px;
     text-align: center;
-    border: 1px solid rgba(255,255,255,0.1);
-    transition: all 0.3s;
+    border: 1px solid rgba(255, 255, 255, 0.05);
+    transition: var(--transition);
 }
-.stat-card:hover { transform: translateY(-5px); box-shadow: 0 10px 30px rgba(102, 126, 234, 0.3); }
-.stat-card h3 { font-size: 2.5em; color: #667eea; margin-bottom: 10px; }
-.stat-card p { color: #a8b2d1; font-size: 0.95em; }
 
-/* ==================== Tables ==================== */
-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-th, td { padding: 15px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
-th { background: rgba(102, 126, 234, 0.3); font-weight: 600; }
-tr:hover { background: rgba(255,255,255,0.05); }
+.stat-card:hover { 
+    transform: translateY(-8px); 
+    background: rgba(102, 126, 234, 0.2);
+    box-shadow: 0 15px 30px rgba(0,0,0,0.3);
+}
 
-/* ==================== Order Items ==================== */
-.order-item {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 15px 20px;
-    background: rgba(255,255,255,0.05);
+.stat-card h3 { font-size: 2.8rem; color: #667eea; margin-bottom: 5px; }
+
+/* ==================== 5. Buttons & Forms ==================== */
+.btn {
+    padding: 12px 28px;
+    border: none;
     border-radius: 12px;
-    margin-bottom: 10px;
-    border-right: 4px solid #667eea;
-    flex-wrap: wrap;
+    cursor: pointer;
+    font-weight: 600;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
     gap: 10px;
-    transition: all 0.3s;
-}
-.order-item:hover { background: rgba(255,255,255,0.08); transform: translateX(-5px); }
-.order-info { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
-.order-actions { display: flex; gap: 8px; }
-
-/* ==================== List Items ==================== */
-.list-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 10px;
-    margin-bottom: 10px;
-    transition: all 0.3s;
-}
-.list-item:hover { background: rgba(255,255,255,0.08); transform: translateX(-5px); }
-
-/* ==================== Chips & Badges ==================== */
-.chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 5px 12px;
-    background: rgba(102, 126, 234, 0.3);
-    border-radius: 15px;
-    font-size: 0.85em;
-    margin: 3px;
-}
-.chip.admin { background: rgba(245, 87, 108, 0.3); color: #f5576c; }
-.chip.restricted { background: rgba(235, 51, 73, 0.3); color: #eb3349; }
-
-.road-badge { padding: 5px 15px; border-radius: 20px; font-size: 0.85em; font-weight: 600; }
-.road-1 { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-.road-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-
-.restriction-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 5px;
-    padding: 3px 10px;
-    background: rgba(235, 51, 73, 0.2);
-    border: 1px solid #eb3349;
-    border-radius: 15px;
-    font-size: 0.8em;
-    color: #ff6b6b;
+    text-decoration: none;
+    color: white;
 }
 
-/* ==================== Search Box ==================== */
-.search-box {
-    padding: 12px 20px;
-    border-radius: 10px;
-    border: 2px solid rgba(255,255,255,0.1);
-    background: rgba(255,255,255,0.05);
-    color: #fff;
-    font-size: 1em;
+.btn-primary { background: var(--primary-gradient); }
+.btn-success { background: var(--success-gradient); }
+.btn-danger { background: var(--danger-gradient); }
+.btn-warning { background: var(--warning-gradient); }
+.btn-info { background: var(--info-gradient); }
+
+.btn:hover:not(:disabled) { transform: translateY(-3px); filter: brightness(1.1); box-shadow: 0 8px 20px rgba(0,0,0,0.4); }
+.btn:active { transform: translateY(0); }
+
+.form-group input, .form-group select, .form-group textarea {
     width: 100%;
-    max-width: 400px;
-    margin-bottom: 20px;
+    padding: 12px;
+    background: rgba(0, 0, 0, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+    color: white;
+    transition: var(--transition);
 }
-.search-box:focus { border-color: #667eea; outline: none; }
-.search-box::placeholder { color: rgba(255,255,255,0.5); }
 
-/* ==================== Trucks Grid ==================== */
-.trucks-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-    gap: 15px;
-    margin-top: 20px;
+.form-group input:focus, .form-group select:focus {
+    outline: none;
+    border-color: #667eea;
+    background: rgba(0, 0, 0, 0.3);
 }
-.truck-card {
-    background: rgba(255,255,255,0.05);
+
+/* ==================== 6. Tables & Lists ==================== */
+.table-responsive { overflow-x: auto; border-radius: 15px; }
+
+table { width: 100%; border-collapse: collapse; background: rgba(0,0,0,0.1); }
+th { background: rgba(102, 126, 234, 0.2); color: #a8b2d1; padding: 18px; text-transform: uppercase; font-size: 0.85rem; letter-spacing: 1px; }
+td { padding: 15px; border-bottom: 1px solid rgba(255,255,255,0.05); text-align: center; }
+
+.order-item, .list-item {
+    background: rgba(255, 255, 255, 0.03);
     border-radius: 12px;
     padding: 15px;
-    text-align: center;
-    border: 2px solid transparent;
-    transition: all 0.3s;
-}
-.truck-card:hover { transform: scale(1.05); }
-.truck-card.available { border-color: #38ef7d; }
-.truck-card.assigned-road1 { border-color: #667eea; background: rgba(102, 126, 234, 0.2); }
-.truck-card.assigned-road2 { border-color: #f5576c; background: rgba(245, 87, 108, 0.2); }
-.truck-card.restricted { border-color: #eb3349; }
-.truck-number { font-size: 1.3em; font-weight: 700; color: #667eea; }
-.truck-driver { font-size: 0.9em; color: #a8b2d1; margin-top: 5px; }
-
-/* ==================== Quick Add ==================== */
-.quick-add-section {
-    margin-top: 20px;
-    padding: 20px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 15px;
-}
-.quick-add-section h4 { margin-bottom: 15px; color: #a8b2d1; }
-.quick-add-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 10px;
-}
-.quick-btn {
-    padding: 10px;
-    border: none;
-    border-radius: 8px;
-    background: rgba(102, 126, 234, 0.3);
-    color: #fff;
-    cursor: pointer;
-    transition: all 0.3s;
-    font-size: 0.9em;
-}
-.quick-btn:hover { background: rgba(102, 126, 234, 0.6); transform: scale(1.05); }
-
-/* ==================== Settings Sections ==================== */
-.settings-section {
-    margin-bottom: 30px;
-    padding: 20px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 15px;
-}
-.settings-section h3 { margin-bottom: 20px; color: #667eea; }
-
-/* ==================== Toast Notifications ==================== */
-.toast-container {
-    position: fixed;
-    top: 20px;
-    left: 20px;
-    z-index: 3000;
+    margin-bottom: 12px;
+    border-right: 4px solid #667eea;
     display: flex;
-    flex-direction: column;
-    gap: 10px;
-}
-.toast {
-    padding: 15px 25px;
-    border-radius: 10px;
-    color: #fff;
-    font-weight: 600;
-    animation: slideIn 0.3s ease;
-    box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-}
-@keyframes slideIn {
-    from { transform: translateX(-100%); opacity: 0; }
-    to { transform: translateX(0); opacity: 1; }
-}
-.toast-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
-.toast-error { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
-.toast-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-.toast-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
-
-/* ==================== Loading ==================== */
-.loading {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.8);
-    z-index: 2000;
+    justify-content: space-between;
     align-items: center;
-    justify-content: center;
-    flex-direction: column;
-    gap: 20px;
+    transition: var(--transition);
 }
-.loading.active { display: flex; }
-.spinner {
-    width: 50px;
-    height: 50px;
-    border: 4px solid rgba(255,255,255,0.3);
-    border-top-color: #667eea;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
-}
-@keyframes spin { to { transform: rotate(360deg); } }
 
-/* ==================== Modal ==================== */
+.order-item:hover { transform: scale(1.01) translateX(-5px); background: rgba(255,255,255,0.06); }
+
+/* ==================== 7. Modals ==================== */
 .modal {
     display: none;
     position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0,0,0,0.8);
-    z-index: 1000;
+    top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(8px);
+    z-index: 2000;
     align-items: center;
     justify-content: center;
-    overflow-y: auto;
     padding: 20px;
+    animation: fadeIn 0.3s ease;
 }
+
 .modal.active { display: flex; }
+
 .modal-content {
-    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    background: #1a1a2e;
     border-radius: 20px;
     padding: 30px;
-    max-width: 600px;
     width: 100%;
+    max-width: 600px;
     max-height: 90vh;
     overflow-y: auto;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-.modal-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 25px;
-    padding-bottom: 15px;
-    border-bottom: 1px solid rgba(255,255,255,0.1);
-}
-.modal-header h3 { color: #667eea; }
-.close-modal {
-    background: none;
-    border: none;
-    color: #fff;
-    font-size: 1.5em;
-    cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.3s;
-}
-.close-modal:hover { opacity: 1; }
-.modal-body { display: flex; flex-direction: column; gap: 20px; }
-.modal-footer {
-    display: flex;
-    gap: 10px;
-    justify-content: flex-end;
-    margin-top: 25px;
-    padding-top: 15px;
-    border-top: 1px solid rgba(255,255,255,0.1);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    box-shadow: 0 25px 50px rgba(0,0,0,0.5);
 }
 
-/* ==================== Charts ==================== */
-.chart-container {
-    background: rgba(255,255,255,0.05);
-    border-radius: 15px;
-    padding: 25px;
-    margin-bottom: 25px;
-}
-.chart-container h3 { margin-bottom: 20px; color: #667eea; text-align: center; }
-.chart-wrapper { position: relative; height: 400px; width: 100%; }
-.charts-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-    gap: 25px;
+/* ==================== 8. Animations & Utils ==================== */
+@keyframes fadeInDown {
+    from { opacity: 0; transform: translateY(-30px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
-/* ==================== Report Filters ==================== */
-.report-filters {
-    display: flex;
-    gap: 15px;
-    flex-wrap: wrap;
-    align-items: center;
-    margin-bottom: 25px;
-    padding: 20px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 15px;
-}
-.filter-group { display: flex; flex-direction: column; gap: 5px; }
-.filter-group label { font-size: 0.85em; color: #a8b2d1; }
-.filter-group select, .filter-group input {
-    padding: 10px 15px;
-    border-radius: 8px;
-    border: 1px solid rgba(255,255,255,0.2);
-    background: rgba(255,255,255,0.05);
-    color: #fff;
-    font-size: 0.95em;
-}
-.filter-group select option { background: #1a1a2e; }
+@keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
-/* ==================== Summary Cards ==================== */
-.summary-cards {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 15px;
-    margin-bottom: 25px;
+.loading {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background: rgba(26, 26, 46, 0.95);
+    z-index: 9999; display: none; align-items: center; justify-content: center;
 }
-.summary-card {
-    background: linear-gradient(135deg, rgba(102, 126, 234, 0.3) 0%, rgba(118, 75, 162, 0.3) 100%);
-    border-radius: 12px;
-    padding: 20px;
-    text-align: center;
-}
-.summary-card .value { font-size: 2em; font-weight: 700; color: #38ef7d; }
-.summary-card .label { font-size: 0.85em; color: #a8b2d1; margin-top: 5px; }
 
-/* ==================== Driver Rank ==================== */
-.driver-rank {
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    width: 30px;
-    height: 30px;
+.loading.active { display: flex; }
+
+.spinner {
+    width: 60px; height: 60px;
+    border: 5px solid rgba(102, 126, 234, 0.1);
+    border-top: 5px solid #667eea;
     border-radius: 50%;
-    font-weight: bold;
-    font-size: 0.9em;
-}
-.rank-1 { background: linear-gradient(135deg, #f5af19, #f12711); }
-.rank-2 { background: linear-gradient(135deg, #bdc3c7, #2c3e50); }
-.rank-3 { background: linear-gradient(135deg, #cd7f32, #8B4513); }
-
-/* ==================== Progress Bar ==================== */
-.progress-bar {
-    width: 100%;
-    height: 8px;
-    background: rgba(255,255,255,0.1);
-    border-radius: 4px;
-    overflow: hidden;
-}
-.progress-bar-fill {
-    height: 100%;
-    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-    border-radius: 4px;
-    transition: width 0.5s ease;
+    animation: spin 1s linear infinite;
 }
 
-/* ==================== Permissions ==================== */
-.permissions-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-    gap: 10px;
-    max-height: 300px;
-    overflow-y: auto;
-    padding: 10px;
-    background: rgba(0,0,0,0.2);
-    border-radius: 10px;
-}
-.permission-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    background: rgba(255,255,255,0.05);
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-.permission-item:hover { background: rgba(255,255,255,0.1); }
-.permission-item input { width: 18px; height: 18px; cursor: pointer; }
+@keyframes spin { to { transform: rotate(360deg); } }
 
-/* ==================== Logs ==================== */
-.log-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 12px 15px;
-    background: rgba(255,255,255,0.03);
-    border-radius: 8px;
-    margin-bottom: 8px;
-    border-right: 3px solid #667eea;
-    flex-wrap: wrap;
-    gap: 10px;
-}
-.log-item .log-action { color: #38ef7d; }
-.log-item .log-user { color: #667eea; font-weight: 600; }
-.log-item .log-time { color: #a8b2d1; font-size: 0.8em; }
-
-/* ==================== Login Page ==================== */
-.login-container {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    min-height: 100vh;
-    padding: 20px;
-}
-.login-box {
-    background: rgba(255,255,255,0.05);
-    border-radius: 20px;
-    padding: 40px;
-    width: 100%;
-    max-width: 400px;
-    border: 1px solid rgba(255,255,255,0.1);
-}
-.login-box h2 {
-    text-align: center;
-    margin-bottom: 30px;
-    color: #667eea;
-}
-.login-box .form-group { margin-bottom: 20px; }
-
-/* ==================== Export Buttons ==================== */
-.export-buttons {
-    display: flex;
-    gap: 10px;
-    flex-wrap: wrap;
-    margin-top: 20px;
-}
-
-/* ==================== Responsive ==================== */
+/* ==================== 9. Responsive Adjustments ==================== */
 @media (max-width: 768px) {
-    .header h1 { font-size: 1.5em; }
-    .nav-link { padding: 10px 15px; font-size: 0.85em; }
-    .charts-grid { grid-template-columns: 1fr; }
-    .chart-wrapper { height: 300px; }
-    .stats-grid { grid-template-columns: repeat(2, 1fr); }
-    .stat-card h3 { font-size: 1.8em; }
-    .order-form { grid-template-columns: 1fr; }
-    .date-section { flex-direction: column; text-align: center; }
-    .quick-add-grid { grid-template-columns: repeat(3, 1fr); }
+    .container { padding: 10px; }
+    .nav-links { gap: 5px; }
+    .nav-link { flex: 1 1 45%; text-align: center; padding: 10px; font-size: 0.8rem; }
+    .stats-grid { grid-template-columns: 1fr 1fr; }
+    .stat-card h3 { font-size: 1.8rem; }
+    .order-item { flex-direction: column; text-align: center; gap: 15px; }
+    .order-info { justify-content: center; }
 }
 
 @media (max-width: 480px) {
-    .container { padding: 10px; }
-    .header { padding: 20px; }
-    .content-card { padding: 15px; }
     .stats-grid { grid-template-columns: 1fr; }
-    .trucks-grid { grid-template-columns: repeat(2, 1fr); }
+    .trucks-grid { grid-template-columns: 1fr 1fr; }
+    .modal-content { padding: 20px; }
 }
 
-/* ==================== Print ==================== */
+/* ==================== 10. Print Support ==================== */
 @media print {
-    body { background: #fff; color: #000; }
-    .nav-section, .date-section, .button-group, .export-buttons, 
-    .logout-btn, .btn, .search-box { display: none !important; }
-    .content-card { background: #fff; border: 1px solid #ddd; }
-    .header { background: #667eea; -webkit-print-color-adjust: exact; }
+    body { background: white !important; color: black !important; }
+    .nav-section, .date-section, .btn, .logout-btn, .no-print { display: none !important; }
+    .content-card { border: 1px solid #ccc !important; background: transparent !important; box-shadow: none !important; }
+    th { background: #eee !important; color: black !important; }
 }
