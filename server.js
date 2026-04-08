@@ -3,6 +3,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const fs = require('fs');
 const path = require('path');
+const cors = require('cors'); // إضافة مكتبة CORS
 
 const app = express();
 app.set('trust proxy', 1);
@@ -10,13 +11,19 @@ app.set('trust proxy', 1);
 const PORT = process.env.PORT || 3000;
 
 // ==================== مسارات الواجهة ====================
+// تأكد أن ملفات الـ HTML موجودة مباشرة في المجلد الرئيسي أو داخل public
 const PUBLIC_DIR = path.join(__dirname, 'public');
 
 // ==================== Middleware ====================
+app.use(cors({
+    origin: true, // السماح لجميع النطاقات أو حدد رابط الـ Frontend الخاص بك
+    credentials: true
+}));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
 
-// ملفات ثابتة (CSS/JS) من public
+// ملفات ثابتة (CSS/JS/HTML)
+app.use(express.static(PUBLIC_DIR));
 app.use('/css', express.static(path.join(PUBLIC_DIR, 'css')));
 app.use('/js', express.static(path.join(PUBLIC_DIR, 'js')));
 
@@ -24,14 +31,14 @@ app.use('/js', express.static(path.join(PUBLIC_DIR, 'js')));
 const isProd = process.env.NODE_ENV === 'production';
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || 'change-me-in-render',
+  secret: process.env.SESSION_SECRET || 'fleet-management-secret-key-2026',
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: isProd,      // على Render (HTTPS) = true
+    secure: isProd,      // يجب أن يكون true عند استخدام HTTPS (مثل Render)
     httpOnly: true,
-    sameSite: 'lax',     // الآن الواجهة والسيرفر نفس الدومين => ممتاز
-    maxAge: 24 * 60 * 60 * 1000
+    sameSite: isProd ? 'none' : 'lax', // مهم جداً لعمل الكوكيز عند رفع الموقع
+    maxAge: 24 * 60 * 60 * 1000 // يوم واحد
   }
 }));
 
@@ -41,101 +48,6 @@ const DAYS_DIR = path.join(DATA_DIR, 'days');
 
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(DAYS_DIR)) fs.mkdirSync(DAYS_DIR, { recursive: true });
-
-// ==================== البيانات الافتراضية ====================
-const defaultSettings = {
-  factories: [
-    'SCCCL',
-    'الحارث للمنتجات الاسمنيه',
-    'الحارثي القديم',
-    'المعجل لمنتجات الاسمنت',
-    'الحارث العزيزية',
-    'سارمكس النظيم',
-    'عبر الخليج',
-    'الكفاح للخرسانة الجاهزة',
-    'القيشان 3',
-    'القيشان 2 - الأحجار الشرقية',
-    'القيشان 1',
-    'الفهد للبلوك والخرسانة'
-  ],
-  materials: ['3/4', '3/8', '3/16'],
-  trucks: [
-    { number: '1091', driver: 'سينج' },
-    { number: '2757', driver: 'انيس' },
-    { number: '2758', driver: 'عارف' },
-    { number: '2759', driver: 'عتيق الاسلام' },
-    { number: '2760', driver: 'سليمان' },
-    { number: '2762', driver: 'زرداد' },
-    { number: '2818', driver: 'شهداب' },
-    { number: '2927', driver: 'مدثر' },
-    { number: '2928', driver: 'سمر اقبال' },
-    { number: '2929', driver: 'عرفان شبير' },
-    { number: '3321', driver: 'وقاص' },
-    { number: '3322', driver: 'نعيم' },
-    { number: '3324', driver: 'محمد كليم' },
-    { number: '3325', driver: 'احسان' },
-    { number: '3326', driver: 'نويد' },
-    { number: '3461', driver: 'جيفان كومار' },
-    { number: '3462', driver: 'افتخار' },
-    { number: '3963', driver: 'شكيل' },
-    { number: '4445', driver: 'عرفان' },
-    { number: '5324', driver: 'بابر' },
-    { number: '5367', driver: 'سلفر تان' },
-    { number: '5520', driver: 'نابين' },
-    { number: '5521', driver: 'فضل' },
-    { number: '5522', driver: 'عبيدالله' },
-    { number: '5523', driver: 'محمد فيصل' },
-    { number: '5524', driver: 'بير محمد' },
-    { number: '5525', driver: 'صدير الاسلام' },
-    { number: '5526', driver: 'محمد عبدو' },
-    { number: '5527', driver: 'سكير' },
-    { number: '5528', driver: 'تشاندان' },
-    { number: '5658', driver: 'مسعود خان' },
-    { number: '5796', driver: 'ساهيل طارق' },
-    { number: '5797', driver: 'عبد القادر' },
-    { number: '5800', driver: 'غوا محمد' },
-    { number: '6398', driver: 'نديم خان' },
-    { number: '6428', driver: 'برديب' },
-    { number: '6429', driver: 'طاهر' },
-    { number: '6430', driver: 'سليمان غولزار' },
-    { number: '6432', driver: 'برويز اختر' },
-    { number: '6612', driver: 'ذو القرنين' },
-    { number: '6613', driver: 'نظيم خان' },
-    { number: '6614', driver: 'فينود' },
-    { number: '6615', driver: 'رسول' },
-    { number: '6616', driver: 'يعقوب' },
-    { number: '6617', driver: 'اظهر' },
-    { number: '6618', driver: 'عثمان' },
-    { number: '6619', driver: 'مينا خان' },
-    { number: '6620', driver: 'محمد ساحل' },
-    { number: '6621', driver: 'اسد' },
-    { number: '6622', driver: 'مانوج' },
-    { number: '6623', driver: 'خالد رحمان' },
-    { number: '6624', driver: 'هداية' },
-    { number: '6626', driver: 'HARENDRA' },
-    { number: '6629', driver: 'جاويد' },
-    { number: '6935', driver: 'تيمور' },
-    { number: '6939', driver: 'ارشد' },
-    { number: '7042', driver: 'فيراس' },
-    { number: '7043', driver: 'ايوب خان' },
-    { number: '7332', driver: 'علي رضا' },
-    { number: '7682', driver: 'خالد' },
-    { number: '7750', driver: 'نديم' },
-    { number: '7837', driver: 'ارسلان' },
-    { number: '7926', driver: 'سجاد' },
-    { number: '7927', driver: 'اكبر' },
-    { number: '7928', driver: 'امير' },
-    { number: '7929', driver: 'طاهر محمود' },
-    { number: '7930', driver: 'ناريندر' },
-    { number: '7974', driver: 'شريف' },
-    { number: '7980', driver: 'شعيب' },
-    { number: '9103', driver: 'ساكب' },
-    { number: '9492', driver: 'عدنان' },
-    { number: '9493', driver: 'عامر' },
-    { number: '9495', driver: 'ميزان' },
-    { number: '9496', driver: 'غفور احمد' }
-  ]
-};
 
 // ==================== Helpers ====================
 function readJSON(filename) {
@@ -195,12 +107,6 @@ function initializeData() {
     }]);
     console.log('✅ تم إنشاء حساب المدير: Admin / admin123');
   }
-
-  if (!readJSON('settings.json')) {
-    writeJSON('settings.json', defaultSettings);
-    console.log('✅ تم إنشاء الإعدادات الافتراضية');
-  }
-
   if (!readJSON('restrictions.json')) writeJSON('restrictions.json', []);
   if (!readJSON('logs.json')) writeJSON('logs.json', []);
 }
@@ -209,61 +115,19 @@ initializeData();
 // ==================== Auth Middlewares ====================
 function requireAuth(req, res, next) {
   if (req.session && req.session.user) return next();
-  return res.status(401).json({ error: 'غير مصرح' });
+  return res.status(401).json({ error: 'غير مصرح، يرجى تسجيل الدخول' });
 }
-
-function requireAdmin(req, res, next) {
-  if (req.session?.user?.role === 'admin') return next();
-  return res.status(403).json({ error: 'صلاحيات المدير مطلوبة' });
-}
-
-// ==================== Pages ====================
-// لو فتحت الموقع بدون مسار: ودّه للطلبات إذا مسجل، وإلا للّوجين
-app.get('/', (req, res) => {
-  if (req.session?.user) return res.redirect('/orders.html');
-  return res.redirect('/login.html');
-});
-
-// صفحة تسجيل الدخول
-app.get('/login.html', (req, res) => {
-  // لو مسجل دخول بالفعل ودّه للطلبات
-  if (req.session?.user) return res.redirect('/orders.html');
-  return res.sendFile(path.join(PUBLIC_DIR, 'login.html'));
-});
-
-// الصفحات المحمية
-const protectedPages = [
-  'orders.html',
-  'distribution.html',
-  'trucks.html',
-  'reports.html',
-  'settings.html',
-  'backup.html',
-  'users.html',
-  'restrictions.html',
-  'logs.html'
-];
-
-protectedPages.forEach(page => {
-  app.get(`/${page}`, (req, res) => {
-    if (req.session?.user) {
-      return res.sendFile(path.join(PUBLIC_DIR, page));
-    }
-    return res.redirect('/login.html');
-  });
-});
 
 // ==================== API: Auth ====================
 app.post('/api/login', (req, res) => {
   const { username, password } = req.body;
-
   const users = readJSON('users.json') || [];
   const user = users.find(u => u.username.toLowerCase() === String(username || '').toLowerCase());
 
-  if (!user) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+  if (!user) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور خطأ' });
 
   const ok = bcrypt.compareSync(String(password || ''), user.password);
-  if (!ok) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور غير صحيحة' });
+  if (!ok) return res.status(401).json({ error: 'اسم المستخدم أو كلمة المرور خطأ' });
 
   req.session.user = {
     id: user.id,
@@ -279,61 +143,30 @@ app.post('/api/login', (req, res) => {
 app.post('/api/logout', (req, res) => {
   const u = req.session?.user?.username;
   if (u) addLog(u, 'تسجيل خروج');
-
-  req.session.destroy(() => res.json({ success: true }));
+  req.session.destroy();
+  res.clearCookie('connect.sid');
+  return res.json({ success: true });
 });
 
-app.get('/api/me', requireAuth, (req, res) => {
-  res.json({ user: req.session.user });
-});
-
-// ==================== API: Settings ====================
-app.get('/api/settings', requireAuth, (req, res) => {
-  const settings = readJSON('settings.json') || defaultSettings;
-  res.json(settings);
-});
-
-app.put('/api/settings', requireAuth, (req, res) => {
-  const { factories, materials, trucks } = req.body;
-  writeJSON('settings.json', { factories, materials, trucks });
-  addLog(req.session.user.username, 'تحديث الإعدادات');
-  res.json({ success: true });
-});
-
-// ==================== API: Day Data ====================
-app.get('/api/day/:date', requireAuth, (req, res) => {
-  const data = readDayData(req.params.date);
-  res.json(data);
-});
-
-app.put('/api/day/:date', requireAuth, (req, res) => {
-  const { orders, distribution } = req.body;
-  writeDayData(req.params.date, { orders, distribution });
-  res.json({ success: true });
+app.get('/api/me', (req, res) => {
+  if (req.session && req.session.user) {
+    return res.json({ user: req.session.user });
+  }
+  res.status(401).json({ error: 'غير مسجل' });
 });
 
 // ==================== API: Users ====================
 app.get('/api/users', requireAuth, (req, res) => {
   const users = readJSON('users.json') || [];
-  const safeUsers = users.map(u => ({
-    id: u.id,
-    username: u.username,
-    role: u.role,
-    permissions: u.permissions,
-    createdAt: u.createdAt
-  }));
+  const safeUsers = users.map(({password, ...u}) => u);
   res.json(safeUsers);
 });
 
 app.post('/api/users', requireAuth, (req, res) => {
-  if (!req.session.user.permissions.manageUsers) {
-    return res.status(403).json({ error: 'ليس لديك صلاحية' });
-  }
-
   const { username, password, role, permissions } = req.body;
   const users = readJSON('users.json') || [];
 
-  if (users.some(u => u.username.toLowerCase() === String(username || '').toLowerCase())) {
+  if (users.some(u => u.username.toLowerCase() === username.toLowerCase())) {
     return res.status(400).json({ error: 'اسم المستخدم موجود مسبقاً' });
   }
 
@@ -349,320 +182,80 @@ app.post('/api/users', requireAuth, (req, res) => {
   users.push(newUser);
   writeJSON('users.json', users);
   addLog(req.session.user.username, 'إضافة مستخدم', username);
-
-  res.json({ success: true, id: newUser.id });
+  res.json({ success: true });
 });
 
 app.put('/api/users/:id', requireAuth, (req, res) => {
-  if (!req.session.user.permissions.manageUsers) {
-    return res.status(403).json({ error: 'ليس لديك صلاحية' });
-  }
-
   const id = parseInt(req.params.id);
   const { username, password, role, permissions } = req.body;
   const users = readJSON('users.json') || [];
+  const idx = users.findIndex(u => u.id === id);
 
-  const index = users.findIndex(u => u.id === id);
-  if (index === -1) return res.status(404).json({ error: 'المستخدم غير موجود' });
+  if (idx === -1) return res.status(404).json({ error: 'المستخدم غير موجود' });
 
-  users[index].username = username;
-  users[index].role = role;
-  users[index].permissions = permissions;
-
-  if (password) users[index].password = bcrypt.hashSync(password, 10);
+  users[idx].username = username;
+  users[idx].role = role;
+  users[idx].permissions = permissions;
+  if (password) users[idx].password = bcrypt.hashSync(password, 10);
 
   writeJSON('users.json', users);
   addLog(req.session.user.username, 'تعديل مستخدم', username);
-
   res.json({ success: true });
 });
 
 app.delete('/api/users/:id', requireAuth, (req, res) => {
-  if (!req.session.user.permissions.manageUsers) {
-    return res.status(403).json({ error: 'ليس لديك صلاحية' });
-  }
-
   const id = parseInt(req.params.id);
   let users = readJSON('users.json') || [];
-
   const user = users.find(u => u.id === id);
-  if (!user) return res.status(404).json({ error: 'المستخدم غير موجود' });
 
-  if (user.username === 'Admin') {
-    return res.status(400).json({ error: 'لا يمكن حذف حساب المدير الرئيسي' });
-  }
+  if (!user || user.username === 'Admin') return res.status(400).json({ error: 'لا يمكن حذف هذا المستخدم' });
 
   users = users.filter(u => u.id !== id);
   writeJSON('users.json', users);
   addLog(req.session.user.username, 'حذف مستخدم', user.username);
-
   res.json({ success: true });
 });
 
-// ==================== API: Restrictions ====================
-app.get('/api/restrictions', requireAuth, (req, res) => {
-  const restrictions = readJSON('restrictions.json') || [];
-  res.json(restrictions);
+// ==================== API: Day Data ====================
+app.get('/api/day/:date', requireAuth, (req, res) => {
+  res.json(readDayData(req.params.date));
 });
 
+app.put('/api/day/:date', requireAuth, (req, res) => {
+  writeDayData(req.params.date, req.body);
+  res.json({ success: true });
+});
+
+// ==================== API: Settings & Restrictions & Logs ====================
+app.get('/api/settings', requireAuth, (req, res) => res.json(readJSON('settings.json')));
+app.put('/api/settings', requireAuth, (req, res) => {
+  writeJSON('settings.json', req.body);
+  addLog(req.session.user.username, 'تحديث الإعدادات');
+  res.json({ success: true });
+});
+
+app.get('/api/restrictions', requireAuth, (req, res) => res.json(readJSON('restrictions.json')));
 app.post('/api/restrictions', requireAuth, (req, res) => {
-  if (!req.session.user.permissions.manageRestrictions) {
-    return res.status(403).json({ error: 'ليس لديك صلاحية' });
-  }
-
-  const { truckNumber, driverName, restrictedFactories, reason, active } = req.body;
   const restrictions = readJSON('restrictions.json') || [];
-
-  const newRestriction = {
-    id: Date.now(),
-    truckNumber,
-    driverName,
-    restrictedFactories,
-    reason,
-    active,
-    createdBy: req.session.user.username,
-    createdAt: new Date().toISOString()
-  };
-
-  restrictions.push(newRestriction);
+  const newR = { id: Date.now(), ...req.body, createdAt: new Date().toISOString() };
+  restrictions.push(newR);
   writeJSON('restrictions.json', restrictions);
-
-  addLog(req.session.user.username, 'إضافة قيد', `${truckNumber} - ${(restrictedFactories || []).join(', ')}`);
-
-  res.json({ success: true, id: newRestriction.id });
-});
-
-app.put('/api/restrictions/:id', requireAuth, (req, res) => {
-  const id = parseInt(req.params.id);
-  const restrictions = readJSON('restrictions.json') || [];
-
-  const index = restrictions.findIndex(r => r.id === id);
-  if (index === -1) return res.status(404).json({ error: 'القيد غير موجود' });
-
-  restrictions[index] = { ...restrictions[index], ...req.body };
-  writeJSON('restrictions.json', restrictions);
-
   res.json({ success: true });
 });
 
 app.delete('/api/restrictions/:id', requireAuth, (req, res) => {
-  if (!req.session.user.permissions.manageRestrictions) {
-    return res.status(403).json({ error: 'ليس لديك صلاحية' });
-  }
-
-  const id = parseInt(req.params.id);
   let restrictions = readJSON('restrictions.json') || [];
-
-  restrictions = restrictions.filter(r => r.id !== id);
+  restrictions = restrictions.filter(r => r.id !== parseInt(req.params.id));
   writeJSON('restrictions.json', restrictions);
-  addLog(req.session.user.username, 'حذف قيد');
-
   res.json({ success: true });
 });
 
-// ==================== API: Reports ====================
-app.get('/api/reports', requireAuth, (req, res) => {
-  const { startDate, endDate } = req.query;
-
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-
-  let allDistributions = [];
-  let dailyData = {};
-  let driverStats = {};
-  let factoryStats = {};
-  let materialStats = {};
-
-  for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-    const dateStr = d.toISOString().split('T')[0];
-    const dayData = readDayData(dateStr);
-
-    if (dayData.distribution && dayData.distribution.length > 0) {
-      dailyData[dateStr] = dayData.distribution.length;
-
-      dayData.distribution.forEach(dist => {
-        dist.date = dateStr;
-        allDistributions.push(dist);
-
-        const truckKey = dist.truck.number;
-        if (!driverStats[truckKey]) {
-          driverStats[truckKey] = {
-            number: dist.truck.number,
-            driver: dist.truck.driver,
-            total: 0,
-            road1: 0,
-            road2: 0
-          };
-        }
-        driverStats[truckKey].total++;
-        if (dist.road === 1) driverStats[truckKey].road1++;
-        else driverStats[truckKey].road2++;
-
-        if (!factoryStats[dist.factory]) factoryStats[dist.factory] = { name: dist.factory, total: 0 };
-        factoryStats[dist.factory].total++;
-
-        if (!materialStats[dist.material]) materialStats[dist.material] = { name: dist.material, total: 0 };
-        materialStats[dist.material].total++;
-      });
-    }
-  }
-
-  res.json({
-    allDistributions,
-    dailyData,
-    driverStats,
-    factoryStats,
-    materialStats,
-    startDate,
-    endDate
-  });
-});
-
-// ==================== API: Logs ====================
 app.get('/api/logs', requireAuth, (req, res) => {
-  if (req.session.user.role !== 'admin') {
-    return res.status(403).json({ error: 'صلاحيات المدير مطلوبة' });
-  }
-  const logs = readJSON('logs.json') || [];
-  res.json(logs.slice(0, 100));
+    const logs = readJSON('logs.json') || [];
+    res.json(logs.slice(0, 100));
 });
 
-// ==================== API: Backup ====================
-app.get('/api/backup', requireAuth, (req, res) => {
-  const backup = {
-    settings: readJSON('settings.json'),
-    users: readJSON('users.json'),
-    restrictions: readJSON('restrictions.json'),
-    logs: readJSON('logs.json'),
-    days: {},
-    exportDate: new Date().toISOString()
-  };
-
-  if (fs.existsSync(DAYS_DIR)) {
-    const files = fs.readdirSync(DAYS_DIR);
-    files.forEach(file => {
-      if (file.endsWith('.json')) {
-        const date = file.replace('.json', '');
-        backup.days[date] = readDayData(date);
-      }
-    });
-  }
-
-  addLog(req.session.user.username, 'تصدير نسخة احتياطية');
-  res.json(backup);
-});
-
-app.post('/api/restore', requireAuth, (req, res) => {
-  if (!req.session.user.permissions.manageBackup) {
-    return res.status(403).json({ error: 'ليس لديك صلاحية' });
-  }
-
-  try {
-    const data = req.body;
-
-    let totalOrders = 0;
-    let totalDist = 0;
-
-    if (data.settings) writeJSON('settings.json', data.settings);
-    if (data.restrictions) writeJSON('restrictions.json', data.restrictions);
-
-    if (data.days) {
-      Object.entries(data.days).forEach(([date, dayData]) => {
-        writeDayData(date, dayData);
-        totalOrders += (dayData.orders || []).length;
-        totalDist += (dayData.distribution || []).length;
-      });
-    }
-
-    // تنسيق قديم
-    if (data.orders && typeof data.orders === 'object' && !Array.isArray(data.orders)) {
-      Object.entries(data.orders).forEach(([key, value]) => {
-        let orders = typeof value === 'string' ? JSON.parse(value) : value;
-        if (Array.isArray(orders)) {
-          const date = key.replace('orders_', '');
-          const existing = readDayData(date);
-          existing.orders = orders;
-          writeDayData(date, existing);
-          totalOrders += orders.length;
-        }
-      });
-    }
-
-    if (data.distribution && typeof data.distribution === 'object' && !Array.isArray(data.distribution)) {
-      Object.entries(data.distribution).forEach(([key, value]) => {
-        let dist = typeof value === 'string' ? JSON.parse(value) : value;
-        if (Array.isArray(dist)) {
-          const date = key.replace('distribution_', '');
-          const existing = readDayData(date);
-          existing.distribution = dist;
-          writeDayData(date, existing);
-          totalDist += dist.length;
-        }
-      });
-    }
-
-    // مفاتيح مباشرة
-    Object.keys(data).forEach(key => {
-      if (key.startsWith('orders_')) {
-        let orders = data[key];
-        if (typeof orders === 'string') orders = JSON.parse(orders);
-        if (Array.isArray(orders)) {
-          const date = key.replace('orders_', '');
-          const existing = readDayData(date);
-          existing.orders = orders;
-          writeDayData(date, existing);
-          totalOrders += orders.length;
-        }
-      }
-      if (key.startsWith('distribution_')) {
-        let dist = data[key];
-        if (typeof dist === 'string') dist = JSON.parse(dist);
-        if (Array.isArray(dist)) {
-          const date = key.replace('distribution_', '');
-          const existing = readDayData(date);
-          existing.distribution = dist;
-          writeDayData(date, existing);
-          totalDist += dist.length;
-        }
-      }
-    });
-
-    // إعدادات مباشرة
-    if (data.factories || data.materials || data.trucks) {
-      const settings = readJSON('settings.json') || defaultSettings;
-      if (Array.isArray(data.factories)) settings.factories = data.factories;
-      if (Array.isArray(data.materials)) settings.materials = data.materials;
-      if (Array.isArray(data.trucks)) settings.trucks = data.trucks;
-      writeJSON('settings.json', settings);
-    }
-
-    addLog(req.session.user.username, 'استعادة نسخة احتياطية');
-    res.json({ success: true, message: `تم استعادة ${totalOrders} طلب و ${totalDist} توزيع` });
-  } catch (e) {
-    console.error('❌ خطأ:', e);
-    res.status(500).json({ error: e.message });
-  }
-});
-
-app.delete('/api/clear-all', requireAuth, requireAdmin, (req, res) => {
-  try {
-    if (fs.existsSync(DAYS_DIR)) {
-      fs.readdirSync(DAYS_DIR).forEach(file => {
-        fs.unlinkSync(path.join(DAYS_DIR, file));
-      });
-    }
-
-    writeJSON('settings.json', defaultSettings);
-    writeJSON('restrictions.json', []);
-
-    addLog(req.session.user.username, 'مسح جميع البيانات');
-    res.json({ success: true });
-  } catch (error) {
-    res.status(500).json({ error: 'فشل في مسح جميع البيانات' });
-  }
-});
-
-// ==================== Startup ====================
+// تشغيل السيرفر
 app.listen(PORT, () => {
-  console.log('Running on port', PORT);
+  console.log(`🚀 Server is running on port ${PORT}`);
 });
