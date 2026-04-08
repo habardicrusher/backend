@@ -1,4 +1,12 @@
 // ==================== تهيئة الصفحة ====================
+const allPermissions = {
+    manageUsers: "إدارة المستخدمين",
+    viewOrders: "عرض الطلبات",
+    createOrders: "إضافة طلبات",
+    editOrders: "تعديل الطلبات",
+    deleteOrders: "حذف الطلبات"
+};
+
 const allPermissions = typeof allPermissions !== 'undefined' ? allPermissions : {
     manageUsers: "إدارة المستخدمين",
     viewOrders: "عرض الطلبات",
