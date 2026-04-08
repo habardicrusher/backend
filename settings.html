@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات - نظام إدارة طلبات البحص</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>جاري التحميل...</p>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚛 نظام إدارة طلبات البحص</h1>
+            <p>الإعدادات</p>
+            <div class="user-info">
+                <div class="user-badge">
+                    <span>👤</span>
+                    <span id="currentUsername">-</span>
+                    <span class="chip" id="userRole">-</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">🚪 تسجيل خروج</button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-section">
+            <div class="nav-links" id="mainNav"></div>
+        </div>
+
+        <!-- Trucks Section -->
+        <div class="settings-section">
+            <h3>🚛 السيارات والسائقين (<span id="trucksCount">0</span>)</h3>
+            <button class="btn btn-success" onclick="openAddTruckModal()" id="btnAddTruck">➕ إضافة سيارة</button>
+            <input type="text" class="search-box" id="truckSearchSettings" placeholder="🔍 بحث..." onkeyup="renderTrucksList()" style="margin-top: 15px;">
+            <div id="trucksList" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Materials Section -->
+        <div class="settings-section">
+            <h3>📦 أنواع البحص (<span id="materialsCount">0</span>)</h3>
+            <button class="btn btn-success" onclick="openAddMaterialModal()" id="btnAddMaterial">➕ إضافة نوع</button>
+            <div id="materialsList" style="margin-top: 15px;"></div>
+        </div>
+
+        <!-- Factories Section -->
+        <div class="settings-section">
+            <h3>🏭 المصانع (<span id="factoriesCount">0</span>)</h3>
+            <button class="btn btn-success" onclick="openAddFactoryModal()" id="btnAddFactory">➕ إضافة مصنع</button>
+            <div id="factoriesList" style="margin-top: 15px;"></div>
+        </div>
+    </div>
+
+    <!-- Truck Modal -->
+    <div class="modal" id="truckModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="truckModalTitle">➕ إضافة سيارة</h3>
+                <button class="close-modal" onclick="closeModal('truckModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="truckEditIndex">
+                <div class="form-group">
+                    <label>🔢 رقم السيارة</label>
+                    <input type="text" id="truckNumber" placeholder="مثال: 1091">
+                </div>
+                <div class="form-group">
+                    <label>👤 اسم السائق</label>
+                    <input type="text" id="truckDriver" placeholder="مثال: أحمد محمد">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-danger" onclick="closeModal('truckModal')">❌ إلغاء</button>
+                <button class="btn btn-sm btn-success" onclick="saveTruck()">💾 حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Material Modal -->
+    <div class="modal" id="materialModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ إضافة نوع بحص</h3>
+                <button class="close-modal" onclick="closeModal('materialModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>📦 اسم النوع</label>
+                    <input type="text" id="materialName" placeholder="مثال: 1/2">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-danger" onclick="closeModal('materialModal')">❌ إلغاء</button>
+                <button class="btn btn-sm btn-success" onclick="saveMaterial()">💾 حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Factory Modal -->
+    <div class="modal" id="factoryModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>➕ إضافة مصنع</h3>
+                <button class="close-modal" onclick="closeModal('factoryModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>🏭 اسم المصنع</label>
+                    <input type="text" id="factoryName" placeholder="اسم المصنع">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-sm btn-danger" onclick="closeModal('factoryModal')">❌ إلغاء</button>
+                <button class="btn btn-sm btn-success" onclick="saveFactory()">💾 حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/common.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/settings.js"></script>
+</body>
+</html>

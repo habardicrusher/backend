@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>النسخ الاحتياطي - نظام إدارة طلبات البحص</title>
+    <link rel="stylesheet" href="css/style.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>جاري التحميل...</p>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚛 نظام إدارة طلبات البحص</h1>
+            <p>النسخ الاحتياطي</p>
+            <div class="user-info">
+                <div class="user-badge">
+                    <span>👤</span>
+                    <span id="currentUsername">-</span>
+                    <span class="chip" id="userRole">-</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">🚪 تسجيل خروج</button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-section">
+            <div class="nav-links" id="mainNav"></div>
+        </div>
+
+        <!-- Export Section -->
+        <div class="settings-section">
+            <h3>📤 تصدير البيانات</h3>
+            <p style="color: #a8b2d1; margin-bottom: 15px;">حفظ نسخة كاملة من جميع البيانات</p>
+            <button class="btn btn-success" onclick="exportDataToFile()">💾 حفظ نسخة احتياطية</button>
+        </div>
+
+        <!-- Import Section -->
+        <div class="settings-section" id="importSection">
+            <h3>📥 استيراد البيانات</h3>
+            <p style="color: #a8b2d1; margin-bottom: 15px;">استعادة البيانات من ملف</p>
+            <label for="backupFile" class="btn btn-info" style="cursor: pointer;">📂 اختر ملف JSON</label>
+            <input type="file" id="backupFile" accept=".json" onchange="importDataFromFile(event)" style="display: none;">
+        </div>
+
+        <!-- Excel Import Section -->
+        <div class="settings-section" id="excelSection">
+            <h3>📊 استيراد من Excel</h3>
+            <p style="color: #a8b2d1; margin-bottom: 15px;">استيراد الطلبات من ملف Excel</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <label for="excelFile" class="btn btn-primary" style="cursor: pointer;">📂 رفع Excel</label>
+                <input type="file" id="excelFile" accept=".xlsx,.xls" onchange="importFromExcel(event)" style="display: none;">
+                <button class="btn btn-sm btn-info" onclick="downloadExcelTemplate()">📥 تحميل القالب</button>
+            </div>
+        </div>
+
+        <!-- Danger Zone -->
+        <div class="settings-section" id="dangerZone" style="border: 2px solid #eb3349;">
+            <h3 style="color: #f5576c;">⚠️ منطقة الخطر</h3>
+            <p style="color: #a8b2d1; margin-bottom: 15px;">هذه الإجراءات لا يمكن التراجع عنها!</p>
+            <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+                <button class="btn btn-danger" onclick="clearDayOrders()">🗑️ مسح طلبات اليوم</button>
+                <button class="btn btn-danger" onclick="clearAllData()">🗑️ مسح جميع البيانات</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/common.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/backup.js"></script>
+</body>
+</html>

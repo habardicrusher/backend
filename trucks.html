@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>السيارات - نظام إدارة طلبات البحص</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p>جاري التحميل...</p>
+    </div>
+
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>🚛 نظام إدارة طلبات البحص</h1>
+            <p>حالة السيارات</p>
+            <div class="user-info">
+                <div class="user-badge">
+                    <span>👤</span>
+                    <span id="currentUsername">-</span>
+                    <span class="chip" id="userRole">-</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">🚪 تسجيل خروج</button>
+            </div>
+        </div>
+
+        <!-- Navigation -->
+        <div class="nav-section">
+            <div class="nav-links" id="mainNav"></div>
+        </div>
+
+        <!-- Date Section -->
+        <div class="date-section">
+            <div>
+                <label>📅 تاريخ العمل: </label>
+                <input type="date" id="orderDate" onchange="loadDayDataAndRender()">
+            </div>
+        </div>
+
+        <!-- Stats -->
+        <div class="stats-grid">
+            <div class="stat-card">
+                <h3 id="totalTrucksCount">0</h3>
+                <p>🚛 إجمالي السيارات</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="availableTrucks">0</h3>
+                <p>🟢 متاحة</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="road1Trucks">0</h3>
+                <p>🔵 رود 1</p>
+            </div>
+            <div class="stat-card">
+                <h3 id="road2Trucks">0</h3>
+                <p>🔴 رود 2</p>
+            </div>
+        </div>
+
+        <!-- Trucks Grid -->
+        <div class="content-card">
+            <h2>🚛 حالة السيارات</h2>
+            <input type="text" class="search-box" id="truckSearch" placeholder="🔍 بحث عن سيارة أو سائق..." onkeyup="filterTrucks()">
+            <div class="trucks-grid" id="trucksGrid"></div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="js/common.js"></script>
+    <script src="js/api.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/trucks.js"></script>
+</body>
+</html>
