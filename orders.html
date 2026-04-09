@@ -54,6 +54,7 @@
         .whatsapp-section { margin-top: 30px; padding: 25px; background: linear-gradient(135deg, rgba(37, 211, 102, 0.1) 0%, rgba(37, 211, 102, 0.05) 100%); border-radius: 20px; border: 1px solid rgba(37, 211, 102, 0.3); }
         .whatsapp-section h3 { color: #25D366; margin-bottom: 15px; }
         .time-input { direction: ltr; text-align: right; }
+        .debug-info { background: rgba(0,0,0,0.5); padding: 10px; margin-top: 10px; border-radius: 8px; font-size: 12px; font-family: monospace; display: none; }
         @media (max-width:768px){ .header h1 { font-size:1.5em; } }
     </style>
 </head>
@@ -83,6 +84,7 @@
                 <div class="form-group"><label>⏰ التوقيت (اختياري):</label><input type="text" id="whatsappTime" placeholder="8 PM"></div>
             </div>
             <button class="btn btn-success" onclick="processWhatsAppOrder()">📥 تحليل وإضافة الطلبات</button>
+            <div class="debug-info" id="debugInfo"></div>
         </div>
 
         <h2 style="margin-top: 30px;">➕ إضافة طلب جديد</h2>
@@ -122,7 +124,11 @@
                 const data = await apiCall('/settings');
                 factories = (data.factories || []).map(f => typeof f === 'object' ? (f.name || f.factory_name || f.text || '') : f);
                 materials = (data.materials || []).map(m => typeof m === 'object' ? (m.name || m.material_name || m.text || '') : m);
+                console.log('✅ المواد المحملة:', materials);
                 updateSelects(); renderQuickAddButtons();
+                // عرض المواد في وحدة التحكم للمساعدة في التشخيص
+                const debugDiv = document.getElementById('debugInfo');
+                if(debugDiv) debugDiv.innerHTML = `<small>📦 أنواع البحص المسجلة: ${materials.join(', ') || 'لا توجد'}</small>`;
             } catch(e) { showToast('خطأ في تحميل الإعدادات', 'error'); }
         }
 
@@ -164,43 +170,134 @@
             } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
         }
 
-        // تحليل نص واتساب المعدل
+        // ===================== دالة التحليل المحسنة بشكل كبير =====================
         function parseWhatsAppOrder(text) {
+            const debugLines = [];
+            debugLines.push('=== بدء التحليل ===');
+            
+            // 1. تنظيف النص من الكلمات العربية والإنجليزية
             let cleaned = text.replace(/السلام\s*عليكم|صباح|مساء|اليوم|إنشاء\s*الله|بإذن\s*الله|حاضر|يرجى|مطلوب|طلبات?|عدد|الرجاء|من\s*فضلك|tonight|today|pm|am/gi, '');
+            
+            // 2. تحويل الأرقام العربية إلى إنكليزية
             const arabicNumbers = { '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9' };
             cleaned = cleaned.replace(/[٠-٩]/g, d => arabicNumbers[d] || d);
+            debugLines.push(`بعد التنظيف: ${cleaned}`);
+            
+            // 3. استخراج التوقيت
             let extractedTime = '';
-            const tm = text.match(/(\d{1,2}\s*(?:AM|PM|am|pm)|tonight\s+\d{1,2}\s*(?:AM|PM|am|pm)?|\d{1,2}:\d{2})/i);
-            if (tm) extractedTime = tm[0].trim();
+            const timeMatch = text.match(/(\d{1,2}\s*(?:AM|PM|am|pm)|tonight\s+\d{1,2}\s*(?:AM|PM|am|pm)?|\d{1,2}:\d{2})/i);
+            if (timeMatch) extractedTime = timeMatch[0].trim();
+            debugLines.push(`التوقيت المستخرج: ${extractedTime || 'لا يوجد'}`);
+            
+            // 4. تقسيم إلى سطور
             const lines = cleaned.split(/\r?\n/);
             const items = [];
-            const validSet = new Set(materials.map(m => m.toLowerCase()));
+            
+            // قائمة المواد المعروفة (للمقارنة)
+            const validMaterialsSet = new Set(materials.map(m => m.toLowerCase().trim()));
+            debugLines.push(`المواد المعروفة: ${Array.from(validMaterialsSet).join(', ')}`);
+            
             for (const line of lines) {
-                let l = line.trim();
-                if (!l || /^(pm|am|tonight|today)$/i.test(l)) continue;
-                let match = l.match(/^\s*(\d+)\s+([^\d]+?)\s*$/);
-                if (match) {
-                    let q = parseInt(match[1]), m = match[2].trim().replace(/[#*×]/g,'');
-                    if (m && q>0 && validSet.has(m.toLowerCase())) items.push({ material: m, quantity: q });
+                let trimmed = line.trim();
+                if (!trimmed) continue;
+                if (/^(pm|am|tonight|today)$/i.test(trimmed)) continue;
+                debugLines.push(`--- معالجة سطر: "${trimmed}"`);
+                
+                // البحث عن جميع الأرقام في السطر
+                const numbers = trimmed.match(/\b\d+\b/g);
+                // البحث عن جميع الكلمات / الرموز التي قد تمثل نوع بحص
+                // نأخذ كل الأجزاء التي ليست أرقاماً خالصة وليست رموزاً مثل # * ×
+                const parts = trimmed.split(/\s+/);
+                const potentialMaterials = parts.filter(p => !/^\d+$/.test(p) && !/^[#*×]$/.test(p));
+                debugLines.push(`  الأرقام: ${numbers ? numbers.join(',') : 'لا يوجد'}`);
+                debugLines.push(`  المواد المحتملة: ${potentialMaterials.join(', ')}`);
+                
+                if (!numbers || numbers.length === 0) {
+                    debugLines.push(`  ⚠️ لا توجد أرقام في هذا السطر -> نتخطى`);
                     continue;
                 }
-                match = l.match(/^\s*([^\d]+?)\s+(\d+)\s*$/);
-                if (match) {
-                    let m = match[1].trim().replace(/[#*×]/g,''), q = parseInt(match[2]);
-                    if (m && q>0 && validSet.has(m.toLowerCase())) items.push({ material: m, quantity: q });
+                if (potentialMaterials.length === 0) {
+                    debugLines.push(`  ⚠️ لا توجد مواد محتملة في هذا السطر -> نتخطى`);
                     continue;
                 }
-                match = l.match(/([^\d\s]+)\s*[#*×]\s*(\d+)/);
-                if (match) {
-                    let m = match[1].trim(), q = parseInt(match[2]);
-                    if (m && q>0 && validSet.has(m.toLowerCase())) items.push({ material: m, quantity: q });
+                
+                // الحالة المثالية: رقم واحد ومادة واحدة
+                if (numbers.length === 1 && potentialMaterials.length === 1) {
+                    let quantity = parseInt(numbers[0]);
+                    let material = potentialMaterials[0].trim().replace(/[#*×]/g, '').trim();
+                    debugLines.push(`  ✅ استخراج (رقم واحد + مادة واحدة): الكمية=${quantity}, المادة="${material}"`);
+                    if (material && quantity > 0) {
+                        const matched = findMatchingMaterial(material, validMaterialsSet);
+                        if (matched) {
+                            items.push({ material: matched, quantity });
+                            debugLines.push(`  ✅ تم قبول المادة: ${matched}`);
+                        } else {
+                            debugLines.push(`  ❌ المادة "${material}" غير معروفة`);
+                        }
+                    }
+                    continue;
+                }
+                
+                // حالة وجود عدة أرقام ومواد: نحاول مطابقة كل رقم مع أقرب مادة
+                let tempMaterials = [...potentialMaterials];
+                for (let num of numbers) {
+                    let quantity = parseInt(num);
+                    if (tempMaterials.length === 0) break;
+                    let bestMatch = tempMaterials.shift(); // نأخذ أول مادة متاحة
+                    let material = bestMatch.trim().replace(/[#*×]/g, '').trim();
+                    debugLines.push(`  ✅ استخراج (متعدد): الكمية=${quantity}, المادة="${material}"`);
+                    if (material && quantity > 0) {
+                        const matched = findMatchingMaterial(material, validMaterialsSet);
+                        if (matched) {
+                            items.push({ material: matched, quantity });
+                            debugLines.push(`  ✅ تم قبول المادة: ${matched}`);
+                        } else {
+                            debugLines.push(`  ❌ المادة "${material}" غير معروفة`);
+                        }
+                    }
                 }
             }
+            
+            // دمج العناصر المكررة
             const merged = [];
-            items.forEach(it => { let ex = merged.find(x => x.material === it.material); if(ex) ex.quantity += it.quantity; else merged.push({...it}); });
-            const unknown = merged.filter(it => !validSet.has(it.material.toLowerCase()));
-            if(unknown.length) showToast(`⚠️ أنواع غير معروفة: ${unknown.map(u=>u.material).join(', ')}`, 'warning');
-            return { items: merged.filter(it => validSet.has(it.material.toLowerCase())), extractedTime };
+            items.forEach(item => {
+                const existing = merged.find(m => m.material === item.material);
+                if (existing) existing.quantity += item.quantity;
+                else merged.push({ ...item });
+            });
+            
+            debugLines.push(`=== العناصر المستخرجة قبل الفلترة: ${JSON.stringify(merged)} ===`);
+            
+            // فلترة المواد غير المعروفة
+            const unknown = merged.filter(item => !validMaterialsSet.has(item.material.toLowerCase()));
+            if (unknown.length) {
+                showToast(`⚠️ الأنواع التالية غير معروفة: ${unknown.map(u => u.material).join(', ')}. تأكد من وجودها في إعدادات أنواع البحص.`, 'warning');
+            }
+            const finalItems = merged.filter(item => validMaterialsSet.has(item.material.toLowerCase()));
+            debugLines.push(`=== العناصر النهائية: ${JSON.stringify(finalItems)} ===`);
+            
+            // عرض معلومات التصحيح في الواجهة (للاختبار فقط)
+            const debugDiv = document.getElementById('debugInfo');
+            if (debugDiv) {
+                debugDiv.style.display = 'block';
+                debugDiv.innerHTML = `<small>🔍 التحليل:<br>${debugLines.join('<br>')}</small>`;
+                setTimeout(() => { debugDiv.style.display = 'none'; }, 8000);
+            }
+            
+            return { items: finalItems, extractedTime };
+        }
+        
+        // دالة مساعدة للبحث عن مطابقة للمادة (مرنة)
+        function findMatchingMaterial(input, validSet) {
+            const clean = (s) => s.replace(/بحص\s*/gi, '').trim().toLowerCase();
+            const cleanedInput = clean(input);
+            for (let known of validSet) {
+                const cleanedKnown = clean(known);
+                if (cleanedInput === cleanedKnown || cleanedKnown.includes(cleanedInput) || cleanedInput.includes(cleanedKnown)) {
+                    return known; // نعيد المادة كما هي مخزنة في النظام
+                }
+            }
+            return null;
         }
 
         async function processWhatsAppOrder() {
@@ -209,7 +306,7 @@
             const customTime = document.getElementById('whatsappTime').value.trim();
             if(!text || !factory) { showToast('املأ النص واختر المصنع','error'); return; }
             const { items, extractedTime } = parseWhatsAppOrder(text);
-            if(!items.length) { showToast('لم نجد طلبات صالحة','error'); return; }
+            if(!items.length) { showToast('لم نجد طلبات صالحة. تأكد من وجود أعداد وأنواع بحص معروفة.','error'); return; }
             const finalTime = customTime || extractedTime || '';
             let added=0; showLoading(true);
             for(const it of items){
