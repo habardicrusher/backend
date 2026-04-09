@@ -6,7 +6,7 @@
     <title>الطلبات - نظام إدارة طلبات البحص</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* نفس الأنماط السابقة (أضفها كما هي، أو استخدم الأنماط التي كانت تعمل) */
+        /* نفس الأنماط السابقة (اخترتها للاختصار، لكن احتفظ بها كما هي) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -134,9 +134,17 @@
                 renderOrders();
             } catch(e) { orders = []; renderOrders(); showToast('خطأ في تحميل الطلبات', 'error'); }
         }
+        
+        // إصلاح حفظ البيانات ليشمل timestamp
         async function saveData() {
             try {
-                const cleaned = orders.map(o => ({ id: o.id, factory: o.factory, material: o.material, time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '' }));
+                const cleaned = orders.map(o => ({ 
+                    id: o.id, 
+                    factory: o.factory, 
+                    material: o.material, 
+                    time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '',
+                    timestamp: o.timestamp || new Date().toLocaleTimeString('ar-SA')
+                }));
                 await apiCall(`/day/${currentDate}`, 'PUT', { orders: cleaned, distribution: currentDistribution });
                 return true;
             } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
@@ -147,7 +155,6 @@
             const material = document.getElementById('materialType').value;
             const count = parseInt(document.getElementById('orderCount').value);
             let time = document.getElementById('orderTime').value.trim();
-            // منع تخزين النص "undefined"
             if (time === 'undefined' || time === 'null') time = '';
             if (!factory || !material || !count) {
                 showToast('املأ جميع الحقول المطلوبة', 'error');
@@ -248,7 +255,7 @@
                             <span>🏭 ${o.factory}</span>
                             <span>📦 ${o.material}</span>
                             ${timeDisplay}
-                            <span>🕐 ${o.timestamp}</span>
+                            <span>🕐 ${o.timestamp || '—'}</span>
                         </div>
                         <div class="order-actions">
                             <button class="btn btn-sm btn-warning" onclick="openEditOrderModal('${o.id}')">✏️</button>
@@ -265,7 +272,7 @@
                 'المصنع': o.factory,
                 'نوع البحص': o.material,
                 'التوقيت': (o.time && o.time !== 'undefined') ? o.time : '',
-                'وقت الإضافة': o.timestamp
+                'وقت الإضافة': o.timestamp || '—'
             }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
