@@ -87,7 +87,7 @@
         let factoriesWithLocation = [];
 
         function formatTime(time) {
-            if (!time || time === 'undefined' || time === 'null' || time.trim() === '') return 'لم يتم اختيار الوقت';
+            if (!time || time === 'undefined' || time === 'null' || time.trim() === '') return '—';
             return time;
         }
 
@@ -162,7 +162,6 @@
             }).join('');
         }
 
-        // ===================== تصدير Excel كامل بـ 8 أوراق =====================
         async function exportFullExcel() {
             if(!currentReportData){ showToast('لا توجد بيانات','error'); return; }
             let start=document.getElementById('reportStartDate').value, end=document.getElementById('reportEndDate').value;
@@ -179,56 +178,48 @@
                 let workbook=new ExcelJS.Workbook(); workbook.creator='نظام إدارة طلبات البحص'; workbook.created=new Date();
                 let headerFill={type:'pattern',pattern:'solid',fgColor:{argb:'FF4472C4'}}, headerFont={bold:true,color:{argb:'FFFFFFFF'},size:12}, titleFont={bold:true,color:{argb:'FF1F4E79'},size:16}, dataFont={size:11}, centerAlign={horizontal:'center',vertical:'middle'}, rightAlign={horizontal:'right',vertical:'middle'}, thinBorder={top:{style:'thin'},left:{style:'thin'},bottom:{style:'thin'},right:{style:'thin'}};
 
-                // ورقة 1: ملخص التقرير
                 let ws1=workbook.addWorksheet('ملخص التقرير',{views:[{rightToLeft:true}]}); ws1.columns=[{width:35},{width:25}];
                 ws1.mergeCells('A1:B1'); ws1.getCell('A1').value='📊 التقرير الشامل'; ws1.getCell('A1').font={...titleFont,size:20}; ws1.getCell('A1').alignment=centerAlign; ws1.getRow(1).height=45;
                 ws1.mergeCells('A2:B2'); ws1.getCell('A2').value=`الفترة: من ${start} إلى ${end}`; ws1.getCell('A2').font={bold:true,size:13,color:{argb:'FF2E75B6'}}; ws1.getCell('A2').alignment=centerAlign;
                 let summ=[['إجمالي الرحلات',totalTrips],['عدد السائقين',totalDrivers],['عدد المصانع',Object.keys(data.factoryStats).length],['أنواع البحص',Object.keys(data.materialStats).length],['رحلات رود 1',road1Total],['رحلات رود 2',road2Total],['رحلات رود 3',road3Total],['متوسط الرحلات/سائق',totalDrivers?(totalTrips/totalDrivers).toFixed(2):0],['أيام عمل',totalActiveDays],['الهدف الأساسي (2 رود/يوم)',requiredTotal],['رحلات الرياض',locStats['الرياض']],['رحلات الدمام',locStats['الدمام']],['رحلات أخرى',locStats['أخرى']]];
                 summ.forEach((item,idx)=>{ let r=ws1.getRow(4+idx); r.values=item; r.height=25; r.eachCell((cell,col)=>{ cell.font=col===1?{...dataFont,bold:true}:{...dataFont,bold:true,color:{argb:'FF2E75B6'}}; cell.alignment=col===1?rightAlign:centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:idx%2===0?'FFF2F7FB':'FFFFFFFF'}}; }); });
 
-                // ورقة 2: تقرير السائقين
                 let ws2=workbook.addWorksheet('تقرير السائقين',{views:[{rightToLeft:true}]}); ws2.columns=[{width:8},{width:14},{width:22},{width:14},{width:30},{width:30},{width:30},{width:12},{width:14},{width:18}];
                 ws2.mergeCells('A1:J1'); ws2.getCell('A1').value='🏆 تقرير السائقين مع نسبة الإنجاز (الهدف 2 رود/يوم)'; ws2.getCell('A1').font={...titleFont,size:18}; ws2.getCell('A1').alignment=centerAlign; ws2.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E4F0'}}; ws2.getRow(1).height=40;
                 let driverHeaders=['#','رقم السيارة','السائق','إجمالي','المصنع (رود 1)','المصنع (رود 2)','المصنع (رود 3)','النسبة %','أيام عمل','الهدف'];
                 let hrow=ws2.getRow(2); hrow.values=driverHeaders; hrow.height=30; hrow.eachCell(cell=>{ cell.font=headerFont; cell.fill=headerFill; cell.alignment=centerAlign; cell.border=thinBorder; });
                 for(let i=0;i<sortedDrivers.length;i++){ let d=sortedDrivers[i]; let perc=requiredTotal>0?((d.total/requiredTotal)*100).toFixed(1):0; let f1=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,1); let f2=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,2); let f3=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,3); let row=ws2.getRow(3+i); row.values=[i+1,d.number,d.driver,d.total,f1,f2,f3,perc+'%',totalActiveDays,`${requiredTotal} (2×${totalActiveDays})`]; row.height=22; let bg=i%2===0?'FFF2F7FB':'FFFFFFFF'; row.eachCell(cell=>{ cell.font=dataFont; cell.alignment=centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; }); }
 
-                // ورقة 3: رسم السائقين (نصي)
                 let ws3=workbook.addWorksheet('رسم السائقين',{views:[{rightToLeft:true}]}); ws3.columns=[{width:25},{width:12},{width:60}];
                 ws3.mergeCells('A1:C1'); ws3.getCell('A1').value='📊 رسم بياني - رحلات السائقين (أفضل 20)'; ws3.getCell('A1').font={...titleFont,size:16}; ws3.getCell('A1').alignment=centerAlign; ws3.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E4F0'}}; ws3.getRow(1).height=38;
                 let ch=['السائق (رقم)','الإجمالي','رسم بياني']; let chRow=ws3.getRow(2); chRow.values=ch; chRow.height=28; chRow.eachCell(cell=>{ cell.font=headerFont; cell.fill=headerFill; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let top20=sortedDrivers.slice(0,20); let maxTotal=top20.length?top20[0].total:1;
                 top20.forEach((d,i)=>{ let row=ws3.getRow(3+i); let bar='█'.repeat(Math.round((d.total/maxTotal)*40)); row.values=[`${d.driver} (${d.number})`,d.total,bar+` (${d.total})`]; row.height=22; let bg=i%2===0?'FFF2F7FB':'FFFFFFFF'; row.eachCell((cell,col)=>{ cell.font=col===3?{name:'Consolas',size:10,bold:true,color:{argb:'FF4472C4'}}:dataFont; cell.alignment=col===3?{horizontal:'left',vertical:'middle'}:centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; }); });
 
-                // ورقة 4: رسم المصانع
                 let ws4=workbook.addWorksheet('رسم المصانع',{views:[{rightToLeft:true}]}); ws4.columns=[{width:35},{width:14},{width:14},{width:55}];
                 ws4.mergeCells('A1:D1'); ws4.getCell('A1').value='🏭 رسم بياني - طلبات المصانع'; ws4.getCell('A1').font={...titleFont,size:16}; ws4.getCell('A1').alignment=centerAlign; ws4.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFE2EFDA'}}; ws4.getRow(1).height=38;
                 let fh=['المصنع','الإجمالي','النسبة %','رسم بياني']; let fhRow=ws4.getRow(2); fhRow.values=fh; fhRow.height=28; fhRow.eachCell(cell=>{ cell.font=headerFont; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF548235'}}; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let sortedFactories=Object.values(data.factoryStats).sort((a,b)=>b.total-a.total); let maxFactory=sortedFactories.length?sortedFactories[0].total:1;
                 sortedFactories.forEach((f,i)=>{ let percent=totalTrips>0?((f.total/totalTrips)*100).toFixed(1):0; let bar='▓'.repeat(Math.round((f.total/maxFactory)*35))+` (${f.total})`; let row=ws4.getRow(3+i); row.values=[f.name,f.total,percent+'%',bar]; row.height=22; row.eachCell((cell,col)=>{ cell.font=col===4?{name:'Consolas',size:10,bold:true,color:{argb:'FF548235'}}:dataFont; cell.alignment=col===4?{horizontal:'left',vertical:'middle'}:(col===1?rightAlign:centerAlign); cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:i%2===0?'FFF2F7FB':'FFFFFFFF'}}; }); });
 
-                // ورقة 5: رسم البحص
                 let ws5=workbook.addWorksheet('رسم البحص',{views:[{rightToLeft:true}]}); ws5.columns=[{width:20},{width:16},{width:16},{width:50}];
                 ws5.mergeCells('A1:D1'); ws5.getCell('A1').value='📦 توزيع أنواع البحص'; ws5.getCell('A1').font={...titleFont,size:16}; ws5.getCell('A1').alignment=centerAlign; ws5.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFCE4D6'}}; ws5.getRow(1).height=38;
                 let mh=['نوع البحص','عدد الرحلات','النسبة %','رسم بياني']; let mhRow=ws5.getRow(2); mhRow.values=mh; mhRow.height=28; mhRow.eachCell(cell=>{ cell.font=headerFont; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFED7D31'}}; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let sortedMaterials=Object.values(data.materialStats).sort((a,b)=>b.total-a.total); let matColors=['FF4472C4','FFED7D31','FFA5A5A5','FFFFC000','FF5B9BD5'];
                 sortedMaterials.forEach((m,i)=>{ let percent=totalTrips>0?((m.total/totalTrips)*100).toFixed(1):0; let pie='●'.repeat(Math.round(parseFloat(percent)/2.5))+` ${percent}%`; let row=ws5.getRow(3+i); row.values=[`بحص ${m.name}`,m.total,percent+'%',pie]; row.height=30; let color=matColors[i%matColors.length]; row.eachCell((cell,col)=>{ cell.font=col===4?{name:'Consolas',size:12,bold:true,color:{argb:color}}:{...dataFont,bold:true}; cell.alignment=col===4?{horizontal:'left',vertical:'middle'}:centerAlign; cell.border=thinBorder; }); ws5.getCell(`A${3+i}`).fill={type:'pattern',pattern:'solid',fgColor:{argb:color}}; ws5.getCell(`A${3+i}`).font={...dataFont,bold:true,color:{argb:'FFFFFFFF'},size:12}; });
 
-                // ورقة 6: الرحلات اليومية
                 let ws6=workbook.addWorksheet('الرحلات اليومية',{views:[{rightToLeft:true}]}); ws6.columns=[{width:16},{width:16},{width:14},{width:55}];
                 ws6.mergeCells('A1:D1'); ws6.getCell('A1').value='📅 الرحلات اليومية'; ws6.getCell('A1').font={...titleFont,size:16}; ws6.getCell('A1').alignment=centerAlign; ws6.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E4F0'}}; ws6.getRow(1).height=38;
                 let dh=['التاريخ','اليوم','عدد الرحلات','رسم بياني']; let dhRow=ws6.getRow(2); dhRow.values=dh; dhRow.height=28; dhRow.eachCell(cell=>{ cell.font=headerFont; cell.fill=headerFill; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let sortedDates=Object.entries(data.dailyData).filter(([,v])=>v>0).sort((a,b)=>a[0].localeCompare(b[0])); let maxDaily=Math.max(1,...sortedDates.map(([,v])=>v));
                 sortedDates.forEach(([dateStr,count],i)=>{ let dayName=new Date(dateStr).toLocaleDateString('ar-SA',{weekday:'long'}); let bar='▰'.repeat(Math.round((count/maxDaily)*35))+'▱'.repeat(35-Math.round((count/maxDaily)*35))+` (${count})`; let row=ws6.getRow(3+i); row.values=[dateStr,dayName,count,bar]; row.height=22; row.eachCell((cell,col)=>{ cell.font=col===4?{name:'Consolas',size:9,color:{argb:'FF4472C4'}}:dataFont; cell.alignment=col===4?{horizontal:'left',vertical:'middle'}:centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:i%2===0?'FFF2F7FB':'FFFFFFFF'}}; }); });
 
-                // ورقة 7: أفضل 10 سائقين
                 let ws7=workbook.addWorksheet('أفضل 10 سائقين',{views:[{rightToLeft:true}]}); ws7.columns=[{width:12},{width:15},{width:22},{width:16},{width:30},{width:30},{width:18}];
                 ws7.mergeCells('A1:G1'); ws7.getCell('A1').value='🏆 أفضل 10 سائقين (حسب عدد الرحلات)'; ws7.getCell('A1').font={...titleFont,size:18}; ws7.getCell('A1').alignment=centerAlign; ws7.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF2CC'}}; ws7.getRow(1).height=42;
                 let th=['الترتيب','رقم السيارة','السائق','عدد الرحلات','المصنع (رود 1)','المصنع (رود 2)','الميدالية']; let thRow=ws7.getRow(2); thRow.values=th; thRow.height=30; thRow.eachCell(cell=>{ cell.font=headerFont; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFBF8F00'}}; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let medals=['🥇 الأول','🥈 الثاني','🥉 الثالث']; let medalColors=['FFFFD700','FFC0C0C0','FFCD7F32'];
                 for(let i=0;i<Math.min(10,sortedDrivers.length);i++){ let d=sortedDrivers[i]; let f1=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,1); let f2=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,2); let row=ws7.getRow(3+i); row.values=[i+1,d.number,d.driver,d.total,f1,f2,i<3?medals[i]:'⭐ متميز']; row.height=32; row.eachCell(cell=>{ cell.font={...dataFont,bold:i<3,size:i<3?13:11}; cell.alignment=centerAlign; cell.border=thinBorder; }); if(i<3) row.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:medalColors[i]}}; }); else row.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:i%2===0?'FFFFF2CC':'FFFFFFFF'}}; }); }
 
-                // ورقة 8: تفاصيل الرحلات (مع عرض الوقت)
                 let ws8=workbook.addWorksheet('تفاصيل الرحلات',{views:[{rightToLeft:true}]}); ws8.columns=[{width:8},{width:14},{width:14},{width:20},{width:35},{width:15},{width:12},{width:15}];
                 ws8.mergeCells('A1:H1'); ws8.getCell('A1').value='📋 تفاصيل جميع الرحلات (مع التوقيت)'; ws8.getCell('A1').font={...titleFont,size:16}; ws8.getCell('A1').alignment=centerAlign; ws8.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E4F0'}}; ws8.getRow(1).height=38;
                 let trh=['#','التاريخ','رقم السيارة','السائق','المصنع','نوع البحص','الرود','التوقيت']; let trhRow=ws8.getRow(2); trhRow.values=trh; trhRow.height=28; trhRow.eachCell(cell=>{ cell.font=headerFont; cell.fill=headerFill; cell.alignment=centerAlign; cell.border=thinBorder; });
@@ -242,7 +233,6 @@
             showLoading(false);
         }
 
-        // ========== تصدير Excel بسيط ==========
         async function exportSimpleExcel() {
             if(!currentReportData){ showToast('لا توجد بيانات','error'); return; }
             let start=document.getElementById('reportStartDate').value, end=document.getElementById('reportEndDate').value;
