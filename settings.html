@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الإعدادات - نظام إدارة طلبات البحص</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; }
+        .header h1 { font-size: 2.5em; }
+        .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
+        .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; transition: all 0.3s; font-weight: 600; }
+        .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transform: translateY(-2px); }
+        .settings-section {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 25px;
+            margin-bottom: 30px;
+        }
+        .settings-section h3 {
+            margin-bottom: 20px;
+            color: #667eea;
+        }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px;
+        }
+        .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
+        .btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
+        .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
+        .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; }
+        .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 15px 25px; border-radius: 10px; font-weight: 600; animation: slideIn 0.3s ease; }
+        .toast-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color:#fff; }
+        .toast-error { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color:#fff; }
+        .toast-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color:#fff; }
+        .loading { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center; flex-direction:column; }
+        .loading.active { display: flex; }
+        .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .connection-status { position: fixed; bottom: 20px; right: 20px; padding: 8px 16px; border-radius: 25px; font-size: 0.8em; background: rgba(56,239,125,0.2); border:1px solid #38ef7d; color:#38ef7d; }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
+    <div class="toast-container" id="toastContainer"></div>
+    <div class="connection-status" id="connectionStatus">✅ متصل بالسيرفر</div>
+
+    <div class="container">
+        <div class="header"><h1>⚙️ الإعدادات والنسخ الاحتياطي</h1><p>إدارة البيانات والاستيراد والتصدير</p></div>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">📊 الرئيسية</a>
+            <a href="orders.html" class="nav-link">📝 الطلبات</a>
+            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+            <a href="factories.html" class="nav-link">🏭 المصانع</a>
+            <a href="reports.html" class="nav-link">📊 التقارير</a>
+            <a href="settings.html" class="nav-link active">⚙️ الإعدادات</a>
+        </div>
+
+        <!-- قسم النسخ الاحتياطي والاستيراد -->
+        <div class="settings-section">
+            <h3>💾 النسخ الاحتياطي والاستيراد</h3>
+            <button class="btn btn-success" onclick="exportDataToFile()">📤 تصدير نسخة احتياطية (JSON)</button>
+            <label class="btn btn-info" style="cursor:pointer;">📂 استيراد من JSON
+                <input type="file" id="backupFile" accept=".json" style="display:none;" onchange="importDataFromFile(event)">
+            </label>
+            <label class="btn btn-primary" style="cursor:pointer;">📂 استيراد طلبات من Excel
+                <input type="file" id="excelFile" accept=".xlsx,.xls" style="display:none;" onchange="importFromExcel(event)">
+            </label>
+            <button class="btn btn-info" onclick="downloadExcelTemplate()">📥 تحميل قالب Excel</button>
+        </div>
+
+        <!-- قسم مسح البيانات -->
+        <div class="settings-section">
+            <h3 style="color:#f5576c;">⚠️ مسح البيانات</h3>
+            <button class="btn btn-danger" onclick="clearDayOrders()">🗑️ مسح طلبات اليوم فقط</button>
+            <button class="btn btn-danger" onclick="clearAllData()">🗑️ مسح جميع البيانات (لا يمكن التراجع)</button>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
+            if (data && (method === 'POST' || method === 'PUT')) options.body = JSON.stringify(data);
+            const res = await fetch(`${API_BASE}${endpoint}`, options);
+            if (!res.ok) throw new Error(await res.text());
+            return res.json();
+        }
+
+        // تصدير نسخة احتياطية كاملة
+        async function exportDataToFile() {
+            showLoading(true);
+            try {
+                const res = await fetch('/api/backup', { credentials: 'include' });
+                if (!res.ok) throw new Error('فشل التصدير');
+                const data = await res.json();
+                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+                saveAs(blob, `نسخة_احتياطية_${new Date().toISOString().split('T')[0]}.json`);
+                showToast('✅ تم تصدير النسخة الاحتياطية', 'success');
+            } catch (err) {
+                showToast('❌ خطأ في التصدير', 'error');
+            }
+            showLoading(false);
+        }
+
+        // استيراد من JSON
+        async function importDataFromFile(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            showLoading(true);
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    const res = await fetch('/api/restore', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify(data)
+                    });
+                    const result = await res.json();
+                    if (res.ok && result.success) {
+                        showToast('✅ تم استعادة البيانات', 'success');
+                    } else {
+                        throw new Error(result.error || 'فشل الاستعادة');
+                    }
+                } catch (err) {
+                    showToast('❌ خطأ في الملف: ' + err.message, 'error');
+                }
+                showLoading(false);
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+
+        // استيراد من Excel (طلبات فقط)
+        async function importFromExcel(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            showLoading(true);
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const wb = XLSX.read(data, { type: 'array' });
+                    const sheet = wb.Sheets[wb.SheetNames[0]];
+                    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                    const today = new Date().toISOString().split('T')[0];
+                    let orders = [];
+                    for (let i = 1; i < rows.length; i++) {
+                        const row = rows[i];
+                        if (row[0] && row[1]) {
+                            const count = parseInt(row[2]) || 1;
+                            for (let j = 0; j < count; j++) {
+                                orders.push({
+                                    id: Date.now() + '_' + i + '_' + j,
+                                    factory: row[0].toString(),
+                                    material: row[1].toString(),
+                                    timestamp: new Date().toLocaleTimeString('ar-SA')
+                                });
+                            }
+                        }
+                    }
+                    if (orders.length) {
+                        const dayData = await apiCall(`/day/${today}`);
+                        const existingOrders = dayData.orders || [];
+                        const allOrders = [...existingOrders, ...orders];
+                        await apiCall(`/day/${today}`, 'PUT', { orders: allOrders, distribution: [] });
+                        showToast(`✅ تم استيراد ${orders.length} طلب لليوم`, 'success');
+                    } else {
+                        showToast('لا توجد بيانات صالحة في الملف', 'error');
+                    }
+                } catch (err) {
+                    showToast('خطأ في الاستيراد', 'error');
+                }
+                showLoading(false);
+            };
+            reader.readAsArrayBuffer(file);
+            event.target.value = '';
+        }
+
+        function downloadExcelTemplate() {
+            const ws = XLSX.utils.aoa_to_sheet([['المصنع', 'نوع البحص', 'العدد'], ['SCCCL', '3/4', 5]]);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'قالب_الطلبات');
+            XLSX.writeFile(wb, 'قالب_استيراد_طلبات.xlsx');
+            showToast('✅ تم تحميل القالب', 'success');
+        }
+
+        async function clearDayOrders() {
+            if (!confirm('هل أنت متأكد من مسح طلبات اليوم الحالي؟')) return;
+            const today = new Date().toISOString().split('T')[0];
+            showLoading(true);
+            try {
+                await apiCall(`/day/${today}`, 'PUT', { orders: [], distribution: [] });
+                showToast('✅ تم مسح طلبات اليوم', 'success');
+            } catch (err) {
+                showToast('❌ خطأ في المسح', 'error');
+            }
+            showLoading(false);
+        }
+
+        async function clearAllData() {
+            if (!confirm('⚠️ تحذير: هذا الإجراء سيمسح جميع البيانات (الطلبات، التوزيعات، الإعدادات) نهائياً. لا يمكن التراجع. هل أنت متأكد؟')) return;
+            showLoading(true);
+            try {
+                await apiCall('/clear-all', 'DELETE');
+                showToast('✅ تم مسح جميع البيانات', 'success');
+            } catch (err) {
+                showToast('❌ خطأ في مسح البيانات', 'error');
+            }
+            showLoading(false);
+        }
+
+        function showToast(msg, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.innerText = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            showLoading(true);
+            try {
+                // فقط نتحقق من الاتصال عبر استدعاء health (اختياري)
+                await fetch('/api/health', { credentials: 'include' });
+                showToast('✅ النظام جاهز', 'success');
+            } catch (e) {
+                showToast('⚠️ تحذير: غير متصل بالسيرفر', 'error');
+            }
+            showLoading(false);
+        });
+    </script>
+<script src="navbar.js"></script>
+</body>
+</html>

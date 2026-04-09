@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>سجل الأحداث - نظام إدارة طلبات البحص</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; }
+        .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
+        .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; font-weight: 600; }
+        .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { padding: 12px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+        th { background: rgba(102,126,234,0.3); }
+        .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; }
+        .toast { padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; background: #11998e; }
+        .loading { position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); display: none; align-items:center; justify-content:center; z-index:2000; }
+        .loading.active { display: flex; }
+        .spinner { width:40px; height:40px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading"><div class="spinner"></div></div>
+    <div class="toast-container" id="toastContainer"></div>
+    <div class="container">
+        <div class="header"><h1>📜 سجل الأحداث</h1><p>تتبع إجراءات المستخدمين (من فعل ماذا ومتى)</p></div>
+        <div class="nav-links" id="navLinks"></div>
+        <table>
+            <thead><tr><th>التاريخ والوقت</th><th>المستخدم</th><th>الإجراء</th><th>التفاصيل</th></tr></thead>
+            <tbody id="logsBody"><tr><td colspan="4">جاري التحميل...</td></tr></tbody>
+        </table>
+    </div>
+    <script>
+        const API_BASE = '/api';
+        async function loadLogs() {
+            showLoading(true);
+            try {
+                const res = await fetch(`${API_BASE}/logs`, { credentials: 'include' });
+                if(!res.ok) throw new Error();
+                const logs = await res.json();
+                const tbody = document.getElementById('logsBody');
+                if(!logs.length) { tbody.innerHTML = '<tr><td colspan="4">لا توجد سجلات</td></tr>'; return; }
+                tbody.innerHTML = logs.map(l => `
+                    <tr>
+                        <td>${new Date(l.timestamp).toLocaleString('ar-SA')}</td>
+                        <td>${l.user}</td>
+                        <td>${l.action}</td>
+                        <td>${l.details || '-'}</td>
+                    </tr>
+                `).join('');
+            } catch(e) { document.getElementById('logsBody').innerHTML = '<tr><td colspan="4">خطأ في تحميل السجلات</td></tr>'; }
+            showLoading(false);
+        }
+        function showLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
+        function loadNav() { fetch('/api/me', {credentials:'include'}).then(r=>r.json()).then(data=>{ if(data.user) document.getElementById('navLinks').innerHTML = `<a href="index.html" class="nav-link">📊 الرئيسية</a><a href="orders.html" class="nav-link">📝 الطلبات</a><a href="distribution.html" class="nav-link">🚚 التوزيع</a><a href="trucks.html" class="nav-link">🚛 السيارات</a><a href="products.html" class="nav-link">📦 أنواع البحص</a><a href="factories.html" class="nav-link">🏭 المصانع</a><a href="reports.html" class="nav-link">📊 التقارير</a><a href="settings.html" class="nav-link">⚙️ الإعدادات</a><a href="restrictions.html" class="nav-link">⛔ الحظر</a><a href="users.html" class="nav-link">👥 المستخدمين</a><a href="logs.html" class="nav-link active">📜 السجلات</a>`; }).catch(()=>{ window.location='/login.html'; }); }
+        document.addEventListener('DOMContentLoaded', () => { loadNav(); loadLogs(); });
+    </script>
+<script src="navbar.js"></script>
+</body>
+</html>
