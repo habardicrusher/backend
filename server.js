@@ -16,21 +16,22 @@ if (!fs.existsSync(DAYS_DIR)) fs.mkdirSync(DAYS_DIR, { recursive: true });
 
 const defaultSettings = {
     factories: [
-        { name: 'SCCCL', location: 'الرياض' },
-        { name: 'الحارث للمنتجات الاسمنيه', location: 'الرياض' },
-        { name: 'الحارثي القديم', location: 'الرياض' },
-        { name: 'المعجل لمنتجات الاسمنت', location: 'الرياض' },
-        { name: 'الحارث العزيزية', location: 'الرياض' },
+        { name: 'SCCCL', location: 'الدمام' },
+        { name: 'الحارث للمنتجات الاسمنيه', location: 'الدمام' },
+        { name: 'الحارثي القديم', location: 'الدمام' },
+        { name: 'المعجل لمنتجات الاسمنت', location: 'الدمام' },
+        { name: 'الحارث العزيزية', location: 'الدمام' },
         { name: 'سارمكس النظيم', location: 'الرياض' },
         { name: 'عبر الخليج', location: 'الرياض' },
-        { name: 'الكفاح للخرسانة الجاهزة', location: 'الرياض' },
-        { name: 'القيشان 3', location: 'الرياض' },
-        { name: 'القيشان 2 - الأحجار الشرقية', location: 'الرياض' },
-        { name: 'القيشان 1', location: 'الرياض' },
+        { name: 'الكفاح للخرسانة الجاهزة', location: 'الدمام' },
+        { name: 'القيشان 3', location: 'الدمام' },
+        { name: 'القيشان 2 - الأحجار الشرقية', location: 'الدمام' },
+        { name: 'القيشان 1', location: 'الدمام' },
         { name: 'الفهد للبلوك والخرسانة', location: 'الرياض' }
     ],
     materials: ['3/4', '3/8', '3/16'],
-    trucks: [
+    trucks: [ /* ... (كما هو) */ ]
+};
         { number: '1091', driver: 'سينج' }, { number: '2757', driver: 'انيس' }, { number: '2758', driver: 'عارف' },
         { number: '2759', driver: 'عتيق الاسلام' }, { number: '2760', driver: 'سليمان' }, { number: '2762', driver: 'زرداد' },
         { number: '2818', driver: 'شهداب' }, { number: '2927', driver: 'مدثر' }, { number: '2928', driver: 'سمر اقبال' },
