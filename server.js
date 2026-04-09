@@ -397,10 +397,10 @@ app.delete('/api/clear-all', requireAuth, requireAdmin, (req, res) => {
 // ==================== تشغيل السيرفر ====================
 app.listen(PORT, () => {
     console.log('╔════════════════════════════════════════╗');
-    console.log('║   🚛 نظام إدارة طلبات البحص           ║');
+    console.log('║   🚛 Gravel Orders Management        ║');
     console.log('╠════════════════════════════════════════╣');
     console.log(`║   🌐 http://localhost:${PORT}             ║`);
-    console.log('║   👤 المدير: Admin                     ║');
-    console.log('║   🔐 كلمة المرور: admin123             ║');
+    console.log('║   👤 Admin: Admin                     ║');
+    console.log('║   🔐 Password: *****             ║');
     console.log('╚════════════════════════════════════════╝');
 });
