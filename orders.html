@@ -6,7 +6,6 @@
     <title>الطلبات - نظام إدارة طلبات البحص</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* نفس الأنماط السابقة - لا تغيير */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -93,20 +92,10 @@
         <div id="todayOrders"></div>
     </div>
     <div class="modal" id="editOrderModal"><div class="modal-content"><div class="modal-header"><h3>✏️ تعديل الطلب</h3><button class="close-modal" onclick="closeModal('editOrderModal')">&times;</button></div><div class="modal-body"><input type="hidden" id="editOrderId"><div class="form-group"><label>🏭 المصنع</label><select id="editOrderFactory"></select></div><div class="form-group"><label>📦 نوع البحص</label><select id="editOrderMaterial"></select></div><div class="form-group"><label>⏰ التوقيت</label><input type="text" id="editOrderTime"></div></div><div class="modal-footer"><button class="btn btn-danger" onclick="closeModal('editOrderModal')">إلغاء</button><button class="btn btn-success" onclick="saveOrderEdit()">حفظ</button></div></div></div>
-
     <script>
         const API_BASE = '/api';
         let factories = [], materials = [], orders = [], currentDate = '';
         let currentDistribution = [];
-
-        // دالة مساعدة لاستخراج النص من كائن أو سلسلة
-        function extractName(item) {
-            if (typeof item === 'string') return item;
-            if (item && typeof item === 'object') {
-                return item.name || item.factory_name || item.material_name || item.text || '';
-            }
-            return '';
-        }
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -121,34 +110,28 @@
         async function loadSettings() {
             try {
                 const data = await apiCall('/settings');
-                // معالجة المصانع
-                factories = (data.factories || []).map(f => extractName(f)).filter(f => f);
-                // معالجة المواد
-                materials = (data.materials || []).map(m => extractName(m)).filter(m => m);
-                console.log('تم تحميل المصانع:', factories);
-                console.log('تم تحميل المواد:', materials);
-                updateSelects();
-                renderQuickAddButtons();
+                factories = (data.factories || []).map(f => typeof f === 'object' ? (f.name || f.factory_name || f.text || '') : f);
+                materials = (data.materials || []).map(m => typeof m === 'object' ? (m.name || m.material_name || m.text || '') : m);
+                updateSelects(); renderQuickAddButtons();
             } catch(e) { showToast('خطأ في تحميل الإعدادات', 'error'); }
         }
-
         function updateSelects() {
-            const factOpt = '<option value="">-- اختر --</option>' + factories.map(f => `<option value="${f}">${f}</option>`).join('');
+            const validFactories = factories.filter(f => f && f.trim());
+            const factOpt = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
             document.getElementById('factorySelect').innerHTML = factOpt;
             document.getElementById('editOrderFactory').innerHTML = factOpt;
             document.getElementById('whatsappFactory').innerHTML = factOpt;
-
-            const matOpt = '<option value="">-- اختر --</option>' + materials.map(m => `<option value="${m}">بحص ${m}</option>`).join('');
+            const validMaterials = materials.filter(m => m && m.trim());
+            const matOpt = '<option value="">-- اختر --</option>' + validMaterials.map(m => `<option value="${m}">بحص ${m}</option>`).join('');
             document.getElementById('materialType').innerHTML = matOpt;
             document.getElementById('editOrderMaterial').innerHTML = matOpt;
         }
-
         function renderQuickAddButtons() {
             const container = document.getElementById('quickAddButtons');
-            if (!materials.length) { container.innerHTML = '<p>لا توجد أنواع بحص</p>'; return; }
-            container.innerHTML = materials.map(m => `<button class="quick-btn" onclick="quickAdd('${m}',1)">${m} ×1</button><button class="quick-btn" onclick="quickAdd('${m}',5)">${m} ×5</button><button class="quick-btn" onclick="quickAdd('${m}',10)">${m} ×10</button>`).join('');
+            const valid = materials.filter(m => m && m.trim());
+            if (!valid.length) { container.innerHTML = '<p>لا توجد أنواع بحص</p>'; return; }
+            container.innerHTML = valid.map(m => `<button class="quick-btn" onclick="quickAdd('${m}',1)">${m} ×1</button><button class="quick-btn" onclick="quickAdd('${m}',5)">${m} ×5</button><button class="quick-btn" onclick="quickAdd('${m}',10)">${m} ×10</button>`).join('');
         }
-
         async function loadDayData() {
             currentDate = document.getElementById('orderDate').value;
             try {
@@ -158,65 +141,50 @@
                 renderOrders();
             } catch(e) { orders = []; renderOrders(); showToast('خطأ في تحميل الطلبات', 'error'); }
         }
-
         async function saveData() {
             try {
-                const cleaned = orders.map(o => ({ id: o.id, factory: o.factory, material: o.material, time: o.time || '' }));
+                const cleaned = orders.map(o => ({ id: o.id, factory: o.factory, material: o.material, time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '' }));
                 await apiCall(`/day/${currentDate}`, 'PUT', { orders: cleaned, distribution: currentDistribution });
                 return true;
             } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
         }
-
-        // دالة تحليل واتساب (نفس الكود السابق المحسن)
         function parseWhatsAppOrder(text) {
             let cleaned = text.replace(/السلام\s*عليكم|صباح|مساء|اليوم|إنشاء\s*الله|بإذن\s*الله|حاضر|يرجى|مطلوب|طلبات?|عدد|الرجاء|من\s*فضلك|tonight|today|pm|am/gi, '');
             const arabicNumbers = { '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9' };
             cleaned = cleaned.replace(/[٠-٩]/g, d => arabicNumbers[d] || d);
             let extractedTime = '';
-            const timeMatch = text.match(/(\d{1,2}\s*(?:AM|PM|am|pm)|tonight\s+\d{1,2}\s*(?:AM|PM|am|pm)?|\d{1,2}:\d{2})/i);
-            if (timeMatch) extractedTime = timeMatch[0].trim();
+            const tm = text.match(/(\d{1,2}\s*(?:AM|PM|am|pm)|tonight\s+\d{1,2}\s*(?:AM|PM|am|pm)?|\d{1,2}:\d{2})/i);
+            if (tm) extractedTime = tm[0].trim();
             const lines = cleaned.split(/\r?\n/);
             const items = [];
-            const validMaterialsSet = new Set(materials.map(m => m.toLowerCase().trim()));
+            const validSet = new Set(materials.map(m => m.toLowerCase()));
             for (const line of lines) {
-                let trimmed = line.trim();
-                if (!trimmed || /^(pm|am|tonight|today)$/i.test(trimmed)) continue;
-                const parts = trimmed.split(/\s+/);
-                let quantity = null;
-                let materialParts = [];
-                for (let i = 0; i < parts.length; i++) {
-                    const part = parts[i];
-                    const numMatch = part.match(/^(\d+)$/);
-                    if (numMatch && quantity === null) {
-                        quantity = parseInt(numMatch[1]);
-                    } else {
-                        const cleanedPart = part.replace(/[#*×]/g, '').trim();
-                        if (cleanedPart) materialParts.push(cleanedPart);
-                    }
+                let l = line.trim();
+                if (!l || /^(pm|am|tonight|today)$/i.test(l)) continue;
+                let match = l.match(/^\s*(\d+)\s+([^\d]+?)\s*$/);
+                if (match) {
+                    let q = parseInt(match[1]), m = match[2].trim().replace(/[#*×]/g,'');
+                    if (m && q>0 && validSet.has(m.toLowerCase())) items.push({ material: m, quantity: q });
+                    continue;
                 }
-                if (quantity === null || materialParts.length === 0) continue;
-                let material = materialParts.join(' ').trim();
-                let matched = null;
-                const materialLower = material.toLowerCase();
-                for (let known of validMaterialsSet) {
-                    if (materialLower === known || materialLower.includes(known) || known.includes(materialLower)) {
-                        matched = known;
-                        break;
-                    }
+                match = l.match(/^\s*([^\d]+?)\s+(\d+)\s*$/);
+                if (match) {
+                    let m = match[1].trim().replace(/[#*×]/g,''), q = parseInt(match[2]);
+                    if (m && q>0 && validSet.has(m.toLowerCase())) items.push({ material: m, quantity: q });
+                    continue;
                 }
-                if (matched) {
-                    items.push({ material: matched, quantity });
+                match = l.match(/([^\d\s]+)\s*[#*×]\s*(\d+)/);
+                if (match) {
+                    let m = match[1].trim(), q = parseInt(match[2]);
+                    if (m && q>0 && validSet.has(m.toLowerCase())) items.push({ material: m, quantity: q });
                 }
             }
             const merged = [];
-            items.forEach(item => {
-                const existing = merged.find(m => m.material === item.material);
-                if (existing) existing.quantity += item.quantity;
-                else merged.push({ ...item });
-            });
-            return { items: merged, extractedTime };
+            items.forEach(it => { let ex = merged.find(x => x.material === it.material); if(ex) ex.quantity += it.quantity; else merged.push({...it}); });
+            const unknown = merged.filter(it => !validSet.has(it.material.toLowerCase()));
+            if(unknown.length) showToast(`⚠️ أنواع غير معروفة: ${unknown.map(u=>u.material).join(', ')}`, 'warning');
+            return { items: merged.filter(it => validSet.has(it.material.toLowerCase())), extractedTime };
         }
-
         async function processWhatsAppOrder() {
             const text = document.getElementById('whatsappText').value.trim();
             const factory = document.getElementById('whatsappFactory').value;
@@ -235,7 +203,6 @@
             if(await saveData()){ renderOrders(); document.getElementById('whatsappText').value=''; document.getElementById('whatsappFactory').value=''; document.getElementById('whatsappTime').value=''; showToast(`✅ تم إضافة ${added} طلب`,'success'); }
             showLoading(false);
         }
-
         async function addOrder() {
             const factory = document.getElementById('factorySelect').value;
             const material = document.getElementById('materialType').value;
@@ -247,7 +214,6 @@
             if(await saveData()){ renderOrders(); document.getElementById('orderCount').value='1'; document.getElementById('orderTime').value=''; showToast(`✅ تم إضافة ${count} طلب`,'success'); }
             showLoading(false);
         }
-
         async function quickAdd(material,count) {
             const factory = document.getElementById('factorySelect').value;
             const time = document.getElementById('orderTime').value.trim();
@@ -257,11 +223,35 @@
             if(await saveData()){ renderOrders(); showToast(`✅ تم إضافة ${count} طلب ${material}`,'success'); }
             showLoading(false);
         }
-
         async function deleteOrder(id) { if(confirm('حذف؟')){ orders = orders.filter(o=>o.id!==id); if(await saveData()) renderOrders(); } }
         function openEditOrderModal(id) { let o = orders.find(o=>o.id===id); if(o){ document.getElementById('editOrderId').value=id; document.getElementById('editOrderFactory').value=o.factory; document.getElementById('editOrderMaterial').value=o.material; document.getElementById('editOrderTime').value=o.time||''; openModal('editOrderModal'); } }
         async function saveOrderEdit() { let id=document.getElementById('editOrderId').value, idx=orders.findIndex(o=>o.id===id); if(idx!==-1){ orders[idx].factory=document.getElementById('editOrderFactory').value; orders[idx].material=document.getElementById('editOrderMaterial').value; orders[idx].time=document.getElementById('editOrderTime').value; if(await saveData()){ renderOrders(); closeModal('editOrderModal'); } } }
-        function renderOrders() { let c=document.getElementById('todayOrders'), count=orders.length; document.getElementById('ordersCount').innerText=count; if(!count){ c.innerHTML='<p style="text-align:center;padding:30px;">لا توجد طلبات</p>'; return; } c.innerHTML=orders.map((o,i)=>`<div class="order-item"><div class="order-info"><span><strong>#${i+1}</strong></span><span>🏭 ${o.factory}</span><span>📦 ${o.material}</span>${o.time?`<span>⏰ ${o.time}</span>`:''}<span>🕐 ${o.timestamp}</span></div><div class="order-actions"><button class="btn btn-sm btn-warning" onclick="openEditOrderModal('${o.id}')">✏️</button><button class="btn btn-sm btn-danger" onclick="deleteOrder('${o.id}')">🗑️</button></div></div>`).join(''); }
+        function renderOrders() {
+            const container = document.getElementById('todayOrders');
+            document.getElementById('ordersCount').textContent = orders.length;
+            if (!orders.length) { container.innerHTML = '<p style="text-align:center;padding:30px;">لا توجد طلبات</p>'; return; }
+            container.innerHTML = orders.map((o, i) => {
+                let timeDisplay = '';
+                if (o.time && o.time !== 'undefined' && o.time !== 'null' && o.time.trim() !== '') {
+                    timeDisplay = `<span>⏰ ${o.time}</span>`;
+                }
+                return `
+                    <div class="order-item">
+                        <div class="order-info">
+                            <span><strong>#${i+1}</strong></span>
+                            <span>🏭 ${o.factory}</span>
+                            <span>📦 ${o.material}</span>
+                            ${timeDisplay}
+                            <span>🕐 ${o.timestamp}</span>
+                        </div>
+                        <div class="order-actions">
+                            <button class="btn btn-sm btn-warning" onclick="openEditOrderModal('${o.id}')">✏️</button>
+                            <button class="btn btn-sm btn-danger" onclick="deleteOrder('${o.id}')">🗑️</button>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
         function exportOrdersToExcel() { if(!orders.length){ showToast('لا توجد طلبات','error'); return; } let data=orders.map((o,i)=>({'#':i+1,'المصنع':o.factory,'نوع البحص':o.material,'التوقيت':o.time||'','وقت الإضافة':o.timestamp})); let ws=XLSX.utils.json_to_sheet(data); let wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'الطلبات'); XLSX.writeFile(wb,`طلبات_${currentDate}.xlsx`); showToast('✅ تم التصدير','success'); }
         function showToast(msg,type) { let c=document.getElementById('toastContainer'); let t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
         function showLoading(s) { document.getElementById('loading').classList.toggle('active',s); }
