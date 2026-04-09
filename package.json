@@ -1,20 +1,16 @@
 {
-  "name": "gravel-orders-system",
+  "name": "orders-management-system",
   "version": "1.0.0",
-  "description": "نظام إدارة طلبات البحص - نسخة كاملة للنشر",
+  "description": "نظام إدارة طلبات البحص",
   "main": "server.js",
   "scripts": {
-    "start": "node server.js",
-    "dev": "node server.js"
+    "start": "node server.js"
   },
   "dependencies": {
-    "bcryptjs": "^2.4.3",
-    "cors": "^2.8.6",
-    "express": "^4.22.1",
-    "express-session": "^1.18.0"
-  },
-  "keywords": ["gravel", "orders", "system"],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs"
+    "bcrypt": "^5.1.1",
+    "body-parser": "^1.20.2",
+    "cors": "^2.8.5",
+    "express": "^4.18.2",
+    "express-session": "^1.17.3"
+  }
 }
