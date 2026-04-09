@@ -84,8 +84,15 @@
             const opts = { method, headers:{'Content-Type':'application/json'}, credentials:'include' };
             if(data && (method==='POST'||method==='PUT')) opts.body = JSON.stringify(data);
             const res = await fetch(`${API_BASE}${endpoint}`, opts);
-            if (res.status === 401) { window.location.href = '/login.html'; throw new Error('غير مصرح'); }
-            if(!res.ok) throw new Error(await res.text());
+            if (res.status === 401) {
+                // إذا كانت الجلسة منتهية، نعيد توجيه المستخدم لتسجيل الدخول
+                window.location.href = '/login.html';
+                throw new Error('غير مصرح');
+            }
+            if(!res.ok) {
+                const err = await res.text();
+                throw new Error(err || `HTTP ${res.status}`);
+            }
             return res.json();
         }
 
@@ -96,6 +103,9 @@
                 const me = await apiCall('/me');
                 currentUserRole = me.user.role;
                 currentUserPermissions = me.user.permissions || {};
+                
+                console.log('User role:', currentUserRole);
+                console.log('User permissions:', currentUserPermissions);
                 
                 // التحقق من صلاحية manageUsers
                 const hasManageUsers = (currentUserRole === 'admin') || (currentUserPermissions && currentUserPermissions.manageUsers === true);
@@ -116,7 +126,7 @@
                 renderUsersTable();
                 renderPermissionsCheckboxes();
             } catch(e) { 
-                showToast('خطأ في تحميل البيانات', 'error');
+                showToast('خطأ في تحميل البيانات: ' + e.message, 'error');
                 console.error(e);
             }
             showLoading(false);
@@ -144,10 +154,14 @@
             try {
                 await apiCall('/users', 'POST', { username, password, role, permissions });
                 showToast('✅ تم إضافة المستخدم', 'success');
+                // إعادة تحميل المستخدمين بعد الإضافة
                 await loadUsers();
                 document.getElementById('newUsername').value = '';
                 document.getElementById('newPassword').value = '';
-            } catch(e) { showToast('خطأ: '+e.message, 'error'); }
+            } catch(e) { 
+                showToast('خطأ: ' + e.message, 'error');
+                if (e.message.includes('غير مصرح')) window.location.href = '/login.html';
+            }
             showLoading(false);
         }
 
@@ -163,7 +177,10 @@
                 await apiCall(`/users/${id}`, 'DELETE');
                 showToast('تم الحذف', 'success');
                 await loadUsers();
-            } catch(e) { showToast('خطأ', 'error'); }
+            } catch(e) { 
+                showToast('خطأ: ' + e.message, 'error');
+                if (e.message.includes('غير مصرح')) window.location.href = '/login.html';
+            }
             showLoading(false);
         }
 
@@ -193,6 +210,7 @@
             const permissions = {};
             document.querySelectorAll('#editPermissionsGrid input[type="checkbox"]').forEach(cb => { permissions[cb.value] = cb.checked; });
             const user = users.find(u => u.id == id);
+            if (!user) { showToast('المستخدم غير موجود', 'error'); return; }
             const data = { username: user.username, role, permissions };
             if(password) data.password = password;
             showLoading(true);
@@ -201,7 +219,10 @@
                 showToast('✅ تم التعديل', 'success');
                 closeModal();
                 await loadUsers();
-            } catch(e) { showToast('خطأ', 'error'); }
+            } catch(e) { 
+                showToast('خطأ: ' + e.message, 'error');
+                if (e.message.includes('غير مصرح')) window.location.href = '/login.html';
+            }
             showLoading(false);
         }
 
@@ -211,15 +232,25 @@
             tbody.innerHTML = users.map((u,i) => `
                 <tr>
                     <td>${i+1}</td>
-                    <td>${u.username}</td>
+                    <td>${escapeHtml(u.username)}</td>
                     <td>${u.role === 'admin' ? 'مدير' : 'مستخدم'}</td>
                     <td>${new Date(u.createdAt).toLocaleDateString('ar-SA')}</td>
                     <td>
                         <button class="btn btn-warning btn-sm" onclick="openEditModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">✏️ تعديل</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${u.username}')">🗑️ حذف</button>
+                        <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${escapeHtml(u.username)}')">🗑️ حذف</button>
                     </td>
                 </tr>
             `).join('');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
         }
 
         function showToast(msg,type) { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
