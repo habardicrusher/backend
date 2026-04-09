@@ -6,6 +6,7 @@
     <title>الطلبات - نظام إدارة طلبات البحص</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
+        /* نفس الأنماط السابقة (أضفها كما هي، أو استخدم الأنماط التي كانت تعمل) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -18,7 +19,7 @@
         .order-form { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px; margin-bottom: 25px; }
         .form-group { display: flex; flex-direction: column; gap: 8px; }
         .form-group label { font-weight: 600; color: #a8b2d1; }
-        .form-group select, .form-group input, .form-group textarea { padding: 12px 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 1em; }
+        .form-group select, .form-group input { padding: 12px 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 1em; }
         .form-group select option { background: #1a1a2e; }
         .btn { padding: 12px 25px; border: none; border-radius: 12px; cursor: pointer; font-size: 1em; font-weight: 600; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; }
         .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
@@ -65,7 +66,7 @@
             <div><button class="btn btn-info" onclick="exportOrdersToExcel()">📥 تصدير Excel</button></div>
         </div>
 
-        <h2 style="margin-top: 30px;">➕ إضافة طلب جديد</h2>
+        <h2>➕ إضافة طلب جديد</h2>
         <div class="order-form">
             <div class="form-group"><label>🏭 المصنع</label><select id="factorySelect"></select></div>
             <div class="form-group"><label>📦 نوع البحص</label><select id="materialType"></select></div>
@@ -113,7 +114,6 @@
             const factOpt = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
             document.getElementById('factorySelect').innerHTML = factOpt;
             document.getElementById('editOrderFactory').innerHTML = factOpt;
-
             const validMaterials = materials.filter(m => m && m.trim());
             const matOpt = '<option value="">-- اختر --</option>' + validMaterials.map(m => `<option value="${m}">بحص ${m}</option>`).join('');
             document.getElementById('materialType').innerHTML = matOpt;
@@ -136,13 +136,7 @@
         }
         async function saveData() {
             try {
-                // تنظيف الوقت قبل الحفظ
-                const cleaned = orders.map(o => ({
-                    id: o.id,
-                    factory: o.factory,
-                    material: o.material,
-                    time: (o.time && o.time !== 'undefined' && o.time !== 'null' && o.time.trim() !== '') ? o.time : ''
-                }));
+                const cleaned = orders.map(o => ({ id: o.id, factory: o.factory, material: o.material, time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '' }));
                 await apiCall(`/day/${currentDate}`, 'PUT', { orders: cleaned, distribution: currentDistribution });
                 return true;
             } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
@@ -152,81 +146,89 @@
             const factory = document.getElementById('factorySelect').value;
             const material = document.getElementById('materialType').value;
             const count = parseInt(document.getElementById('orderCount').value);
-            const time = document.getElementById('orderTime').value.trim();
-            if(!factory || !material || !count) { showToast('املأ جميع الحقول','error'); return; }
+            let time = document.getElementById('orderTime').value.trim();
+            // منع تخزين النص "undefined"
+            if (time === 'undefined' || time === 'null') time = '';
+            if (!factory || !material || !count) {
+                showToast('املأ جميع الحقول المطلوبة', 'error');
+                return;
+            }
             showLoading(true);
-            for(let i=0;i<count;i++) {
+            for (let i = 0; i < count; i++) {
                 orders.push({
-                    id: Date.now()+'_'+Math.random().toString(36).substr(2,9),
+                    id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                     factory,
                     material,
-                    time: (time && time !== 'undefined') ? time : '',
+                    time: time,
                     timestamp: new Date().toLocaleTimeString('ar-SA')
                 });
             }
-            if(await saveData()) {
+            if (await saveData()) {
                 renderOrders();
                 document.getElementById('orderCount').value = '1';
                 document.getElementById('orderTime').value = '';
-                showToast(`✅ تم إضافة ${count} طلب`,'success');
+                showToast(`✅ تم إضافة ${count} طلب`, 'success');
             }
             showLoading(false);
         }
 
         async function quickAdd(material, count) {
             const factory = document.getElementById('factorySelect').value;
-            const time = document.getElementById('orderTime').value.trim();
-            if(!factory){ showToast('اختر المصنع أولاً','error'); return; }
+            let time = document.getElementById('orderTime').value.trim();
+            if (time === 'undefined' || time === 'null') time = '';
+            if (!factory) {
+                showToast('اختر المصنع أولاً', 'error');
+                return;
+            }
             showLoading(true);
-            for(let i=0;i<count;i++) {
+            for (let i = 0; i < count; i++) {
                 orders.push({
-                    id: Date.now()+'_'+Math.random().toString(36).substr(2,9),
+                    id: Date.now() + '_' + Math.random().toString(36).substr(2, 9),
                     factory,
                     material,
-                    time: (time && time !== 'undefined') ? time : '',
+                    time: time,
                     timestamp: new Date().toLocaleTimeString('ar-SA')
                 });
             }
-            if(await saveData()) {
+            if (await saveData()) {
                 renderOrders();
-                showToast(`✅ تم إضافة ${count} طلب ${material}`,'success');
+                showToast(`✅ تم إضافة ${count} طلب ${material}`, 'success');
             }
             showLoading(false);
         }
 
         async function deleteOrder(id) {
-            if(confirm('حذف الطلب؟')) {
-                orders = orders.filter(o=>o.id!==id);
-                if(await saveData()) renderOrders();
+            if (confirm('حذف الطلب؟')) {
+                orders = orders.filter(o => o.id !== id);
+                if (await saveData()) renderOrders();
             }
         }
-
         function openEditOrderModal(id) {
-            let o = orders.find(o=>o.id===id);
-            if(o){
+            let o = orders.find(o => o.id === id);
+            if (o) {
                 document.getElementById('editOrderId').value = id;
                 document.getElementById('editOrderFactory').value = o.factory;
                 document.getElementById('editOrderMaterial').value = o.material;
-                document.getElementById('editOrderTime').value = o.time || '';
+                document.getElementById('editOrderTime').value = (o.time && o.time !== 'undefined') ? o.time : '';
                 openModal('editOrderModal');
             }
         }
-
         async function saveOrderEdit() {
             let id = document.getElementById('editOrderId').value;
-            let idx = orders.findIndex(o=>o.id===id);
-            if(idx !== -1){
+            let idx = orders.findIndex(o => o.id === id);
+            if (idx !== -1) {
                 orders[idx].factory = document.getElementById('editOrderFactory').value;
                 orders[idx].material = document.getElementById('editOrderMaterial').value;
-                orders[idx].time = document.getElementById('editOrderTime').value;
-                if(await saveData()) {
+                let newTime = document.getElementById('editOrderTime').value.trim();
+                if (newTime === 'undefined' || newTime === 'null') newTime = '';
+                orders[idx].time = newTime;
+                if (await saveData()) {
                     renderOrders();
                     closeModal('editOrderModal');
-                    showToast('✅ تم التعديل','success');
+                    showToast('✅ تم التعديل', 'success');
                 }
             }
         }
-
         function renderOrders() {
             const container = document.getElementById('todayOrders');
             document.getElementById('ordersCount').textContent = orders.length;
@@ -235,7 +237,6 @@
                 return;
             }
             container.innerHTML = orders.map((o, i) => {
-                // عرض الوقت فقط إذا كان موجوداً وصالحاً
                 let timeDisplay = '';
                 if (o.time && o.time !== 'undefined' && o.time !== 'null' && o.time.trim() !== '') {
                     timeDisplay = `<span>⏰ ${o.time}</span>`;
@@ -257,10 +258,9 @@
                 `;
             }).join('');
         }
-
         function exportOrdersToExcel() {
-            if(!orders.length){ showToast('لا توجد طلبات للتصدير','error'); return; }
-            const data = orders.map((o,i) => ({
+            if (!orders.length) { showToast('لا توجد طلبات للتصدير', 'error'); return; }
+            const data = orders.map((o, i) => ({
                 '#': i+1,
                 'المصنع': o.factory,
                 'نوع البحص': o.material,
@@ -271,17 +271,9 @@
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
             XLSX.writeFile(wb, `طلبات_${currentDate}.xlsx`);
-            showToast('✅ تم التصدير','success');
+            showToast('✅ تم التصدير', 'success');
         }
-
-        function showToast(msg,type) {
-            const c = document.getElementById('toastContainer');
-            const t = document.createElement('div');
-            t.className = `toast toast-${type}`;
-            t.innerText = msg;
-            c.appendChild(t);
-            setTimeout(() => t.remove(), 3000);
-        }
+        function showToast(msg,type) { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
         function showLoading(s) { document.getElementById('loading').classList.toggle('active', s); }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
