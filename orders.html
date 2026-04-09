@@ -20,7 +20,6 @@
         .form-group label { font-weight: 600; color: #a8b2d1; }
         .form-group select, .form-group input, .form-group textarea { padding: 12px 15px; border-radius: 10px; border: 2px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: #fff; font-size: 1em; }
         .form-group select option { background: #1a1a2e; }
-        .form-group textarea { resize: vertical; font-family: inherit; }
         .btn { padding: 12px 25px; border: none; border-radius: 12px; cursor: pointer; font-size: 1em; font-weight: 600; transition: all 0.3s; display: inline-flex; align-items: center; gap: 8px; }
         .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
         .btn-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
@@ -46,14 +45,10 @@
         .toast-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         .toast-error { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
         .toast-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
-        .toast-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         .loading { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center; flex-direction:column; }
         .loading.active { display: flex; }
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .whatsapp-section { margin-top: 30px; padding: 25px; background: linear-gradient(135deg, rgba(37, 211, 102, 0.1) 0%, rgba(37, 211, 102, 0.05) 100%); border-radius: 20px; border: 1px solid rgba(37, 211, 102, 0.3); }
-        .whatsapp-section h3 { color: #25D366; margin-bottom: 15px; }
-        .time-input { direction: ltr; text-align: right; }
         @media (max-width:768px){ .header h1 { font-size:1.5em; } }
     </style>
 </head>
@@ -69,29 +64,27 @@
             <div><label>📅 تاريخ العمل: </label><input type="date" id="orderDate" onchange="loadDayData()"></div>
             <div><button class="btn btn-info" onclick="exportOrdersToExcel()">📥 تصدير Excel</button></div>
         </div>
-        <div class="whatsapp-section">
-            <h3>💬 طلب واتساب</h3>
-            <p style="color: #a8b2d1; margin-bottom: 15px;">الصق نص الطلب، ثم اختر المصنع والتوقيت (اختياري)</p>
-            <div class="order-form">
-                <div class="form-group" style="grid-column: span 2;"><label>📋 نص الطلب:</label><textarea id="whatsappText" rows="4" placeholder="مثال:&#10;3/4 # 3&#10;3/8 # 2&#10;3/16 # 2"></textarea></div>
-                <div class="form-group"><label>🏭 المصنع:</label><select id="whatsappFactory"></select></div>
-                <div class="form-group"><label>⏰ توقيت الطلبية (اختياري):</label><input type="text" id="whatsappTime" placeholder="8 PM"></div>
-            </div>
-            <button class="btn btn-success" onclick="processWhatsAppOrder()">📥 تحليل وإضافة الطلبات</button>
-        </div>
+
         <h2 style="margin-top: 30px;">➕ إضافة طلب جديد</h2>
         <div class="order-form">
             <div class="form-group"><label>🏭 المصنع</label><select id="factorySelect"></select></div>
             <div class="form-group"><label>📦 نوع البحص</label><select id="materialType"></select></div>
             <div class="form-group"><label>🔢 العدد</label><input type="number" id="orderCount" min="1" value="1"></div>
-            <div class="form-group"><label>⏰ التوقيت</label><input type="text" id="orderTime" placeholder="8 PM"></div>
+            <div class="form-group"><label>⏰ التوقيت (اختياري)</label><input type="text" id="orderTime" placeholder="مثال: 8 PM"></div>
         </div>
         <button class="btn btn-success" onclick="addOrder()">✅ إضافة الطلب</button>
-        <div class="quick-add-section"><h4>⚡ إضافة سريعة (اختر المصنع أولاً)</h4><div class="quick-add-grid" id="quickAddButtons"></div></div>
+
+        <div class="quick-add-section">
+            <h4>⚡ إضافة سريعة (اختر المصنع أولاً)</h4>
+            <div class="quick-add-grid" id="quickAddButtons"></div>
+        </div>
+
         <h3 style="margin-top: 30px;">📋 طلبات اليوم (<span id="ordersCount">0</span> طلب)</h3>
         <div id="todayOrders"></div>
     </div>
-    <div class="modal" id="editOrderModal"><div class="modal-content"><div class="modal-header"><h3>✏️ تعديل الطلب</h3><button class="close-modal" onclick="closeModal('editOrderModal')">&times;</button></div><div class="modal-body"><input type="hidden" id="editOrderId"><div class="form-group"><label>🏭 المصنع</label><select id="editOrderFactory"></select></div><div class="form-group"><label>📦 نوع البحص</label><select id="editOrderMaterial"></select></div><div class="form-group"><label>⏰ التوقيت</label><input type="text" id="editOrderTime"></div></div><div class="modal-footer"><button class="btn btn-danger" onclick="closeModal('editOrderModal')">إلغاء</button><button class="btn btn-success" onclick="saveOrderEdit()">حفظ</button></div></div></div>
+
+    <div class="modal" id="editOrderModal"><div class="modal-content"><div class="modal-header"><h3>✏️ تعديل الطلب</h3><button class="close-modal" onclick="closeModal('editOrderModal')">&times;</button></div><div class="modal-body"><input type="hidden" id="editOrderId"><div class="form-group"><label>🏭 المصنع</label><select id="editOrderFactory"></select></div><div class="form-group"><label>📦 نوع البحص</label><select id="editOrderMaterial"></select></div><div class="form-group"><label>⏰ التوقيت</label><input type="text" id="editOrderTime" placeholder="اختياري"></div></div><div class="modal-footer"><button class="btn btn-danger" onclick="closeModal('editOrderModal')">إلغاء</button><button class="btn btn-success" onclick="saveOrderEdit()">حفظ</button></div></div></div>
+
     <script>
         const API_BASE = '/api';
         let factories = [], materials = [], orders = [], currentDate = '';
@@ -120,7 +113,7 @@
             const factOpt = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
             document.getElementById('factorySelect').innerHTML = factOpt;
             document.getElementById('editOrderFactory').innerHTML = factOpt;
-            document.getElementById('whatsappFactory').innerHTML = factOpt;
+
             const validMaterials = materials.filter(m => m && m.trim());
             const matOpt = '<option value="">-- اختر --</option>' + validMaterials.map(m => `<option value="${m}">بحص ${m}</option>`).join('');
             document.getElementById('materialType').innerHTML = matOpt;
@@ -143,116 +136,16 @@
         }
         async function saveData() {
             try {
-                const cleaned = orders.map(o => ({ id: o.id, factory: o.factory, material: o.material, time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '' }));
+                // تنظيف الوقت قبل الحفظ
+                const cleaned = orders.map(o => ({
+                    id: o.id,
+                    factory: o.factory,
+                    material: o.material,
+                    time: (o.time && o.time !== 'undefined' && o.time !== 'null' && o.time.trim() !== '') ? o.time : ''
+                }));
                 await apiCall(`/day/${currentDate}`, 'PUT', { orders: cleaned, distribution: currentDistribution });
                 return true;
             } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
-        }
-
-        // دالة تحليل واتساب شاملة لكل الصيغ
-        function parseWhatsAppOrder(text) {
-            // تنظيف النص من الكلمات العربية والإنجليزية
-            let cleaned = text.replace(/السلام\s*عليكم|صباح|مساء|اليوم|إنشاء\s*الله|بإذن\s*الله|حاضر|يرجى|مطلوب|طلبات?|عدد|الرجاء|من\s*فضلك|tonight|today|pm|am/gi, '');
-            // تحويل الأرقام العربية
-            const arabicNumbers = { '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9' };
-            cleaned = cleaned.replace(/[٠-٩]/g, d => arabicNumbers[d] || d);
-            
-            // استخراج التوقيت
-            let extractedTime = '';
-            const tm = text.match(/(\d{1,2}\s*(?:AM|PM|am|pm)|tonight\s+\d{1,2}\s*(?:AM|PM|am|pm)?|\d{1,2}:\d{2})/i);
-            if (tm) extractedTime = tm[0].trim();
-            
-            const lines = cleaned.split(/\r?\n/);
-            const items = [];
-            const validSet = new Set(materials.map(m => m.toLowerCase().trim()));
-            
-            for (let line of lines) {
-                let l = line.trim();
-                if (!l) continue;
-                if (/^(pm|am|tonight|today)$/i.test(l)) continue;
-                
-                // معالجة الصيغ المختلفة
-                let quantity = null;
-                let material = null;
-                
-                // الصيغة: "3/4 # 3" أو "3/4 #3" أو "3/4#3"
-                let hashMatch = l.match(/([^\d\s#*×]+)\s*[#*×]\s*(\d+)/);
-                if (hashMatch) {
-                    material = hashMatch[1].trim();
-                    quantity = parseInt(hashMatch[2]);
-                }
-                // الصيغة: "3 # 3/4" أو "3 #3/4" (عدد ثم # ثم مادة)
-                if (!quantity) {
-                    let revHash = l.match(/(\d+)\s*[#*×]\s*([^\d\s]+)/);
-                    if (revHash) {
-                        quantity = parseInt(revHash[1]);
-                        material = revHash[2].trim();
-                    }
-                }
-                // الصيغة: "3/4 3" (مادة ثم عدد بمسافة)
-                if (!quantity) {
-                    let spaceMatch = l.match(/([^\d\s]+)\s+(\d+)/);
-                    if (spaceMatch) {
-                        material = spaceMatch[1].trim();
-                        quantity = parseInt(spaceMatch[2]);
-                    }
-                }
-                // الصيغة: "3 3/4" (عدد ثم مادة بمسافة)
-                if (!quantity) {
-                    let revSpace = l.match(/(\d+)\s+([^\d\s]+)/);
-                    if (revSpace) {
-                        quantity = parseInt(revSpace[1]);
-                        material = revSpace[2].trim();
-                    }
-                }
-                
-                if (material && quantity && quantity > 0) {
-                    // تنظيف المادة من الرموز
-                    material = material.replace(/[#*×]/g, '').trim();
-                    const materialLower = material.toLowerCase();
-                    // البحث عن مطابقة في المواد المعروفة
-                    let matched = null;
-                    for (let known of validSet) {
-                        if (materialLower === known || known.includes(materialLower) || materialLower.includes(known)) {
-                            matched = known;
-                            break;
-                        }
-                    }
-                    if (matched) {
-                        items.push({ material: matched, quantity });
-                    } else {
-                        showToast(`⚠️ نوع البحص "${material}" غير معروف`, 'warning');
-                    }
-                }
-            }
-            
-            // دمج العناصر المكررة
-            const merged = [];
-            items.forEach(it => {
-                let ex = merged.find(x => x.material === it.material);
-                if (ex) ex.quantity += it.quantity;
-                else merged.push({ ...it });
-            });
-            return { items: merged, extractedTime };
-        }
-
-        async function processWhatsAppOrder() {
-            const text = document.getElementById('whatsappText').value.trim();
-            const factory = document.getElementById('whatsappFactory').value;
-            const customTime = document.getElementById('whatsappTime').value.trim();
-            if(!text || !factory) { showToast('املأ النص واختر المصنع','error'); return; }
-            const { items, extractedTime } = parseWhatsAppOrder(text);
-            if(!items.length) { showToast('لم نجد طلبات صالحة. تأكد من الصيغة مثل: 3/4 # 3','error'); return; }
-            const finalTime = customTime || extractedTime || '';
-            let added=0; showLoading(true);
-            for(const it of items){
-                for(let i=0;i<it.quantity;i++){
-                    orders.push({ id: Date.now()+'_'+Math.random().toString(36).substr(2,9)+'_'+added, factory, material: it.material, time: finalTime, timestamp: new Date().toLocaleTimeString('ar-SA') });
-                    added++;
-                }
-            }
-            if(await saveData()){ renderOrders(); document.getElementById('whatsappText').value=''; document.getElementById('whatsappFactory').value=''; document.getElementById('whatsappTime').value=''; showToast(`✅ تم إضافة ${added} طلب`,'success'); }
-            showLoading(false);
         }
 
         async function addOrder() {
@@ -260,32 +153,89 @@
             const material = document.getElementById('materialType').value;
             const count = parseInt(document.getElementById('orderCount').value);
             const time = document.getElementById('orderTime').value.trim();
-            if(!factory || !material || !count) { showToast('املأ الحقول','error'); return; }
+            if(!factory || !material || !count) { showToast('املأ جميع الحقول','error'); return; }
             showLoading(true);
-            for(let i=0;i<count;i++) orders.push({ id: Date.now()+'_'+Math.random().toString(36).substr(2,9), factory, material, time: (time && time !== 'undefined') ? time : '', timestamp: new Date().toLocaleTimeString('ar-SA') });
-            if(await saveData()){ renderOrders(); document.getElementById('orderCount').value='1'; document.getElementById('orderTime').value=''; showToast(`✅ تم إضافة ${count} طلب`,'success'); }
+            for(let i=0;i<count;i++) {
+                orders.push({
+                    id: Date.now()+'_'+Math.random().toString(36).substr(2,9),
+                    factory,
+                    material,
+                    time: (time && time !== 'undefined') ? time : '',
+                    timestamp: new Date().toLocaleTimeString('ar-SA')
+                });
+            }
+            if(await saveData()) {
+                renderOrders();
+                document.getElementById('orderCount').value = '1';
+                document.getElementById('orderTime').value = '';
+                showToast(`✅ تم إضافة ${count} طلب`,'success');
+            }
             showLoading(false);
         }
 
-        async function quickAdd(material,count) {
+        async function quickAdd(material, count) {
             const factory = document.getElementById('factorySelect').value;
             const time = document.getElementById('orderTime').value.trim();
             if(!factory){ showToast('اختر المصنع أولاً','error'); return; }
             showLoading(true);
-            for(let i=0;i<count;i++) orders.push({ id: Date.now()+'_'+Math.random().toString(36).substr(2,9), factory, material, time: (time && time !== 'undefined') ? time : '', timestamp: new Date().toLocaleTimeString('ar-SA') });
-            if(await saveData()){ renderOrders(); showToast(`✅ تم إضافة ${count} طلب ${material}`,'success'); }
+            for(let i=0;i<count;i++) {
+                orders.push({
+                    id: Date.now()+'_'+Math.random().toString(36).substr(2,9),
+                    factory,
+                    material,
+                    time: (time && time !== 'undefined') ? time : '',
+                    timestamp: new Date().toLocaleTimeString('ar-SA')
+                });
+            }
+            if(await saveData()) {
+                renderOrders();
+                showToast(`✅ تم إضافة ${count} طلب ${material}`,'success');
+            }
             showLoading(false);
         }
 
-        async function deleteOrder(id) { if(confirm('حذف؟')){ orders = orders.filter(o=>o.id!==id); if(await saveData()) renderOrders(); } }
-        function openEditOrderModal(id) { let o = orders.find(o=>o.id===id); if(o){ document.getElementById('editOrderId').value=id; document.getElementById('editOrderFactory').value=o.factory; document.getElementById('editOrderMaterial').value=o.material; document.getElementById('editOrderTime').value=o.time||''; openModal('editOrderModal'); } }
-        async function saveOrderEdit() { let id=document.getElementById('editOrderId').value, idx=orders.findIndex(o=>o.id===id); if(idx!==-1){ orders[idx].factory=document.getElementById('editOrderFactory').value; orders[idx].material=document.getElementById('editOrderMaterial').value; orders[idx].time=document.getElementById('editOrderTime').value; if(await saveData()){ renderOrders(); closeModal('editOrderModal'); } } }
-        
+        async function deleteOrder(id) {
+            if(confirm('حذف الطلب؟')) {
+                orders = orders.filter(o=>o.id!==id);
+                if(await saveData()) renderOrders();
+            }
+        }
+
+        function openEditOrderModal(id) {
+            let o = orders.find(o=>o.id===id);
+            if(o){
+                document.getElementById('editOrderId').value = id;
+                document.getElementById('editOrderFactory').value = o.factory;
+                document.getElementById('editOrderMaterial').value = o.material;
+                document.getElementById('editOrderTime').value = o.time || '';
+                openModal('editOrderModal');
+            }
+        }
+
+        async function saveOrderEdit() {
+            let id = document.getElementById('editOrderId').value;
+            let idx = orders.findIndex(o=>o.id===id);
+            if(idx !== -1){
+                orders[idx].factory = document.getElementById('editOrderFactory').value;
+                orders[idx].material = document.getElementById('editOrderMaterial').value;
+                orders[idx].time = document.getElementById('editOrderTime').value;
+                if(await saveData()) {
+                    renderOrders();
+                    closeModal('editOrderModal');
+                    showToast('✅ تم التعديل','success');
+                }
+            }
+        }
+
         function renderOrders() {
             const container = document.getElementById('todayOrders');
             document.getElementById('ordersCount').textContent = orders.length;
-            if (!orders.length) { container.innerHTML = '<p style="text-align:center;padding:30px;">لا توجد طلبات</p>'; return; }
+            if (!orders.length) {
+                container.innerHTML = '<p style="text-align:center;padding:30px;">لا توجد طلبات</p>';
+                return;
+            }
             container.innerHTML = orders.map((o, i) => {
+                // عرض الوقت فقط إذا كان موجوداً وصالحاً
                 let timeDisplay = '';
                 if (o.time && o.time !== 'undefined' && o.time !== 'null' && o.time.trim() !== '') {
                     timeDisplay = `<span>⏰ ${o.time}</span>`;
@@ -307,10 +257,32 @@
                 `;
             }).join('');
         }
-        
-        function exportOrdersToExcel() { if(!orders.length){ showToast('لا توجد طلبات','error'); return; } let data=orders.map((o,i)=>({'#':i+1,'المصنع':o.factory,'نوع البحص':o.material,'التوقيت':o.time||'','وقت الإضافة':o.timestamp})); let ws=XLSX.utils.json_to_sheet(data); let wb=XLSX.utils.book_new(); XLSX.utils.book_append_sheet(wb,ws,'الطلبات'); XLSX.writeFile(wb,`طلبات_${currentDate}.xlsx`); showToast('✅ تم التصدير','success'); }
-        function showToast(msg,type) { let c=document.getElementById('toastContainer'); let t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
-        function showLoading(s) { document.getElementById('loading').classList.toggle('active',s); }
+
+        function exportOrdersToExcel() {
+            if(!orders.length){ showToast('لا توجد طلبات للتصدير','error'); return; }
+            const data = orders.map((o,i) => ({
+                '#': i+1,
+                'المصنع': o.factory,
+                'نوع البحص': o.material,
+                'التوقيت': (o.time && o.time !== 'undefined') ? o.time : '',
+                'وقت الإضافة': o.timestamp
+            }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
+            XLSX.writeFile(wb, `طلبات_${currentDate}.xlsx`);
+            showToast('✅ تم التصدير','success');
+        }
+
+        function showToast(msg,type) {
+            const c = document.getElementById('toastContainer');
+            const t = document.createElement('div');
+            t.className = `toast toast-${type}`;
+            t.innerText = msg;
+            c.appendChild(t);
+            setTimeout(() => t.remove(), 3000);
+        }
+        function showLoading(s) { document.getElementById('loading').classList.toggle('active', s); }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         function logout() { if(confirm('تسجيل الخروج؟')) fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html'); }
