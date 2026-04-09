@@ -14,6 +14,7 @@ const DAYS_DIR = path.join(DATA_DIR, 'days');
 if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true });
 if (!fs.existsSync(DAYS_DIR)) fs.mkdirSync(DAYS_DIR, { recursive: true });
 
+// ==================== الإعدادات الافتراضية (ثابتة) ====================
 const defaultSettings = {
     factories: [
         { name: 'SCCCL', location: 'الدمام' },
@@ -30,8 +31,7 @@ const defaultSettings = {
         { name: 'الفهد للبلوك والخرسانة', location: 'الرياض' }
     ],
     materials: ['3/4', '3/8', '3/16'],
-    trucks: [ /* ... (كما هو) */ ]
-};
+    trucks: [
         { number: '1091', driver: 'سينج' }, { number: '2757', driver: 'انيس' }, { number: '2758', driver: 'عارف' },
         { number: '2759', driver: 'عتيق الاسلام' }, { number: '2760', driver: 'سليمان' }, { number: '2762', driver: 'زرداد' },
         { number: '2818', driver: 'شهداب' }, { number: '2927', driver: 'مدثر' }, { number: '2928', driver: 'سمر اقبال' },
@@ -60,6 +60,7 @@ const defaultSettings = {
     ]
 };
 
+// ==================== Middleware ====================
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
@@ -70,6 +71,7 @@ app.use(session({
     cookie: { secure: false, httpOnly: true, maxAge: 30 * 24 * 60 * 60 * 1000 }
 }));
 
+// ==================== دوال مساعدة ====================
 function readJSON(filename) {
     const filepath = path.join(DATA_DIR, filename);
     if (fs.existsSync(filepath)) return JSON.parse(fs.readFileSync(filepath, 'utf8'));
@@ -106,7 +108,7 @@ function requireAdmin(req, res, next) {
     res.status(403).json({ error: 'صلاحيات المدير مطلوبة' });
 }
 
-// دالة مساعدة لإرجاع جميع الصلاحيات ما عدا manageUsers
+// ==================== تهيئة البيانات (مع تثبيت المصانع والمستخدمين) ====================
 function getAllPermissionsExceptManageUsers() {
     return {
         viewOrders: true, addOrders: true, editOrders: true, deleteOrders: true,
@@ -119,8 +121,8 @@ function getAllPermissionsExceptManageUsers() {
 function initializeData() {
     let users = readJSON('users.json') || [];
     let updated = false;
-    
-    // المستخدم Admin
+
+    // مستخدم Admin
     if (!users.find(u => u.username === 'Admin')) {
         const hashedPassword = bcrypt.hashSync('Live#5050', 10);
         users.push({
@@ -135,8 +137,8 @@ function initializeData() {
         updated = true;
         console.log('✅ Admin created: Admin / Live#5050');
     }
-    
-    // المستخدمون الإضافيون الذين تريد تثبيتهم
+
+    // مستخدمون إضافيون (ثابتون)
     const fixedUsers = [
         { username: 'hassan', password: '305075', role: 'user' },
         { username: 'Abu Naji', password: '987654', role: 'user' },
@@ -144,7 +146,6 @@ function initializeData() {
         { username: 'DrH', password: 'Account@2026', role: 'user' },
         { username: 'Kasara', password: '20102026', role: 'user' }
     ];
-    
     for (const fixed of fixedUsers) {
         if (!users.find(u => u.username === fixed.username)) {
             const hashedPassword = bcrypt.hashSync(fixed.password, 10);
@@ -160,9 +161,9 @@ function initializeData() {
             console.log(`✅ تم إضافة المستخدم التلقائي: ${fixed.username}`);
         }
     }
-    
     if (updated) writeJSON('users.json', users);
-    
+
+    // إعدادات المصانع والمواد والمركبات
     let settings = readJSON('settings.json');
     if (!settings) {
         writeJSON('settings.json', defaultSettings);
@@ -174,9 +175,9 @@ function initializeData() {
     if (!readJSON('restrictions.json')) writeJSON('restrictions.json', []);
     if (!readJSON('logs.json')) writeJSON('logs.json', []);
 }
-
 initializeData();
 
+// ==================== API Routes ====================
 app.post('/api/login', (req, res) => {
     const { username, password } = req.body;
     const users = readJSON('users.json') || [];
@@ -443,6 +444,7 @@ app.use(express.static(__dirname, {
     }
 }));
 
+// ==================== تشغيل السيرفر ====================
 app.listen(PORT, () => {
     console.log(`Server running on http://localhost:${PORT}`);
 });
