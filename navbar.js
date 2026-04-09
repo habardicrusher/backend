@@ -1,24 +1,16 @@
 // navbar.js - إنشاء شريط التنقل الموحد في جميع الصفحات
 (function() {
-    // التحقق من وجود المستخدم (للتأكد من أنه مسجل دخول)
-    fetch('/api/me', { credentials: 'include' })
-        .then(res => res.json())
-        .then(data => {
-            if (data.user) {
-                renderNavbar();
-            } else {
-                // إذا لم يكن مسجل دخول، لا نعرض الشريط (أو نعرضه بدون روابط)
-                // لكن الأفضل توجيهه لتسجيل الدخول
-                // window.location.href = '/login.html';
-            }
-        })
-        .catch(() => {});
+    // إضافة keep-alive للحفاظ على الجلسة
+    setInterval(async () => {
+        try {
+            await fetch('/api/me', { credentials: 'include' });
+            console.log('navbar keep-alive');
+        } catch(e) {}
+    }, 5 * 60 * 1000);
 
     function renderNavbar() {
-        // البحث عن حاوية شريط التنقل
         let navContainer = document.querySelector('.nav-links');
         if (!navContainer) {
-            // إذا لم توجد، ننشئها داخل .container بعد الهيدر
             const container = document.querySelector('.container');
             if (!container) return;
             const header = document.querySelector('.header');
@@ -31,7 +23,6 @@
             }
         }
 
-        // الروابط الكاملة (جميع الصفحات)
         const links = [
             { href: 'index.html', text: '📊 الرئيسية' },
             { href: 'orders.html', text: '📝 الطلبات' },
@@ -46,14 +37,12 @@
             { href: 'logs.html', text: '📜 السجلات' }
         ];
 
-        // تحديد الصفحة الحالية لإضافة class="active"
         const currentPage = window.location.pathname.split('/').pop();
-
         navContainer.innerHTML = links.map(link => `
             <a href="${link.href}" class="nav-link ${currentPage === link.href ? 'active' : ''}">${link.text}</a>
         `).join('');
 
-        // إضافة زر تسجيل الخروج إذا لم يكن موجوداً
+        // إضافة زر تسجيل الخروج مرة واحدة فقط
         if (!document.getElementById('logout-btn-container')) {
             const logoutDiv = document.createElement('div');
             logoutDiv.id = 'logout-btn-container';
@@ -88,4 +77,20 @@
             }
         }
     }
+
+    // التحقق من المستخدم دون التسبب في logout مفاجئ
+    fetch('/api/me', { credentials: 'include' })
+        .then(res => {
+            if (res.status === 401) {
+                // لا نوجه مباشرة، نترك الصفحة تتعامل مع 401 بنفسها
+                return null;
+            }
+            return res.json();
+        })
+        .then(data => {
+            if (data && data.user) {
+                renderNavbar();
+            }
+        })
+        .catch(() => {});
 })();
