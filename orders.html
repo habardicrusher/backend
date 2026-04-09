@@ -1,0 +1,585 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>الطلبات - نظام إدارة طلبات البحص</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        /* جميع الأنماط كما هي دون تغيير - حذفتها للاختصار ولكنها موجودة في الكود الأصلي */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; }
+        .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
+        .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; transition: all 0.3s; font-weight: 600; }
+        .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transform: translateY(-2px); }
+        .date-section {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+        .date-section input[type="date"] { padding: 12px 20px; border-radius: 10px; border: none; background: #fff; color: #333; cursor: pointer; }
+        .order-form {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 25px;
+        }
+        .form-group { display: flex; flex-direction: column; gap: 8px; }
+        .form-group label { font-weight: 600; color: #a8b2d1; }
+        .form-group select, .form-group input, .form-group textarea {
+            padding: 12px 15px;
+            border-radius: 10px;
+            border: 2px solid rgba(255,255,255,0.1);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+            font-size: 1em;
+        }
+        .form-group select option { background: #1a1a2e; }
+        .form-group textarea { resize: vertical; font-family: inherit; }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
+        .btn-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
+        .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
+        .btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
+        .btn-sm { padding: 8px 15px; font-size: 0.9em; }
+        .quick-add-section {
+            margin-top: 20px;
+            padding: 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+        }
+        .quick-add-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+            gap: 10px;
+            margin-top: 10px;
+        }
+        .quick-btn {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            background: rgba(102,126,234,0.3);
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .quick-btn:hover { background: rgba(102,126,234,0.6); transform: scale(1.05); }
+        .order-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 15px 20px;
+            background: rgba(255,255,255,0.05);
+            border-radius: 12px;
+            margin-bottom: 10px;
+            border-right: 4px solid #667eea;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .order-info { display: flex; gap: 20px; align-items: center; flex-wrap: wrap; }
+        .order-actions { display: flex; gap: 8px; }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .modal-header { display: flex; justify-content: space-between; margin-bottom: 20px; }
+        .modal-footer { display: flex; justify-content: flex-end; gap: 10px; margin-top: 20px; }
+        .close-modal { background: none; border: none; color: #fff; font-size: 1.5em; cursor: pointer; }
+        .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; display: flex; flex-direction: column; gap: 10px; }
+        .toast { padding: 15px 25px; border-radius: 10px; color: #fff; font-weight: 600; animation: slideIn 0.3s ease; }
+        @keyframes slideIn { from { transform: translateX(-100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+        .toast-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
+        .toast-error { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
+        .toast-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .toast-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .loading { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center; flex-direction:column; }
+        .loading.active { display: flex; }
+        .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .whatsapp-section {
+            margin-top: 30px;
+            padding: 25px;
+            background: linear-gradient(135deg, rgba(37, 211, 102, 0.1) 0%, rgba(37, 211, 102, 0.05) 100%);
+            border-radius: 20px;
+            border: 1px solid rgba(37, 211, 102, 0.3);
+        }
+        .whatsapp-section h3 { color: #25D366; margin-bottom: 15px; }
+        .time-input { direction: ltr; text-align: right; }
+        @media (max-width:768px){ .header h1 { font-size:1.5em; } }
+    </style>
+</head>
+<body>
+    <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
+    <div class="toast-container" id="toastContainer"></div>
+
+    <div class="container">
+        <div class="header"><h1>📝 إدارة الطلبات</h1></div>
+        <div class="nav-links">
+            <a href="index.html" class="nav-link">📊 الرئيسية</a>
+            <a href="orders.html" class="nav-link active">📝 الطلبات</a>
+            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+            <a href="factories.html" class="nav-link">🏭 المصانع</a>
+            <a href="reports.html" class="nav-link">📊 التقارير</a>
+            <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
+        </div>
+
+        <div class="date-section">
+            <div><label>📅 تاريخ العمل: </label><input type="date" id="orderDate" onchange="loadDayData()"></div>
+            <div><button class="btn btn-info" onclick="exportOrdersToExcel()">📥 تصدير Excel</button></div>
+        </div>
+
+        <!-- قسم طلب واتساب -->
+        <div class="whatsapp-section">
+            <h3>💬 طلب واتساب</h3>
+            <p style="color: #a8b2d1; margin-bottom: 15px; font-size: 0.9em;">الصق نص الطلب من واتساب، ثم اختر المصنع والتوقيت (اختياري)</p>
+            <div class="order-form">
+                <div class="form-group" style="grid-column: span 2;">
+                    <label>📋 نص الطلب:</label>
+                    <textarea id="whatsappText" rows="4" placeholder="مثال:
+السلام عليكم اليوم إنشاء الله
+ 15   3/4
+ 15   3/8
+أو
+3/4 # 3
+3/8 # 2
+3/16 # 2
+tonight 8 PM"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>🏭 المصنع:</label>
+                    <select id="whatsappFactory"></select>
+                </div>
+                <div class="form-group">
+                    <label>⏰ توقيت الطلبية (اختياري):</label>
+                    <input type="text" id="whatsappTime" class="time-input" placeholder="مثال: 8 PM, tonight, 20:00">
+                </div>
+            </div>
+            <button class="btn btn-success" onclick="processWhatsAppOrder()">
+                📥 تحليل وإضافة الطلبات
+            </button>
+        </div>
+
+        <h2 style="margin-top: 30px;">➕ إضافة طلب جديد</h2>
+        <div class="order-form">
+            <div class="form-group"><label>🏭 المصنع</label><select id="factorySelect"></select></div>
+            <div class="form-group"><label>📦 نوع البحص</label><select id="materialType"></select></div>
+            <div class="form-group"><label>🔢 العدد</label><input type="number" id="orderCount" min="1" value="1"></div>
+            <div class="form-group"><label>⏰ التوقيت (اختياري)</label><input type="text" id="orderTime" placeholder="مثال: 8 PM"></div>
+        </div>
+        <button class="btn btn-success" onclick="addOrder()">✅ إضافة الطلب</button>
+
+        <div class="quick-add-section">
+            <h4>⚡ إضافة سريعة (اختر المصنع أولاً)</h4>
+            <div class="quick-add-grid" id="quickAddButtons"></div>
+        </div>
+
+        <h3 style="margin-top: 30px;">📋 طلبات اليوم (<span id="ordersCount">0</span> طلب)</h3>
+        <div id="todayOrders"></div>
+    </div>
+
+    <!-- Modal تعديل الطلب -->
+    <div class="modal" id="editOrderModal">
+        <div class="modal-content">
+            <div class="modal-header"><h3>✏️ تعديل الطلب</h3><button class="close-modal" onclick="closeModal('editOrderModal')">&times;</button></div>
+            <div class="modal-body">
+                <input type="hidden" id="editOrderId">
+                <div class="form-group"><label>🏭 المصنع</label><select id="editOrderFactory"></select></div>
+                <div class="form-group"><label>📦 نوع البحص</label><select id="editOrderMaterial"></select></div>
+                <div class="form-group"><label>⏰ التوقيت</label><input type="text" id="editOrderTime" placeholder="اختياري"></div>
+            </div>
+            <div class="modal-footer"><button class="btn btn-danger" onclick="closeModal('editOrderModal')">إلغاء</button><button class="btn btn-success" onclick="saveOrderEdit()">حفظ</button></div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE = '/api';
+        let factories = [], materials = [], orders = [], currentDate = '';
+
+        async function apiCall(endpoint, method = 'GET', data = null) {
+            const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
+            if (data && (method === 'POST' || method === 'PUT')) options.body = JSON.stringify(data);
+            const response = await fetch(`${API_BASE}${endpoint}`, options);
+            if (!response.ok) throw new Error(await response.text());
+            return response.json();
+        }
+
+        async function loadSettings() {
+            try {
+                const data = await apiCall('/settings');
+                // تحويل الكائنات إلى سلاسل نصية إذا لزم الأمر
+                factories = (data.factories || []).map(f => typeof f === 'object' ? (f.name || f.factory_name || f.text || '') : f);
+                materials = (data.materials || []).map(m => typeof m === 'object' ? (m.name || m.material_name || m.text || '') : m);
+                updateSelects();
+                renderQuickAddButtons();
+            } catch (error) {
+                console.error(error);
+                showToast('خطأ في تحميل البيانات الأساسية', 'error');
+            }
+        }
+
+        function updateSelects() {
+            const validFactories = factories.filter(f => f && f.trim());
+            const factoryOptions = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
+            document.getElementById('factorySelect').innerHTML = factoryOptions;
+            document.getElementById('editOrderFactory').innerHTML = factoryOptions;
+            document.getElementById('whatsappFactory').innerHTML = factoryOptions;
+
+            const validMaterials = materials.filter(m => m && m.trim());
+            const materialOptions = '<option value="">-- اختر --</option>' + validMaterials.map(m => `<option value="${m}">بحص ${m}</option>`).join('');
+            document.getElementById('materialType').innerHTML = materialOptions;
+            document.getElementById('editOrderMaterial').innerHTML = materialOptions;
+        }
+
+        function renderQuickAddButtons() {
+            const container = document.getElementById('quickAddButtons');
+            const validMaterials = materials.filter(m => m && m.trim());
+            if (!validMaterials.length) {
+                container.innerHTML = '<p style="color:#a8b2d1;">لا توجد أنواع بحص متاحة</p>';
+                return;
+            }
+            container.innerHTML = validMaterials.map(m => 
+                `<button class="quick-btn" onclick="quickAdd('${m}', 1)">${m} ×1</button>
+                 <button class="quick-btn" onclick="quickAdd('${m}', 5)">${m} ×5</button>
+                 <button class="quick-btn" onclick="quickAdd('${m}', 10)">${m} ×10</button>`
+            ).join('');
+        }
+
+        async function loadDayData() {
+            currentDate = document.getElementById('orderDate').value;
+            try {
+                const data = await apiCall(`/day/${currentDate}`);
+                orders = data.orders || [];
+                renderOrders();
+            } catch (error) {
+                orders = [];
+                renderOrders();
+            }
+        }
+
+        async function saveData() {
+            try {
+                await apiCall(`/day/${currentDate}`, 'PUT', { orders, distribution: [] });
+                return true;
+            } catch (error) {
+                showToast('خطأ في حفظ البيانات', 'error');
+                return false;
+            }
+        }
+
+        // ======================= الدالة الأساسية المحسنة لتحليل نصوص الواتساب =======================
+        function parseWhatsAppOrder(text) {
+            // 1. إزالة الكلمات العربية والإنجليزية غير المرتبطة بالأرقام (مثل التحية، today، tonight، PM/AM)
+            let cleaned = text.replace(/السلام\s*عليكم|صباح|مساء|اليوم|إنشاء\s*الله|بإذن\s*الله|حاضر|يرجى|مطلوب|طلبات?|عدد|الرجاء|من\s*فضلك|tonight|today|pm|am/gi, '');
+            
+            // 2. تحويل الأرقام العربية إلى إنكليزية
+            const arabicNumbers = { '٠':'0','١':'1','٢':'2','٣':'3','٤':'4','٥':'5','٦':'6','٧':'7','٨':'8','٩':'9' };
+            cleaned = cleaned.replace(/[٠-٩]/g, d => arabicNumbers[d] || d);
+            
+            // 3. استخراج التوقيت من النص الأصلي (قبل التنظيف الشديد)
+            let extractedTime = '';
+            const timeMatch = text.match(/(\d{1,2}\s*(?:AM|PM|am|pm)|tonight\s+\d{1,2}\s*(?:AM|PM|am|pm)?|\d{1,2}:\d{2})/i);
+            if (timeMatch) extractedTime = timeMatch[0].trim();
+            
+            // 4. تقسيم النص إلى سطور
+            const lines = cleaned.split(/\r?\n/);
+            const items = []; // { material, quantity }
+            
+            // قائمة بأنواع البحص المعروفة (يمكن توسيعها حسب ما هو موجود في قاعدة البيانات)
+            // سنستخدم المطابقة مع قائمة المواد لاحقاً، لكن هنا نستخرج النصوص التي تشبه أنواع البحص
+            const materialPattern = /(\d+\/\d+|\d+\s*\/\s*\d+|[^\d\s]+)/g; // يلتقط الأعداد الكسرية أو الكلمات
+            
+            for (const line of lines) {
+                let trimmed = line.trim();
+                if (!trimmed) continue;
+                
+                // تخطي الأسطر التي تحتوي فقط على كلمات زمنية متبقية
+                if (/^(pm|am|tonight|today)$/i.test(trimmed)) continue;
+                
+                // محاولة استخراج عدد ونوع من السطر بغض النظر عن الترتيب
+                // نبحث عن جميع الأرقام في السطر
+                const numbers = trimmed.match(/\b\d+\b/g);
+                // نبحث عن جميع أنواع البحص المحتملة (تطابق الكسور مثل 3/4 أو كلمات مثل بحص خرسانة)
+                // نستخدم مجموعة من المواد من قاعدة البيانات إن أمكن، أو نكتفي بالكسرات والأجزاء
+                let possibleMaterials = [];
+                // أولاً: البحث عن الكسور (مثل 3/4, 3/8)
+                const fractions = trimmed.match(/\d+\s*\/\s*\d+/g);
+                if (fractions) possibleMaterials.push(...fractions);
+                
+                // ثانياً: البحث عن الكلمات التي قد تكون أنواع بحص (مطابقة مع المواد الموجودة في النظام)
+                // لكن هنا نستخدم أي كلمة ليست رقماً ولا رمز # ولا علامات ترقيم
+                const words = trimmed.split(/\s+/).filter(part => !/^\d+$/.test(part) && !/^[#*×]$/.test(part) && !/^[\/\-_]$/.test(part));
+                possibleMaterials.push(...words);
+                
+                // إذا لم نجد أي أرقام أو أي مواد محتملة، نتخطى
+                if (!numbers || numbers.length === 0) continue;
+                if (possibleMaterials.length === 0) continue;
+                
+                // المنطق: إذا كان لدينا رقم واحد ومادة واحدة، نعتبر أن العدد هو الرقم والمادة هي النص
+                if (numbers.length === 1 && possibleMaterials.length === 1) {
+                    let qty = parseInt(numbers[0]);
+                    let material = possibleMaterials[0].trim();
+                    // تنظيف المادة من الرموز
+                    material = material.replace(/[#*×]/g, '').trim();
+                    if (material && qty > 0) {
+                        items.push({ material, quantity: qty });
+                        continue;
+                    }
+                }
+                
+                // إذا كان لدينا عدة أرقام وعدة مواد، نحاول مطابقة كل رقم مع أقرب مادة
+                // لكن في الغالب السطر الواحد يحتوي على زوج واحد (عدد - مادة)
+                // نحاول إيجاد أقرب مادة لكل رقم
+                for (let num of numbers) {
+                    let qty = parseInt(num);
+                    // نبحث عن مادة في نفس السطر ليست رقماً
+                    let bestMatch = possibleMaterials.find(m => !/^\d+$/.test(m));
+                    if (bestMatch) {
+                        let material = bestMatch.trim().replace(/[#*×]/g, '');
+                        if (material && qty > 0) {
+                            items.push({ material, quantity: qty });
+                            // نزيل هذه المادة لتجنب تكرارها مع أرقام أخرى (إذا وجد أكثر من رقم)
+                            const index = possibleMaterials.indexOf(bestMatch);
+                            if (index !== -1) possibleMaterials.splice(index, 1);
+                        }
+                    }
+                }
+            }
+            
+            // دمج العناصر المكررة (نفس المادة)
+            const merged = [];
+            items.forEach(item => {
+                const existing = merged.find(m => m.material === item.material);
+                if (existing) existing.quantity += item.quantity;
+                else merged.push({ ...item });
+            });
+            
+            // فلترة العناصر التي تكون المادة فيها مطابقة للمواد الموجودة في النظام (للتأكد)
+            const validMaterialsSet = new Set(materials.map(m => m.toLowerCase()));
+            const finalItems = merged.filter(item => validMaterialsSet.has(item.material.toLowerCase()));
+            
+            // إعطاء تحذير للعناصر غير المعروفة
+            const unknown = merged.filter(item => !validMaterialsSet.has(item.material.toLowerCase()));
+            if (unknown.length) {
+                console.warn('أنواع بحص غير معروفة:', unknown.map(u => u.material));
+                showToast(`⚠️ الأنواع التالية غير معروفة: ${unknown.map(u => u.material).join(', ')}. تم تخطيها.`, 'warning');
+            }
+            
+            return { items: finalItems, extractedTime };
+        }
+        // =======================================================================
+
+        async function processWhatsAppOrder() {
+            const text = document.getElementById('whatsappText').value.trim();
+            const factory = document.getElementById('whatsappFactory').value;
+            const customTime = document.getElementById('whatsappTime').value.trim();
+            
+            if (!text) { showToast('الرجاء لصق نص الطلب', 'error'); return; }
+            if (!factory) { showToast('الرجاء اختيار المصنع', 'error'); return; }
+            
+            const { items, extractedTime } = parseWhatsAppOrder(text);
+            if (items.length === 0) {
+                showToast('لم يتم العثور على طلبات صالحة. تأكد من وجود أعداد وأنواع بحص مثل "3/4 # 3" أو "15   3/4"', 'error');
+                return;
+            }
+            
+            const finalTime = customTime || extractedTime || '';
+            let totalAdded = 0;
+            showLoading(true);
+            
+            for (const item of items) {
+                for (let i = 0; i < item.quantity; i++) {
+                    orders.push({
+                        id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9) + '_' + totalAdded,
+                        factory: factory,
+                        material: item.material,
+                        time: finalTime,
+                        timestamp: new Date().toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' })
+                    });
+                    totalAdded++;
+                }
+            }
+            
+            if (totalAdded > 0) {
+                const success = await saveData();
+                showLoading(false);
+                if (success) {
+                    renderOrders();
+                    document.getElementById('whatsappText').value = '';
+                    document.getElementById('whatsappFactory').value = '';
+                    document.getElementById('whatsappTime').value = '';
+                    showToast(`✅ تم إضافة ${totalAdded} طلب ${finalTime ? 'للتوقيت: ' + finalTime : ''}`, 'success');
+                }
+            } else {
+                showLoading(false);
+                showToast('لم يتم إضافة أي طلبات', 'error');
+            }
+        }
+
+        async function addOrder() {
+            const factory = document.getElementById('factorySelect').value;
+            const material = document.getElementById('materialType').value;
+            const count = parseInt(document.getElementById('orderCount').value);
+            const time = document.getElementById('orderTime').value.trim();
+            if (!factory || !material || !count) { showToast('يرجى ملء جميع الحقول', 'error'); return; }
+            showLoading(true);
+            for (let i = 0; i < count; i++) {
+                orders.push({
+                    id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+                    factory, material, time,
+                    timestamp: new Date().toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' })
+                });
+            }
+            const success = await saveData();
+            showLoading(false);
+            if (success) {
+                renderOrders();
+                document.getElementById('orderCount').value = '1';
+                document.getElementById('orderTime').value = '';
+                showToast(`✅ تم إضافة ${count} طلب`, 'success');
+            }
+        }
+
+        async function quickAdd(material, count) {
+            const factory = document.getElementById('factorySelect').value;
+            const time = document.getElementById('orderTime').value.trim();
+            if (!factory) { showToast('اختر المصنع أولاً', 'error'); return; }
+            showLoading(true);
+            for (let i = 0; i < count; i++) {
+                orders.push({
+                    id: Date.now().toString() + '_' + Math.random().toString(36).substr(2, 9),
+                    factory, material, time,
+                    timestamp: new Date().toLocaleTimeString('ar-SA', { hour:'2-digit', minute:'2-digit' })
+                });
+            }
+            const success = await saveData();
+            showLoading(false);
+            if (success) { renderOrders(); showToast(`✅ تم إضافة ${count} طلب ${material}`, 'success'); }
+        }
+
+        async function deleteOrder(id) {
+            if (!confirm('حذف هذا الطلب؟')) return;
+            orders = orders.filter(o => o.id !== id);
+            if (await saveData()) { renderOrders(); showToast('تم الحذف', 'info'); }
+        }
+
+        function openEditOrderModal(id) {
+            const order = orders.find(o => o.id === id);
+            if (!order) return;
+            document.getElementById('editOrderId').value = id;
+            document.getElementById('editOrderFactory').value = order.factory;
+            document.getElementById('editOrderMaterial').value = order.material;
+            document.getElementById('editOrderTime').value = order.time || '';
+            openModal('editOrderModal');
+        }
+
+        async function saveOrderEdit() {
+            const id = document.getElementById('editOrderId').value;
+            const idx = orders.findIndex(o => o.id === id);
+            if (idx !== -1) {
+                orders[idx].factory = document.getElementById('editOrderFactory').value;
+                orders[idx].material = document.getElementById('editOrderMaterial').value;
+                orders[idx].time = document.getElementById('editOrderTime').value;
+                if (await saveData()) { renderOrders(); closeModal('editOrderModal'); showToast('✅ تم التعديل', 'success'); }
+            }
+        }
+
+        function renderOrders() {
+            const container = document.getElementById('todayOrders');
+            document.getElementById('ordersCount').textContent = orders.length;
+            if (!orders.length) { container.innerHTML = '<p style="color:#a8b2d1; text-align:center; padding:30px;">لا توجد طلبات</p>'; return; }
+            container.innerHTML = orders.map((o, i) => `
+                <div class="order-item">
+                    <div class="order-info">
+                        <span><strong>#${i+1}</strong></span>
+                        <span>🏭 ${o.factory}</span>
+                        <span>📦 ${o.material}</span>
+                        ${o.time ? `<span>⏰ ${o.time}</span>` : ''}
+                        <span>🕐 ${o.timestamp}</span>
+                    </div>
+                    <div class="order-actions">
+                        <button class="btn btn-sm btn-warning" onclick="openEditOrderModal('${o.id}')">✏️</button>
+                        <button class="btn btn-sm btn-danger" onclick="deleteOrder('${o.id}')">🗑️</button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function exportOrdersToExcel() {
+            if (!orders.length) { showToast('لا توجد طلبات للتصدير', 'error'); return; }
+            const data = orders.map((o, i) => ({ '#': i+1, 'المصنع': o.factory, 'نوع البحص': o.material, 'التوقيت': o.time || '', 'وقت الإضافة': o.timestamp }));
+            const ws = XLSX.utils.json_to_sheet(data);
+            const wb = XLSX.utils.book_new();
+            XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
+            XLSX.writeFile(wb, `طلبات_${currentDate}.xlsx`);
+            showToast('✅ تم التصدير', 'success');
+        }
+
+        function showToast(msg, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+
+        function showLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
+        function openModal(id) { document.getElementById(id).classList.add('active'); }
+        function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('orderDate').value = today;
+            currentDate = today;
+            showLoading(true);
+            try {
+                await loadSettings();
+                await loadDayData();
+                showToast('✅ تم تحميل البيانات', 'success');
+            } catch (error) { console.error(error); showToast('⚠️ خطأ في تحميل البيانات', 'error'); }
+            showLoading(false);
+        });
+    </script>
+</body>
+</html>
