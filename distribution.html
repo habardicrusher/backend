@@ -22,11 +22,10 @@
         table { width: 100%; border-collapse: collapse; margin-top: 20px; overflow-x: auto; display: block; }
         th, td { padding: 12px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
         th { background: rgba(102,126,234,0.3); font-weight: 600; }
-        .road-badge { padding: 5px 15px; border-radius: 20px; font-size: 0.85em; font-weight: 600; display: inline-block; background: #4facfe; }
+        .road-badge { padding: 5px 15px; border-radius: 20px; font-size: 0.85em; font-weight: 600; display: inline-block; }
         .road-1 { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); }
         .road-2 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
         .road-3 { background: linear-gradient(135deg, #ff9a44 0%, #fc6076 100%); }
-        .road-4 { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
         .time-badge { padding: 5px 12px; border-radius: 20px; font-size: 0.8em; background: rgba(79,172,254,0.3); color: #4facfe; display: inline-block; }
         .stats { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; padding: 15px; background: rgba(255,255,255,0.05); border-radius: 15px; }
         .stat-card { flex:1; min-width:150px; padding:15px; background:rgba(255,255,255,0.05); border-radius:12px; text-align:center; }
@@ -86,7 +85,6 @@
         async function saveData() { try { await apiCall(`/day/${currentDate}`, 'PUT', { orders, distribution }); return true; } catch(e) { showToast('خطأ في الحفظ', 'error'); return false; } }
         function updateStats() { const s = document.getElementById('statsSection'); if(orders.length || distribution.length) { s.style.display='flex'; document.getElementById('statOrders').textContent=orders.length; document.getElementById('statDistributed').textContent=distribution.length; } else s.style.display='none'; }
 
-        // التوزيع التلقائي مع حساب الرود بناءً على عدد السيارات
         async function autoDistribute() {
             if(!orders.length) { showToast('لا توجد طلبات','error'); return; }
             if(!trucks.length) { showToast('لا توجد سيارات','error'); return; }
@@ -108,7 +106,7 @@
                 availableTrucks.splice(candidateIndex,1);
                 lastFactoryForTruck[selectedTruck.number] = requiredFactory;
                 const currentRoad = Math.floor(i / trucks.length) + 1;
-                distribution.push({ orderId: order.id, orderIndex: i+1, truck: selectedTruck, factory: order.factory, material: order.material, time: order.time || '', road: currentRoad });
+                distribution.push({ orderId: order.id, orderIndex: i+1, truck: selectedTruck, factory: order.factory, material: order.material, time: (order.time && order.time !== 'undefined') ? order.time : '', road: currentRoad });
                 if(availableTrucks.length === 0) availableTrucks = [...trucks];
             }
             const success = await saveData();
@@ -125,7 +123,23 @@
         function renderDistribution() {
             const tbody = document.getElementById('distributionTable');
             if(!distribution.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;">لا يوجد توزيع</td></tr>'; return; }
-            tbody.innerHTML = distribution.map((d,i)=>`<tr><td>${i+1}</td><td><strong>${d.truck?.number||'?'}</strong></td><td>${d.truck?.driver||'?'}</td><td>${d.factory}</td><td>بحص ${d.material}</td><td>${d.time?`<span class="time-badge">⏰ ${d.time}</span>`:'-'}</td><td><span class="road-badge road-${d.road}">رود ${d.road}</span></td></tr>`).join('');
+            tbody.innerHTML = distribution.map((d,i) => {
+                let timeDisplay = '-';
+                if (d.time && d.time !== 'undefined' && d.time !== 'null' && d.time.trim() !== '') {
+                    timeDisplay = `<span class="time-badge">⏰ ${d.time}</span>`;
+                }
+                return `
+                    <tr>
+                        <td>${i+1}</td>
+                        <td><strong>${d.truck?.number||'?'}</strong></td>
+                        <td>${d.truck?.driver||'?'}</td>
+                        <td>${d.factory}</td>
+                        <td>بحص ${d.material}</td>
+                        <td>${timeDisplay}</td>
+                        <td><span class="road-badge road-${d.road}">رود ${d.road}</span></td>
+                    </tr>
+                `;
+            }).join('');
         }
         function showToast(msg,type) { let c=document.getElementById('toastContainer'); let t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
         function showLoading(s) { document.getElementById('loading').classList.toggle('active',s); }
