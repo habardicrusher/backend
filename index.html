@@ -45,7 +45,7 @@
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* أيقونة التنبيه */
+        /* أيقونة التنبيه الحمراء */
         .alert-badge {
             position: absolute;
             top: 15px;
@@ -91,7 +91,7 @@
             <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
                 <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
             </div>
-            <!-- أيقونة التنبيه -->
+            <!-- أيقونة التنبيه الحمراء -->
             <div id="alertBadge" class="alert-badge hidden" onclick="goToDistribution()">
                 <span id="alertCount">0</span>
             </div>
@@ -123,9 +123,10 @@
         const API_BASE = '/api';
         let factoriesChart, materialsChart;
         let currentDate = new Date().toISOString().split('T')[0];
-        let currentUserRole = null;
         let pendingOrdersCount = 0;
+        let lastOrderCount = 0;
 
+        // دالة استدعاء API
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
             if (data) options.body = JSON.stringify(data);
@@ -135,12 +136,11 @@
             return res.json();
         }
 
-        // ==================== نظام التنبيه ====================
+        // تحديث الأيقونة الحمراء
         function updateAlertBadge() {
             const badge = document.getElementById('alertBadge');
             const countSpan = document.getElementById('alertCount');
             if (!badge) return;
-            
             if (pendingOrdersCount > 0) {
                 badge.classList.remove('hidden');
                 countSpan.textContent = pendingOrdersCount;
@@ -148,20 +148,24 @@
                 badge.classList.add('hidden');
             }
         }
-        
+
+        // زيادة العداد وتشغيل الصوت
         function incrementAlertCount() {
             pendingOrdersCount++;
             updateAlertBadge();
             playBeep();
+            // حفظ العداد في localStorage لاستعادته بعد تحديث الصفحة
+            localStorage.setItem('pendingOrdersCount', pendingOrdersCount);
         }
-        
+
+        // تصفير العداد (عند الضغط على الأيقونة)
         function resetAlertCount() {
             pendingOrdersCount = 0;
             updateAlertBadge();
-            // تخزين في localStorage لتذكره بعد تحديث الصفحة
             localStorage.setItem('pendingOrdersCount', '0');
         }
-        
+
+        // تشغيل صوت التنبيه
         function playBeep() {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -181,13 +185,13 @@
                 }
             } catch(e) {}
         }
-        
+
+        // الانتقال إلى صفحة التوزيع
         function goToDistribution() {
-            // قبل الانتقال، نخزن أننا ذاهبون للتوزيع
-            localStorage.setItem('pendingOrdersCount', '0');
+            resetAlertCount();
             window.location.href = 'distribution.html';
         }
-        
+
         // استعادة العداد من localStorage عند تحميل الصفحة
         function loadAlertCount() {
             const saved = localStorage.getItem('pendingOrdersCount');
@@ -198,31 +202,28 @@
             }
             updateAlertBadge();
         }
-        
-        // ==================== التوزيع التلقائي ====================
+
+        // التوزيع التلقائي (ذكي)
         async function autoDistributeAfterOrder() {
             try {
                 const today = new Date().toISOString().split('T')[0];
                 const settings = await apiCall('/settings');
                 const trucks = settings.trucks || [];
-                
                 if (trucks.length === 0) return;
-                
+
                 const dayData = await apiCall(`/day/${today}`);
                 let orders = dayData.orders || [];
-                
                 if (orders.length === 0) return;
-                
+
                 let lastFactoryForTruck = {};
                 trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
                 let availableTrucks = [...trucks];
                 let newDistribution = [];
-                
+
                 for (let i = 0; i < orders.length; i++) {
                     const order = orders[i];
                     const requiredFactory = order.factory;
                     let selectedTruck = null, candidateIndex = -1;
-                    
                     for (let j = 0; j < availableTrucks.length; j++) {
                         if (lastFactoryForTruck[availableTrucks[j].number] !== requiredFactory) {
                             selectedTruck = availableTrucks[j];
@@ -235,11 +236,9 @@
                         candidateIndex = 0;
                     }
                     if (!selectedTruck) break;
-                    
                     availableTrucks.splice(candidateIndex, 1);
                     lastFactoryForTruck[selectedTruck.number] = requiredFactory;
                     const currentRoad = Math.floor(i / trucks.length) + 1;
-                    
                     newDistribution.push({
                         orderId: order.id,
                         orderIndex: i + 1,
@@ -249,43 +248,19 @@
                         time: order.time || '',
                         road: currentRoad
                     });
-                    
                     if (availableTrucks.length === 0) availableTrucks = [...trucks];
                 }
-                
+
                 if (newDistribution.length) {
                     await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
-                    
-                    // زيادة عداد التنبيه
-                    incrementAlertCount();
-                    localStorage.setItem('pendingOrdersCount', pendingOrdersCount);
+                    console.log('تم التوزيع التلقائي بنجاح');
                 }
             } catch(e) {
                 console.error('خطأ في التوزيع التلقائي:', e);
             }
         }
-        
-        // ==================== باقي دوال الصفحة ====================
-        
-        async function getCurrentUserRole() {
-            try {
-                const res = await fetch('/api/me', { credentials: 'include' });
-                const data = await res.json();
-                if (data.user) {
-                    currentUserRole = data.user.role;
-                }
-            } catch(e) {}
-        }
 
-        function cleanValue(value, defaultValue = '—') {
-            if (value === undefined || value === null || value === 'undefined' || value === 'null' || (typeof value === 'string' && value.trim() === '')) {
-                return defaultValue;
-            }
-            return value;
-        }
-
-        function formatTime(time) { return cleanValue(time, '—'); }
-
+        // جلب البيانات وتحديث الواجهة
         async function loadDashboard() {
             showLoading(true);
             try {
@@ -293,11 +268,10 @@
                     apiCall('/settings'),
                     apiCall(`/day/${currentDate}`)
                 ]);
-                
                 const orders = dayData.orders || [];
                 const distribution = dayData.distribution || [];
                 const trucks = settings.trucks || [];
-                
+
                 document.getElementById('totalOrders').textContent = orders.length;
                 document.getElementById('totalTrips').textContent = distribution.length;
                 const activeTrucks = new Set(distribution.map(d => d.truck?.number).filter(Boolean)).size;
@@ -305,29 +279,36 @@
                 const target = trucks.length * 2;
                 const percentage = target > 0 ? Math.min(100, Math.round((distribution.length / target) * 100)) : 0;
                 document.getElementById('completedPercentage').textContent = percentage + '%';
-                
+
+                // إحصائيات للرسوم البيانية
                 const factoryStats = {};
-                orders.forEach(order => { const factory = cleanValue(order.factory, 'غير محدد'); factoryStats[factory] = (factoryStats[factory] || 0) + 1; });
+                orders.forEach(order => { const f = order.factory || 'غير محدد'; factoryStats[f] = (factoryStats[f] || 0) + 1; });
                 const materialStats = {};
-                orders.forEach(order => { const material = cleanValue(order.material, 'غير محدد'); materialStats[material] = (materialStats[material] || 0) + 1; });
-                
+                orders.forEach(order => { const m = order.material || 'غير محدد'; materialStats[m] = (materialStats[m] || 0) + 1; });
+
                 renderFactoriesChart(factoryStats);
                 renderMaterialsChart(materialStats);
-                
+
+                // آخر 10 طلبات
                 const recent = orders.slice(-10).reverse().map(order => ({
-                    factory: cleanValue(order.factory, 'غير محدد'),
-                    material: cleanValue(order.material, 'غير محدد'),
-                    time: formatTime(order.time),
-                    timestamp: cleanValue(order.timestamp, 'غير محدد')
+                    factory: order.factory || '—',
+                    material: order.material || '—',
+                    time: (order.time && order.time !== 'undefined') ? order.time : '—',
+                    timestamp: order.timestamp || '—'
                 }));
-                renderRecentOrders(recent);
-            } catch (error) {
-                console.error(error);
+                const tbody = document.getElementById('recentOrdersBody');
+                if (!recent.length) {
+                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم</td></tr>';
+                } else {
+                    tbody.innerHTML = recent.map((o, i) => `<tr><td>${i+1}</td><td>${o.factory}</td><td>${o.material}</td><td>${o.time}</td><td>${o.timestamp}</td></tr>`).join('');
+                }
+            } catch(e) {
+                console.error(e);
                 showToast('خطأ في تحميل البيانات', 'error');
             }
             showLoading(false);
         }
-        
+
         function renderFactoriesChart(stats) {
             const ctx = document.getElementById('factoriesChart').getContext('2d');
             if (factoriesChart) factoriesChart.destroy();
@@ -339,7 +320,7 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } }, scales: { x: { ticks: { color: '#a8b2d1' } }, y: { ticks: { color: '#a8b2d1' }, beginAtZero: true } } }
             });
         }
-        
+
         function renderMaterialsChart(stats) {
             const ctx = document.getElementById('materialsChart').getContext('2d');
             if (materialsChart) materialsChart.destroy();
@@ -352,13 +333,38 @@
                 options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
             });
         }
-        
-        function renderRecentOrders(orders) {
-            const tbody = document.getElementById('recentOrdersBody');
-            if (!orders.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم<\/td><\/tr>'; return; }
-            tbody.innerHTML = orders.map((order, i) => `<tr><td>${i+1}<\/td><td>${order.factory}<\/td><td>${order.material}<\/td><td>${order.time}<\/td><td>${order.timestamp}<\/td><\/tr>`).join('');
+
+        // مراقبة الطلبات الجديدة كل 10 ثوانٍ
+        async function checkNewOrders() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const dayData = await apiCall(`/day/${today}`);
+                const currentOrders = dayData.orders || [];
+                const currentCount = currentOrders.length;
+
+                if (currentCount > lastOrderCount) {
+                    const newOrdersCount = currentCount - lastOrderCount;
+                    // زيادة العداد بعدد الطلبات الجديدة
+                    for (let i = 0; i < newOrdersCount; i++) incrementAlertCount();
+                    // إعادة التوزيع التلقائي (للتأكد من توزيع الطلبات الجديدة)
+                    await autoDistributeAfterOrder();
+                    // تحديث الواجهة لعرض الطلبات الجديدة
+                    await loadDashboard();
+                }
+                lastOrderCount = currentCount;
+            } catch(e) {
+                console.error('خطأ في مراقبة الطلبات', e);
+            }
         }
-        
+
+        function startPolling() {
+            // جلب العدد الحالي أول مرة
+            setInterval(async () => {
+                await checkNewOrders();
+            }, 10000); // كل 10 ثوانٍ
+        }
+
+        // دوال عامة
         function showToast(msg, type) {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
@@ -367,62 +373,55 @@
             container.appendChild(toast);
             setTimeout(() => toast.remove(), 3000);
         }
-        
-        function showLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
-        
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+
         function logout() {
-            if (confirm('تسجيل الخروج؟')) fetch('/api/logout', { method: 'POST', credentials: 'include' }).then(() => window.location.href = '/login.html');
+            if (confirm('تسجيل الخروج؟')) {
+                fetch('/api/logout', { method: 'POST', credentials: 'include' })
+                    .then(() => window.location.href = '/login.html');
+            }
         }
-        
+
         function loadNav() {
-            fetch('/api/me', { credentials: 'include' }).then(r => r.json()).then(data => {
-                if (data.user) {
-                    const isAdmin = data.user.role === 'admin';
-                    document.getElementById('navLinks').innerHTML = isAdmin ? `
-                        <a href="index.html" class="nav-link active">📊 الرئيسية</a>
-                        <a href="orders.html" class="nav-link">📝 الطلبات</a>
-                        <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
-                        <a href="trucks.html" class="nav-link">🚛 السيارات</a>
-                        <a href="products.html" class="nav-link">📦 أنواع البحص</a>
-                        <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                        <a href="reports.html" class="nav-link">📊 التقارير</a>
-                        <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
-                        <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
-                        <a href="users.html" class="nav-link">👥 المستخدمين</a>
-                        <a href="logs.html" class="nav-link">📜 السجلات</a>
-                    ` : `<a href="orders.html" class="nav-link">📝 الطلبات</a>`;
-                } else { window.location.href = '/login.html'; }
-            }).catch(() => { window.location.href = '/login.html'; });
-        }
-        
-        // بدء الاستماع للطلبات الجديدة (polling)
-        let lastOrderCount = 0;
-        function startPolling() {
-            setInterval(async () => {
-                try {
-                    const today = new Date().toISOString().split('T')[0];
-                    const dayData = await apiCall(`/day/${today}`);
-                    const orders = dayData.orders || [];
-                    
-                    if (orders.length > lastOrderCount && lastOrderCount > 0) {
-                        const newOrdersCount = orders.length - lastOrderCount;
-                        pendingOrdersCount += newOrdersCount;
-                        updateAlertBadge();
-                        localStorage.setItem('pendingOrdersCount', pendingOrdersCount);
-                        playBeep();
+            fetch('/api/me', { credentials: 'include' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.user) {
+                        const isAdmin = data.user.role === 'admin';
+                        document.getElementById('navLinks').innerHTML = isAdmin ? `
+                            <a href="index.html" class="nav-link active">📊 الرئيسية</a>
+                            <a href="orders.html" class="nav-link">📝 الطلبات</a>
+                            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+                            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+                            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+                            <a href="factories.html" class="nav-link">🏭 المصانع</a>
+                            <a href="reports.html" class="nav-link">📊 التقارير</a>
+                            <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
+                            <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
+                            <a href="users.html" class="nav-link">👥 المستخدمين</a>
+                            <a href="logs.html" class="nav-link">📜 السجلات</a>
+                        ` : `<a href="orders.html" class="nav-link">📝 الطلبات</a>`;
+                    } else {
+                        window.location.href = '/login.html';
                     }
-                    lastOrderCount = orders.length;
-                } catch(e) {}
-            }, 10000);
+                })
+                .catch(() => { window.location.href = '/login.html'; });
         }
-        
+
+        // بدء التشغيل
         document.addEventListener('DOMContentLoaded', async () => {
             loadNav();
-            await getCurrentUserRole();
             loadAlertCount();
             showLoading(true);
             await loadDashboard();
             showLoading(false);
+            // تعيين العدد الحالي للطلبات
+            const today = new Date().toISOString().split('T')[0];
+            const initData = await apiCall(`/day/${today}`);
+            lastOrderCount = (initData.orders || []).length;
             startPolling();
         });
     </script>
