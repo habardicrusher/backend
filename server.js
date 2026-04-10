@@ -8,22 +8,15 @@ const path = require('path');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// ==================== اتصال قاعدة البيانات ====================
-// استخدم رابطك الخاص (ضعه هنا أو عبر متغير البيئة)
+// رابط قاعدة البيانات (من متغير البيئة أو القيمة الثابتة)
 const DATABASE_URL = process.env.DATABASE_URL || "postgresql://neondb_owner:npg_HGwqC4TJaXD6@ep-dawn-king-a11873v3-pooler.ap-southeast-1.aws.neon.tech/neondb?sslmode=require";
 
 const pool = new Pool({
     connectionString: DATABASE_URL,
-    ssl: { rejectUnauthorized: false }  // ضروري لـ Neon
+    ssl: { rejectUnauthorized: false }
 });
 
-pool.connect((err, client, release) => {
-    if (err) return console.error('❌ خطأ في الاتصال بقاعدة البيانات:', err.stack);
-    console.log('✅ تم الاتصال بقاعدة البيانات بنجاح');
-    release();
-});
-
-// ==================== Middleware ====================
+// Middleware
 app.use(cors({ origin: true, credentials: true }));
 app.use(express.json({ limit: '100mb' }));
 app.use(express.urlencoded({ extended: true, limit: '100mb' }));
@@ -35,7 +28,7 @@ app.use(session({
     name: 'gravel.sid'
 }));
 
-// ==================== إنشاء الجداول تلقائياً ====================
+// ==================== إنشاء الجداول (يتم تشغيلها أولاً) ====================
 async function initTables() {
     try {
         // جدول المستخدمين
@@ -50,7 +43,7 @@ async function initTables() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        // جدول بيانات اليوم (الطلبات والتوزيع)
+        // جدول بيانات اليوم
         await pool.query(`
             CREATE TABLE IF NOT EXISTS daily_data (
                 date DATE PRIMARY KEY,
@@ -58,7 +51,7 @@ async function initTables() {
                 distribution JSONB NOT NULL DEFAULT '[]'
             );
         `);
-        // جدول قيود الحظر (لنستخدمه بدلاً من ملف restrictions.json)
+        // جدول قيود الحظر
         await pool.query(`
             CREATE TABLE IF NOT EXISTS restrictions (
                 id SERIAL PRIMARY KEY,
@@ -72,33 +65,108 @@ async function initTables() {
             );
         `);
         console.log('✅ تم إنشاء الجداول (أو موجودة مسبقاً)');
+        return true;
     } catch (err) {
-        console.error('خطأ في إنشاء الجداول:', err);
+        console.error('❌ خطأ في إنشاء الجداول:', err);
+        return false;
     }
 }
-initTables();
 
-// ==================== دوال مساعدة للتعامل مع قاعدة البيانات ====================
+// ==================== تهيئة البيانات الافتراضية (بعد إنشاء الجداول) ====================
+async function seedInitialData() {
+    try {
+        // 1. المستخدم Admin
+        const adminExists = await pool.query('SELECT * FROM users WHERE username = $1', ['Admin']);
+        if (adminExists.rows.length === 0) {
+            const hashed = await bcrypt.hash('Live#5050', 10);
+            await pool.query(
+                `INSERT INTO users (username, password, role, permissions) VALUES ($1, $2, $3, $4)`,
+                ['Admin', hashed, 'admin', JSON.stringify({
+                    viewOrders: true, addOrders: true, editOrders: true, deleteOrders: true,
+                    viewDistribution: true, manageDistribution: true, viewTrucks: true, manageTrucks: true,
+                    viewReports: true, exportReports: true, viewSettings: true, manageSettings: true,
+                    viewBackup: true, manageBackup: true, manageUsers: true, manageRestrictions: true
+                })]
+            );
+            console.log('✅ تم إنشاء المستخدم Admin');
+        }
+
+        // 2. المستخدمين الإضافيين
+        const extraUsers = [
+            { username: 'hassan', password: '305075', role: 'user' },
+            { username: 'Abu Naji', password: '987654', role: 'user' },
+            { username: 'GM', password: 'GmDR@2026', role: 'user' },
+            { username: 'DrH', password: 'Account@2026', role: 'user' },
+            { username: 'Kasara', password: '20102026', role: 'user' }
+        ];
+        for (const u of extraUsers) {
+            const exists = await pool.query('SELECT * FROM users WHERE username = $1', [u.username]);
+            if (exists.rows.length === 0) {
+                const hashed = await bcrypt.hash(u.password, 10);
+                await pool.query(
+                    `INSERT INTO users (username, password, role) VALUES ($1, $2, $3)`,
+                    [u.username, hashed, u.role]
+                );
+                console.log(`✅ تم إنشاء المستخدم ${u.username}`);
+            }
+        }
+
+        // 3. عملاء المصانع
+        const clientUsers = [
+            { username: 'scccl_client', password: 'SCCCL@2025', factory: 'SCCCL' },
+            { username: 'alharith_client', password: 'ALHarith@2025', factory: 'الحارث للمنتجات الاسمنيه' },
+            { username: 'alharithi_old', password: 'Harithi@2025', factory: 'الحارثي القديم' },
+            { username: 'almoajal', password: 'Moajal@2025', factory: 'المعجل لمنتجات الاسمنت' },
+            { username: 'alharith_aziziyah', password: 'Aziziyah@2025', factory: 'الحارث العزيزية' },
+            { username: 'sarmex', password: 'Sarmex@2025', factory: 'سارمكس النظيم' },
+            { username: 'abrkhalij', password: 'Khalij@2025', factory: 'عبر الخليج' },
+            { username: 'alkifah', password: 'Kifah@2025', factory: 'الكفاح للخرسانة الجاهزة' },
+            { username: 'qais3', password: 'Qais3@2025', factory: 'القيشان 3' },
+            { username: 'qais2', password: 'Qais2@2025', factory: 'القيشان 2 - الأحجار الشرقية' },
+            { username: 'qais1', password: 'Qais1@2025', factory: 'القيشان 1' },
+            { username: 'alfahad', password: 'Fahad@2025', factory: 'الفهد للبلوك والخرسانة' }
+        ];
+        for (const c of clientUsers) {
+            const exists = await pool.query('SELECT * FROM users WHERE username = $1', [c.username]);
+            if (exists.rows.length === 0) {
+                const hashed = await bcrypt.hash(c.password, 10);
+                await pool.query(
+                    `INSERT INTO users (username, password, role, factory) VALUES ($1, $2, $3, $4)`,
+                    [c.username, hashed, 'client', c.factory]
+                );
+                console.log(`✅ تم إنشاء مستخدم العميل ${c.username}`);
+            }
+        }
+    } catch (err) {
+        console.error('❌ خطأ في إدخال البيانات الافتراضية:', err);
+    }
+}
+
+// ==================== دوال مساعدة لقاعدة البيانات ====================
 async function getDayData(date) {
     const res = await pool.query('SELECT orders, distribution FROM daily_data WHERE date = $1', [date]);
     if (res.rows.length === 0) return { orders: [], distribution: [] };
     return { orders: res.rows[0].orders, distribution: res.rows[0].distribution };
 }
+
 async function saveDayData(date, orders, distribution) {
     await pool.query(
         `INSERT INTO daily_data (date, orders, distribution) VALUES ($1, $2, $3)
          ON CONFLICT (date) DO UPDATE SET orders = $2, distribution = $3`,
-        [date, orders, distribution]
+        [date, JSON.stringify(orders), JSON.stringify(distribution)]
     );
 }
-async function getUsers() {
-    const res = await pool.query('SELECT id, username, role, factory, permissions, created_at FROM users');
-    return res.rows;
-}
+
 async function getUserByUsername(username) {
     const res = await pool.query('SELECT * FROM users WHERE username = $1', [username]);
     return res.rows[0];
 }
+
+async function getUsers() {
+    const res = await pool.query('SELECT id, username, role, factory, permissions, created_at FROM users');
+    return res.rows;
+}
+
 async function createUser(username, password, role, factory, permissions) {
     const hashed = await bcrypt.hash(password, 10);
     const res = await pool.query(
@@ -107,6 +175,7 @@ async function createUser(username, password, role, factory, permissions) {
     );
     return res.rows[0];
 }
+
 async function updateUser(id, username, role, factory, permissions, newPassword = null) {
     let query = 'UPDATE users SET username = $1, role = $2, factory = $3, permissions = $4';
     let params = [username, role, factory, permissions];
@@ -119,13 +188,16 @@ async function updateUser(id, username, role, factory, permissions, newPassword 
     params.push(id);
     await pool.query(query, params);
 }
+
 async function deleteUser(id) {
     await pool.query('DELETE FROM users WHERE id = $1', [id]);
 }
+
 async function getRestrictions() {
     const res = await pool.query('SELECT * FROM restrictions ORDER BY created_at DESC');
     return res.rows;
 }
+
 async function addRestriction(truckNumber, driverName, restrictedFactories, reason, createdBy) {
     const res = await pool.query(
         `INSERT INTO restrictions (truck_number, driver_name, restricted_factories, reason, created_by)
@@ -134,78 +206,30 @@ async function addRestriction(truckNumber, driverName, restrictedFactories, reas
     );
     return res.rows[0];
 }
+
 async function updateRestriction(id, active) {
     await pool.query('UPDATE restrictions SET active = $1 WHERE id = $2', [active, id]);
 }
+
 async function deleteRestriction(id) {
     await pool.query('DELETE FROM restrictions WHERE id = $1', [id]);
 }
-// ==================== تهيئة البيانات الافتراضية (المستخدمين، المصانع، السيارات) ====================
-async function seedInitialData() {
-    // 1. المستخدم Admin
-    const adminExists = await getUserByUsername('Admin');
-    if (!adminExists) {
-        const hashed = await bcrypt.hash('Live#5050', 10);
-        await pool.query(
-            `INSERT INTO users (username, password, role, permissions) VALUES ($1, $2, $3, $4)`,
-            ['Admin', hashed, 'admin', JSON.stringify({
-                viewOrders: true, addOrders: true, editOrders: true, deleteOrders: true,
-                viewDistribution: true, manageDistribution: true, viewTrucks: true, manageTrucks: true,
-                viewReports: true, exportReports: true, viewSettings: true, manageSettings: true,
-                viewBackup: true, manageBackup: true, manageUsers: true, manageRestrictions: true
-            })]
-        );
-        console.log('✅ تم إنشاء المستخدم Admin');
-    }
 
-    // 2. المستخدمين الإضافيين (hassan, GM, ...)
-    const extraUsers = [
-        { username: 'hassan', password: '305075', role: 'user' },
-        { username: 'Abu Naji', password: '987654', role: 'user' },
-        { username: 'GM', password: 'GmDR@2026', role: 'user' },
-        { username: 'DrH', password: 'Account@2026', role: 'user' },
-        { username: 'Kasara', password: '20102026', role: 'user' }
-    ];
-    for (const u of extraUsers) {
-        const exists = await getUserByUsername(u.username);
-        if (!exists) {
-            const hashed = await bcrypt.hash(u.password, 10);
-            await pool.query(
-                `INSERT INTO users (username, password, role) VALUES ($1, $2, $3)`,
-                [u.username, hashed, u.role]
-            );
-            console.log(`✅ تم إنشاء المستخدم ${u.username}`);
-        }
+// ==================== بدء التشغيل (إنشاء الجداول أولاً، ثم البيانات، ثم السيرفر) ====================
+async function startServer() {
+    // 1. إنشاء الجداول
+    const tablesCreated = await initTables();
+    if (!tablesCreated) {
+        console.error('❌ فشل في إنشاء الجداول، إنهاء التطبيق');
+        process.exit(1);
     }
-
-    // 3. عملاء المصانع (12 مستخدم)
-    const clientUsers = [
-        { username: 'scccl_client', password: 'SCCCL@2025', factory: 'SCCCL' },
-        { username: 'alharith_client', password: 'ALHarith@2025', factory: 'الحارث للمنتجات الاسمنيه' },
-        { username: 'alharithi_old', password: 'Harithi@2025', factory: 'الحارثي القديم' },
-        { username: 'almoajal', password: 'Moajal@2025', factory: 'المعجل لمنتجات الاسمنت' },
-        { username: 'alharith_aziziyah', password: 'Aziziyah@2025', factory: 'الحارث العزيزية' },
-        { username: 'sarmex', password: 'Sarmex@2025', factory: 'سارمكس النظيم' },
-        { username: 'abrkhalij', password: 'Khalij@2025', factory: 'عبر الخليج' },
-        { username: 'alkifah', password: 'Kifah@2025', factory: 'الكفاح للخرسانة الجاهزة' },
-        { username: 'qais3', password: 'Qais3@2025', factory: 'القيشان 3' },
-        { username: 'qais2', password: 'Qais2@2025', factory: 'القيشان 2 - الأحجار الشرقية' },
-        { username: 'qais1', password: 'Qais1@2025', factory: 'القيشان 1' },
-        { username: 'alfahad', password: 'Fahad@2025', factory: 'الفهد للبلوك والخرسانة' }
-    ];
-    for (const c of clientUsers) {
-        const exists = await getUserByUsername(c.username);
-        if (!exists) {
-            const hashed = await bcrypt.hash(c.password, 10);
-            await pool.query(
-                `INSERT INTO users (username, password, role, factory) VALUES ($1, $2, $3, $4)`,
-                [c.username, hashed, 'client', c.factory]
-            );
-            console.log(`✅ تم إنشاء مستخدم العميل ${c.username}`);
-        }
-    }
+    // 2. إدخال البيانات الافتراضية
+    await seedInitialData();
+    // 3. بدء تشغيل السيرفر
+    app.listen(PORT, () => {
+        console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
 }
-seedInitialData();
 
 // ==================== Routes API ====================
 app.get('/api/me', (req, res) => {
@@ -234,8 +258,6 @@ app.post('/api/logout', (req, res) => {
     res.json({ success: true });
 });
 
-// ==================== إعدادات المصانع والمواد والمركبات ====================
-// سنخزنها في قاعدة البيانات أيضاً، لكن للتبسيط نعيد القيم الافتراضية من كود ثابت
 app.get('/api/settings', (req, res) => {
     const defaultSettings = {
         factories: [
@@ -247,29 +269,31 @@ app.get('/api/settings', (req, res) => {
             { name: 'القيشان 1', location: 'الدمام' }, { name: 'الفهد للبلوك والخرسانة', location: 'الرياض' }
         ],
         materials: ['3/4', '3/8', '3/16'],
-        trucks: []  // يمكن إضافة السيارات لاحقاً من صفحة الإعدادات
+        trucks: []
     };
     res.json(defaultSettings);
 });
 
 app.put('/api/settings', async (req, res) => {
-    // هنا يمكن حفظ الإعدادات في جدول settings إذا أردت
     res.json({ success: true });
 });
 
-// ==================== الطلبات والتوزيع اليومي ====================
 app.get('/api/day/:date', async (req, res) => {
     const data = await getDayData(req.params.date);
     res.json(data);
 });
 
 app.put('/api/day/:date', async (req, res) => {
-    const { orders, distribution } = req.body;
-    await saveDayData(req.params.date, orders, distribution);
-    res.json({ success: true });
+    try {
+        const { orders, distribution } = req.body;
+        await saveDayData(req.params.date, orders, distribution);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('PUT /api/day/:date error:', err);
+        res.status(500).json({ error: err.message });
+    }
 });
 
-// ==================== المستخدمين (للمدير فقط) ====================
 app.get('/api/users', async (req, res) => {
     if (req.session.user?.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
     const users = await getUsers();
@@ -300,7 +324,6 @@ app.delete('/api/users/:id', async (req, res) => {
     res.json({ success: true });
 });
 
-// ==================== قيود الحظر ====================
 app.get('/api/restrictions', async (req, res) => {
     const restrictions = await getRestrictions();
     res.json(restrictions);
@@ -328,7 +351,6 @@ app.delete('/api/restrictions/:id', async (req, res) => {
     res.json({ success: true });
 });
 
-// ==================== التقارير (للمدير فقط) ====================
 app.get('/api/reports', async (req, res) => {
     if (req.session.user?.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
     const { startDate, endDate } = req.query;
@@ -356,19 +378,15 @@ app.get('/api/reports', async (req, res) => {
     res.json({ allDistributions, dailyData, driverStats, factoryStats, materialStats, startDate, endDate });
 });
 
-// ==================== النسخ الاحتياطي (للمدير فقط) ====================
 app.get('/api/backup', async (req, res) => {
     if (req.session.user?.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
     const users = await getUsers();
     const restrictions = await getRestrictions();
-    const days = {};
-    // يمكن إضافة جميع الأيام الموجودة في قاعدة البيانات (اختياري)
-    res.json({ users, restrictions, days, exportDate: new Date().toISOString() });
+    res.json({ users, restrictions, exportDate: new Date().toISOString() });
 });
 
 app.post('/api/restore', async (req, res) => {
     if (req.session.user?.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
-    // استعادة البيانات من ملف JSON
     res.json({ success: true });
 });
 
@@ -376,11 +394,10 @@ app.delete('/api/clear-all', async (req, res) => {
     if (req.session.user?.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
     await pool.query('DELETE FROM daily_data');
     await pool.query('DELETE FROM restrictions');
-    // لا تحذف المستخدمين
     res.json({ success: true });
 });
 
-// ==================== صفحات HTML (حماية) ====================
+// ==================== صفحات HTML ====================
 app.get('/login.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'login.html'));
 });
@@ -402,7 +419,5 @@ app.use(express.static(__dirname, {
     }
 }));
 
-// ==================== تشغيل السيرفر ====================
-app.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+// ==================== بدء التطبيق ====================
+startServer();
