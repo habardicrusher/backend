@@ -166,6 +166,7 @@
         const API_BASE = '/api';
         let factoriesChart, materialsChart;
         let currentDate = new Date().toISOString().split('T')[0];
+        let notificationsSection = document.getElementById('notificationsSection');
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -279,8 +280,7 @@
             `).join('');
         }
         
-        // ==================== دوال الإشعارات ====================
-        let notificationsSection = document.getElementById('notificationsSection');
+        // ==================== دوال الإشعارات (معدلة بالكامل) ====================
         
         function renderNotifications() {
             if (!notificationsSection) return;
@@ -289,7 +289,6 @@
             const unread = notifications.getUnread();
             if (countSpan) countSpan.textContent = unread.length;
             
-            // إظهار قسم الإشعارات إذا كان هناك إشعارات
             if (notifications.items.length > 0) {
                 notificationsSection.style.display = 'block';
             } else {
@@ -301,23 +300,50 @@
                 return;
             }
             
-            container.innerHTML = notifications.items.map(n => `
-                <div class="notification-item ${n.read ? 'read' : 'unread'}" onclick="goToOrdersWithFilter('${n.factory}')">
-                    <div style="flex:1">
-                        <div style="font-weight:bold">📋 ${n.factory} - ${n.material} ${n.count > 1 ? `(${n.count} طلبات)` : ''}</div>
-                        <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
-                    </div>
-                    <div onclick="event.stopPropagation()">
-                        ${!n.read ? `<button class="btn btn-sm btn-info" onclick="markNotificationRead(${n.id})">قرأت</button>` : ''}
-                        <button class="btn btn-sm btn-danger" onclick="deleteNotification(${n.id})">حذف</button>
-                    </div>
-                </div>
-            `).join('');
+            container.innerHTML = notifications.items.map(n => {
+                // إشعار توزيع
+                if (n.type === 'distribution') {
+                    return `
+                        <div class="notification-item ${n.read ? 'read' : 'unread'}" onclick="goToDistributionPage()">
+                            <div style="flex:1">
+                                <div style="font-weight:bold">🔄 ${n.title || 'توزيع تلقائي'}</div>
+                                <div>${n.message || ''}</div>
+                                <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
+                            </div>
+                            <div onclick="event.stopPropagation()">
+                                ${!n.read ? `<button class="btn btn-sm btn-info" onclick="markNotificationRead(${n.id})">قرأت</button>` : ''}
+                                <button class="btn btn-sm btn-danger" onclick="deleteNotification(${n.id})">حذف</button>
+                            </div>
+                        </div>
+                    `;
+                } 
+                // إشعار طلب عادي
+                else {
+                    return `
+                        <div class="notification-item ${n.read ? 'read' : 'unread'}" onclick="goToOrdersWithFilter('${n.factory}')">
+                            <div style="flex:1">
+                                <div style="font-weight:bold">📋 ${n.factory} - ${n.material} ${n.count > 1 ? `(${n.count} طلبات)` : ''}</div>
+                                ${n.distributionInfo ? `<div style="font-size:0.75em;color:#38ef7d">${n.distributionInfo}</div>` : ''}
+                                <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
+                            </div>
+                            <div onclick="event.stopPropagation()">
+                                ${!n.read ? `<button class="btn btn-sm btn-info" onclick="markNotificationRead(${n.id})">قرأت</button>` : ''}
+                                <button class="btn btn-sm btn-danger" onclick="deleteNotification(${n.id})">حذف</button>
+                            </div>
+                        </div>
+                    `;
+                }
+            }).join('');
         }
         
-        // دالة الانتقال إلى صفحة الطلبات مع فلتر المصنع
+        // دالة للذهاب إلى صفحة الطلبات مع فلتر المصنع
         function goToOrdersWithFilter(factory) {
             window.location.href = `orders.html?filter=${encodeURIComponent(factory)}`;
+        }
+        
+        // دالة للذهاب إلى صفحة التوزيع
+        function goToDistributionPage() {
+            window.location.href = 'distribution.html';
         }
         
         function markNotificationRead(id) {
@@ -392,7 +418,7 @@
                 .catch(() => { window.location.href = '/login.html'; });
         }
         
-        // تهيئة الصفحة
+        // ==================== تهيئة الصفحة ====================
         document.addEventListener('DOMContentLoaded', async () => {
             loadNav();
             showLoading(true);
@@ -401,8 +427,8 @@
             
             // تهيئة الإشعارات
             if (typeof notifications !== 'undefined') {
-                // عرض الإشعارات
-                if (window.renderNotifications) window.renderNotifications = renderNotifications;
+                // تعيين دالة العرض
+                window.renderNotifications = renderNotifications;
                 renderNotifications();
                 
                 // إعداد زر الصوت
@@ -414,7 +440,9 @@
                 }
                 
                 // الاستماع للتغييرات
-                notifications.addListener(() => renderNotifications());
+                if (notifications.addListener) {
+                    notifications.addListener(() => renderNotifications());
+                }
             }
         });
     </script>
