@@ -134,6 +134,7 @@
         let factoriesChart, materialsChart;
         let currentDate = new Date().toISOString().split('T')[0];
         let notificationsSection = document.getElementById('notificationsSection');
+        let currentUserRole = null;
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -142,6 +143,17 @@
             if (res.status === 401) { window.location.href = '/login.html'; throw new Error('غير مصرح'); }
             if (!res.ok) throw new Error(await res.text());
             return res.json();
+        }
+
+        async function getCurrentUserRole() {
+            try {
+                const res = await fetch('/api/me', { credentials: 'include' });
+                const data = await res.json();
+                if (data.user) {
+                    currentUserRole = data.user.role;
+                    console.log('Current user role:', currentUserRole);
+                }
+            } catch(e) {}
         }
 
         function cleanValue(value, defaultValue = '—') {
@@ -223,7 +235,7 @@
         function renderRecentOrders(orders) {
             const tbody = document.getElementById('recentOrdersBody');
             if (!orders.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم<\/td><\/tr>'; return; }
-            tbody.innerHTML = orders.map((order, i) => `<tr><td>${i+1}</td><td>${order.factory}</td><td>${order.material}</td><td>${order.time}</td><td>${order.timestamp}</td><\/tr>`).join('');
+            tbody.innerHTML = orders.map((order, i) => `<tr><td>${i+1}<\/td><td>${order.factory}<\/td><td>${order.material}<\/td><td>${order.time}<\/td><td>${order.timestamp}<\/td><\/tr>`).join('');
         }
         
         // ==================== دوال الإشعارات ====================
@@ -255,25 +267,29 @@
             
             container.innerHTML = notifications.items.map(n => {
                 if (n.type === 'distribution') {
-                    return `
-                        <div class="notification-item ${n.read ? 'read' : 'unread'}" onclick="goToDistributionPage()">
-                            <div style="flex:1">
-                                <div style="font-weight:bold">🔄 ${n.title || 'توزيع تلقائي'}</div>
-                                <div>📊 ${n.message || ''}</div>
-                                <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
+                    if (currentUserRole === 'admin') {
+                        return `
+                            <div class="notification-item ${n.read ? 'read' : 'unread'}" onclick="goToDistributionPage()">
+                                <div style="flex:1">
+                                    <div style="font-weight:bold">🔄 ${n.title || 'توزيع تلقائي'}</div>
+                                    <div>📊 ${n.message || ''}</div>
+                                    <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
+                                </div>
+                                <div onclick="event.stopPropagation()">
+                                    ${!n.read ? `<button class="btn btn-sm btn-info" onclick="markNotificationRead(${n.id})">قرأت</button>` : ''}
+                                    <button class="btn btn-sm btn-danger" onclick="deleteNotification(${n.id})">حذف</button>
+                                </div>
                             </div>
-                            <div onclick="event.stopPropagation()">
-                                ${!n.read ? `<button class="btn btn-sm btn-info" onclick="markNotificationRead(${n.id})">قرأت</button>` : ''}
-                                <button class="btn btn-sm btn-danger" onclick="deleteNotification(${n.id})">حذف</button>
-                            </div>
-                        </div>
-                    `;
+                        `;
+                    } else {
+                        return '';
+                    }
                 } else {
                     return `
                         <div class="notification-item ${n.read ? 'read' : 'unread'}" onclick="goToOrdersWithFilter('${n.factory}')">
                             <div style="flex:1">
-                                <div style="font-weight:bold">📋 ${n.factory} - ${n.material} ${n.count > 1 ? `(${n.count} طلبات)` : ''}</div>
-                                <div style="font-size:0.75em;color:#38ef7d">✅ تم توزيعها تلقائياً</div>
+                                <div style="font-weight:bold">📋 طلب جديد من ${n.factory}</div>
+                                <div>📦 ${n.material} ${n.count > 1 ? `(${n.count} طلبات)` : ''}</div>
                                 <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
                             </div>
                             <div onclick="event.stopPropagation()">
@@ -283,7 +299,7 @@
                         </div>
                     `;
                 }
-            }).join('');
+            }).filter(html => html !== '').join('');
         }
         
         function markNotificationRead(id) {
@@ -345,6 +361,7 @@
         
         document.addEventListener('DOMContentLoaded', async () => {
             loadNav();
+            await getCurrentUserRole();
             showLoading(true);
             await loadDashboard();
             showLoading(false);
