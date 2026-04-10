@@ -34,9 +34,7 @@
         .btn { padding: 10px 20px; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; margin: 5px; }
         .btn-sm { padding: 5px 10px; font-size: 0.8em; }
         .btn-info { background: #4facfe; color: #fff; }
-        .btn-warning { background: #f093fb; color: #fff; }
         .btn-danger { background: #eb3349; color: #fff; }
-        .btn-success { background: #11998e; color: #fff; }
         .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; }
         .toast { padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; font-weight: 600; animation: slideIn 0.3s ease; }
         .toast-success { background: #11998e; }
@@ -46,39 +44,40 @@
         .loading.active { display: flex; }
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
-        .notifications-section {
-            background: rgba(255,255,255,0.05);
-            border-radius: 15px;
-            padding: 20px;
-            margin-bottom: 30px;
-        }
-        .notifications-header {
+        
+        /* أيقونة التنبيه */
+        .alert-badge {
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: #eb3349;
+            color: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
             display: flex;
-            justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
-            flex-wrap: wrap;
-            gap: 10px;
-        }
-        .notifications-header h3 { color: #667eea; margin: 0; }
-        .notif-badge { background: #f5576c; border-radius: 20px; padding: 2px 8px; font-size: 0.7em; margin-right: 8px; }
-        .notifications-list { max-height: 250px; overflow-y: auto; }
-        .notification-item {
-            padding: 12px;
-            margin-bottom: 8px;
-            border-radius: 8px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.4em;
             cursor: pointer;
+            box-shadow: 0 0 10px rgba(235,51,73,0.5);
             transition: all 0.3s ease;
+            z-index: 100;
+            animation: pulse 1s infinite;
         }
-        .notification-item:hover { transform: translateX(-5px); }
-        .notification-item.unread { background: rgba(102,126,234,0.2); border-right: 3px solid #38ef7d; }
-        .notification-item.read { background: rgba(255,255,255,0.03); border-right: 3px solid #4facfe; }
-        .notifications-list::-webkit-scrollbar { width: 6px; }
-        .notifications-list::-webkit-scrollbar-track { background: rgba(255,255,255,0.1); border-radius: 10px; }
-        .notifications-list::-webkit-scrollbar-thumb { background: #667eea; border-radius: 10px; }
+        .alert-badge:hover {
+            transform: scale(1.1);
+        }
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(235,51,73,0.7); }
+            70% { box-shadow: 0 0 0 15px rgba(235,51,73,0); }
+            100% { box-shadow: 0 0 0 0 rgba(235,51,73,0); }
+        }
+        .alert-badge.hidden {
+            display: none;
+        }
+        
         @media (max-width:768px){ .charts-grid { grid-template-columns:1fr; } .chart-wrapper { height:250px; } }
     </style>
 </head>
@@ -92,21 +91,12 @@
             <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
                 <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
             </div>
+            <!-- أيقونة التنبيه -->
+            <div id="alertBadge" class="alert-badge hidden" onclick="goToDistribution()">
+                <span id="alertCount">0</span>
+            </div>
         </div>
         <div class="nav-links" id="navLinks"></div>
-
-        <div class="notifications-section" id="notificationsSection" style="display: none;">
-            <div class="notifications-header">
-                <h3>🔔 الإشعارات <span id="notifCount" class="notif-badge">0</span></h3>
-                <div>
-                    <button id="soundBtn" onclick="toggleNotificationSound()" class="btn btn-sm btn-info">🔊 الصوت مفعل</button>
-                    <button onclick="markAllNotificationsRead()" class="btn btn-sm btn-warning">✅ تحديد الكل كمقروء</button>
-                </div>
-            </div>
-            <div id="notificationsList" class="notifications-list">
-                <p style="text-align: center; color: #a8b2d1; padding: 20px;">لا توجد إشعارات</p>
-            </div>
-        </div>
 
         <div class="stats-grid">
             <div class="stat-card"><h3 id="totalOrders">0</h3><p>📋 إجمالي الطلبات اليوم</p></div>
@@ -129,13 +119,12 @@
         </div>
     </div>
 
-    <script src="notifications.js"></script>
     <script>
         const API_BASE = '/api';
         let factoriesChart, materialsChart;
         let currentDate = new Date().toISOString().split('T')[0];
-        let notificationsSection = document.getElementById('notificationsSection');
         let currentUserRole = null;
+        let pendingOrdersCount = 0;
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -146,6 +135,138 @@
             return res.json();
         }
 
+        // ==================== نظام التنبيه ====================
+        function updateAlertBadge() {
+            const badge = document.getElementById('alertBadge');
+            const countSpan = document.getElementById('alertCount');
+            if (!badge) return;
+            
+            if (pendingOrdersCount > 0) {
+                badge.classList.remove('hidden');
+                countSpan.textContent = pendingOrdersCount;
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
+        
+        function incrementAlertCount() {
+            pendingOrdersCount++;
+            updateAlertBadge();
+            playBeep();
+        }
+        
+        function resetAlertCount() {
+            pendingOrdersCount = 0;
+            updateAlertBadge();
+            // تخزين في localStorage لتذكره بعد تحديث الصفحة
+            localStorage.setItem('pendingOrdersCount', '0');
+        }
+        
+        function playBeep() {
+            try {
+                const AudioContext = window.AudioContext || window.webkitAudioContext;
+                if (AudioContext) {
+                    const ctx = new AudioContext();
+                    if (ctx.state === 'suspended') ctx.resume();
+                    const osc = ctx.createOscillator();
+                    const gain = ctx.createGain();
+                    osc.connect(gain);
+                    gain.connect(ctx.destination);
+                    osc.frequency.value = 880;
+                    gain.gain.value = 0.2;
+                    osc.start();
+                    gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
+                    osc.stop(ctx.currentTime + 0.5);
+                    setTimeout(() => ctx.close(), 600);
+                }
+            } catch(e) {}
+        }
+        
+        function goToDistribution() {
+            // قبل الانتقال، نخزن أننا ذاهبون للتوزيع
+            localStorage.setItem('pendingOrdersCount', '0');
+            window.location.href = 'distribution.html';
+        }
+        
+        // استعادة العداد من localStorage عند تحميل الصفحة
+        function loadAlertCount() {
+            const saved = localStorage.getItem('pendingOrdersCount');
+            if (saved && !isNaN(parseInt(saved))) {
+                pendingOrdersCount = parseInt(saved);
+            } else {
+                pendingOrdersCount = 0;
+            }
+            updateAlertBadge();
+        }
+        
+        // ==================== التوزيع التلقائي ====================
+        async function autoDistributeAfterOrder() {
+            try {
+                const today = new Date().toISOString().split('T')[0];
+                const settings = await apiCall('/settings');
+                const trucks = settings.trucks || [];
+                
+                if (trucks.length === 0) return;
+                
+                const dayData = await apiCall(`/day/${today}`);
+                let orders = dayData.orders || [];
+                
+                if (orders.length === 0) return;
+                
+                let lastFactoryForTruck = {};
+                trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
+                let availableTrucks = [...trucks];
+                let newDistribution = [];
+                
+                for (let i = 0; i < orders.length; i++) {
+                    const order = orders[i];
+                    const requiredFactory = order.factory;
+                    let selectedTruck = null, candidateIndex = -1;
+                    
+                    for (let j = 0; j < availableTrucks.length; j++) {
+                        if (lastFactoryForTruck[availableTrucks[j].number] !== requiredFactory) {
+                            selectedTruck = availableTrucks[j];
+                            candidateIndex = j;
+                            break;
+                        }
+                    }
+                    if (!selectedTruck && availableTrucks.length) {
+                        selectedTruck = availableTrucks[0];
+                        candidateIndex = 0;
+                    }
+                    if (!selectedTruck) break;
+                    
+                    availableTrucks.splice(candidateIndex, 1);
+                    lastFactoryForTruck[selectedTruck.number] = requiredFactory;
+                    const currentRoad = Math.floor(i / trucks.length) + 1;
+                    
+                    newDistribution.push({
+                        orderId: order.id,
+                        orderIndex: i + 1,
+                        truck: selectedTruck,
+                        factory: order.factory,
+                        material: order.material,
+                        time: order.time || '',
+                        road: currentRoad
+                    });
+                    
+                    if (availableTrucks.length === 0) availableTrucks = [...trucks];
+                }
+                
+                if (newDistribution.length) {
+                    await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
+                    
+                    // زيادة عداد التنبيه
+                    incrementAlertCount();
+                    localStorage.setItem('pendingOrdersCount', pendingOrdersCount);
+                }
+            } catch(e) {
+                console.error('خطأ في التوزيع التلقائي:', e);
+            }
+        }
+        
+        // ==================== باقي دوال الصفحة ====================
+        
         async function getCurrentUserRole() {
             try {
                 const res = await fetch('/api/me', { credentials: 'include' });
@@ -234,308 +355,8 @@
         
         function renderRecentOrders(orders) {
             const tbody = document.getElementById('recentOrdersBody');
-            if (!orders.length) { tbody.innerHTML = '<td><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم</td></tr>'; return; }
-            tbody.innerHTML = orders.map((order, i) => `<tr><td>${i+1}</td><td>${order.factory}</td><td>${order.material}</td><td>${order.time}</td><td>${order.timestamp}</td></tr>`).join('');
-        }
-        
-        // ==================== دوال الإشعارات ====================
-        
-        function renderNotifications() {
-            if (!notificationsSection) return;
-            const container = document.getElementById('notificationsList');
-            const countSpan = document.getElementById('notifCount');
-            const unread = notifications.getUnread();
-            if (countSpan) countSpan.textContent = unread.length;
-            
-            if (notifications.items.length > 0) {
-                notificationsSection.style.display = 'block';
-            } else {
-                notificationsSection.style.display = 'none';
-            }
-            
-            if (!notifications.items.length) {
-                container.innerHTML = '<p style="text-align:center;color:#a8b2d1;padding:20px">لا توجد إشعارات</p>';
-                return;
-            }
-            
-            container.innerHTML = notifications.items.map(n => {
-                if (n.type === 'distribution') {
-                    if (currentUserRole === 'admin') {
-                        return `
-                            <div class="notification-item ${n.read ? 'read' : 'unread'}">
-                                <div style="flex:1">
-                                    <div style="font-weight:bold">🔄 توزيع تلقائي</div>
-                                    <div>📊 ${n.message || ''}</div>
-                                    <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
-                                </div>
-                                <div>
-                                    ${!n.read ? `<button class="btn btn-sm btn-info" onclick="markNotificationRead(${n.id})">قرأت</button>` : ''}
-                                    <button class="btn btn-sm btn-danger" onclick="deleteNotification(${n.id})">حذف</button>
-                                </div>
-                            </div>
-                        `;
-                    } else {
-                        return '';
-                    }
-                } else {
-                    return `
-                        <div class="notification-item ${n.read ? 'read' : 'unread'}" onclick="showDistributionChoice(${n.id}, '${n.factory}', '${n.material}', ${n.count || 1})">
-                            <div style="flex:1">
-                                <div style="font-weight:bold">📋 طلب جديد من ${n.factory}</div>
-                                <div>📦 ${n.material} ${n.count > 1 ? `(${n.count} طلبات)` : ''}</div>
-                                <div style="font-size:0.75em;color:#a8b2d1">🕐 ${n.timestamp}</div>
-                            </div>
-                            <div onclick="event.stopPropagation()">
-                                ${!n.read ? `<button class="btn btn-sm btn-info" onclick="markNotificationRead(${n.id})">قرأت</button>` : ''}
-                                <button class="btn btn-sm btn-danger" onclick="deleteNotification(${n.id})">حذف</button>
-                            </div>
-                        </div>
-                    `;
-                }
-            }).filter(html => html !== '').join('');
-        }
-        
-        // نافذة اختيار التوزيع
-        function showDistributionChoice(notificationId, factory, material, count) {
-            // حذف الإشعار أولاً
-            notifications.delete(notificationId);
-            renderNotifications();
-            
-            const modal = document.createElement('div');
-            modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:20000;display:flex;align-items:center;justify-content:center;';
-            modal.innerHTML = `
-                <div style="background:#1a1a2e;border-radius:20px;padding:30px;max-width:400px;width:90%;text-align:center;border:1px solid #667eea;">
-                    <h3 style="color:#667eea;margin-bottom:20px;">📋 طلب جديد</h3>
-                    <div style="margin-bottom:15px;">
-                        <p>🏭 <strong>${factory}</strong></p>
-                        <p>📦 <strong>${material}</strong></p>
-                        <p>🔢 <strong>${count}</strong> طلب</p>
-                    </div>
-                    <p style="margin-bottom:20px;color:#a8b2d1;">كيف تريد توزيع هذا الطلب؟</p>
-                    <div style="display:flex;gap:15px;justify-content:center;">
-                        <button onclick="autoDistributeNow('${factory}', '${material}', ${count})" class="btn btn-success">⚡ توزيع تلقائي</button>
-                        <button onclick="manualDistributeNow('${factory}', '${material}', ${count})" class="btn btn-warning">🖐️ توزيع يدوي</button>
-                    </div>
-                    <button onclick="this.parentElement.parentElement.remove()" style="margin-top:20px;background:none;border:none;color:#f5576c;cursor:pointer;">إلغاء</button>
-                </div>
-            `;
-            document.body.appendChild(modal);
-        }
-        
-        // التوزيع التلقائي
-        async function autoDistributeNow(factory, material, count) {
-            const modal = document.querySelector('div[style*="z-index:20000"]');
-            if (modal) modal.remove();
-            
-            showLoading(true);
-            try {
-                const today = new Date().toISOString().split('T')[0];
-                const settings = await apiCall('/settings');
-                const trucks = settings.trucks || [];
-                
-                if (trucks.length === 0) {
-                    showToast('لا توجد سيارات للتوزيع', 'error');
-                    showLoading(false);
-                    return;
-                }
-                
-                const dayData = await apiCall(`/day/${today}`);
-                let orders = dayData.orders || [];
-                
-                // إضافة الطلب
-                for (let i = 0; i < count; i++) {
-                    orders.push({
-                        id: Date.now() + '_' + Math.random().toString(36).substr(2, 9) + '_' + i,
-                        factory: factory,
-                        material: material,
-                        time: '',
-                        timestamp: new Date().toLocaleTimeString('ar-SA')
-                    });
-                }
-                
-                // إعادة التوزيع
-                let lastFactoryForTruck = {};
-                trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
-                let availableTrucks = [...trucks];
-                let newDistribution = [];
-                
-                for (let i = 0; i < orders.length; i++) {
-                    const order = orders[i];
-                    const requiredFactory = order.factory;
-                    let selectedTruck = null, candidateIndex = -1;
-                    
-                    for (let j = 0; j < availableTrucks.length; j++) {
-                        if (lastFactoryForTruck[availableTrucks[j].number] !== requiredFactory) {
-                            selectedTruck = availableTrucks[j];
-                            candidateIndex = j;
-                            break;
-                        }
-                    }
-                    if (!selectedTruck && availableTrucks.length) {
-                        selectedTruck = availableTrucks[0];
-                        candidateIndex = 0;
-                    }
-                    if (!selectedTruck) break;
-                    
-                    availableTrucks.splice(candidateIndex, 1);
-                    lastFactoryForTruck[selectedTruck.number] = requiredFactory;
-                    const currentRoad = Math.floor(i / trucks.length) + 1;
-                    
-                    newDistribution.push({
-                        orderId: order.id,
-                        orderIndex: i + 1,
-                        truck: selectedTruck,
-                        factory: order.factory,
-                        material: order.material,
-                        time: order.time || '',
-                        road: currentRoad
-                    });
-                    
-                    if (availableTrucks.length === 0) availableTrucks = [...trucks];
-                }
-                
-                if (newDistribution.length) {
-                    await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
-                    const trucksUsed = new Set(newDistribution.map(d => d.truck?.number)).size;
-                    const lastRoad = newDistribution.length ? Math.max(...newDistribution.map(d => d.road)) : 1;
-                    showToast(`✅ تم توزيع ${orders.length} طلب تلقائياً على ${trucksUsed} سيارة (الرود ${lastRoad})`, 'success');
-                    setTimeout(() => window.location.reload(), 1500);
-                }
-            } catch(e) {
-                showToast('خطأ في التوزيع: ' + e.message, 'error');
-            }
-            showLoading(false);
-        }
-        
-        // التوزيع اليدوي
-        function manualDistributeNow(factory, material, count) {
-            const modal = document.querySelector('div[style*="z-index:20000"]');
-            if (modal) modal.remove();
-            
-            const manualModal = document.createElement('div');
-            manualModal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.9);z-index:20000;display:flex;align-items:center;justify-content:center;';
-            manualModal.innerHTML = `
-                <div style="background:#1a1a2e;border-radius:20px;padding:30px;max-width:450px;width:90%;">
-                    <h3 style="color:#667eea;margin-bottom:20px;">🖐️ التوزيع اليدوي</h3>
-                    <div style="margin-bottom:20px;">
-                        <p>🏭 المصنع: <strong>${factory}</strong></p>
-                        <p>📦 نوع البحص: <strong>${material}</strong></p>
-                        <p>🔢 عدد الطلبات: <strong>${count}</strong></p>
-                    </div>
-                    <div id="manualContent">جاري تحميل السيارات...</div>
-                    <button onclick="this.parentElement.parentElement.remove()" style="margin-top:20px;background:#f5576c;border:none;padding:10px;border-radius:8px;color:#fff;cursor:pointer;width:100%;">إلغاء</button>
-                </div>
-            `;
-            document.body.appendChild(manualModal);
-            loadManualTrucks(factory, material, count, manualModal);
-        }
-        
-        async function loadManualTrucks(factory, material, count, modal) {
-            try {
-                const settings = await apiCall('/settings');
-                const trucks = settings.trucks || [];
-                const container = document.getElementById('manualContent');
-                
-                if (!trucks.length) {
-                    container.innerHTML = '<p style="color:#f5576c;">لا توجد سيارات مسجلة</p>';
-                    return;
-                }
-                
-                container.innerHTML = `
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;">اختر السيارة:</label>
-                        <select id="manualTruckSelect" style="width:100%;padding:10px;border-radius:8px;background:#2a2a4e;color:#fff;border:none;">
-                            <option value="">-- اختر --</option>
-                            ${trucks.map(t => `<option value="${t.number}">${t.number} - ${t.driver}</option>`).join('')}
-                        </select>
-                    </div>
-                    <div style="margin-bottom:15px;">
-                        <label style="display:block;margin-bottom:5px;">الرود:</label>
-                        <input type="number" id="manualRoad" min="1" value="1" style="width:100%;padding:10px;border-radius:8px;background:#2a2a4e;color:#fff;border:none;">
-                    </div>
-                    <button onclick="confirmManualDistribute('${factory}', '${material}', ${count})" class="btn btn-success" style="width:100%;">✅ تأكيد التوزيع</button>
-                `;
-            } catch(e) {
-                showToast('خطأ في تحميل السيارات', 'error');
-            }
-        }
-        
-        async function confirmManualDistribute(factory, material, count) {
-            const truckNumber = document.getElementById('manualTruckSelect')?.value;
-            const road = parseInt(document.getElementById('manualRoad')?.value || 1);
-            
-            if (!truckNumber) {
-                showToast('اختر سيارة أولاً', 'error');
-                return;
-            }
-            
-            showLoading(true);
-            try {
-                const today = new Date().toISOString().split('T')[0];
-                const settings = await apiCall('/settings');
-                const truck = settings.trucks.find(t => t.number === truckNumber);
-                
-                if (!truck) {
-                    showToast('السيارة غير موجودة', 'error');
-                    showLoading(false);
-                    return;
-                }
-                
-                const dayData = await apiCall(`/day/${today}`);
-                let orders = dayData.orders || [];
-                let distribution = dayData.distribution || [];
-                
-                for (let i = 0; i < count; i++) {
-                    const newId = Date.now() + '_' + Math.random().toString(36).substr(2, 9) + '_' + i;
-                    orders.push({
-                        id: newId,
-                        factory: factory,
-                        material: material,
-                        time: '',
-                        timestamp: new Date().toLocaleTimeString('ar-SA')
-                    });
-                    distribution.push({
-                        orderId: newId,
-                        orderIndex: orders.length,
-                        truck: truck,
-                        factory: factory,
-                        material: material,
-                        time: '',
-                        road: road
-                    });
-                }
-                
-                await apiCall(`/day/${today}`, 'PUT', { orders, distribution });
-                showToast(`✅ تم توزيع ${count} طلب يدوياً`, 'success');
-                
-                const modals = document.querySelectorAll('div[style*="z-index:20000"]');
-                modals.forEach(m => m.remove());
-                setTimeout(() => window.location.reload(), 1500);
-            } catch(e) {
-                showToast('خطأ: ' + e.message, 'error');
-            }
-            showLoading(false);
-        }
-        
-        function markNotificationRead(id) {
-            notifications.markAsRead(id);
-            renderNotifications();
-        }
-        
-        function markAllNotificationsRead() {
-            notifications.markAllAsRead();
-            renderNotifications();
-        }
-        
-        function deleteNotification(id) {
-            notifications.delete(id);
-            renderNotifications();
-        }
-        
-        function toggleNotificationSound() {
-            const enabled = notifications.toggleSound();
-            const btn = document.getElementById('soundBtn');
-            if (btn) btn.innerHTML = enabled ? '🔊 الصوت مفعل' : '🔇 الصوت معطل';
+            if (!orders.length) { tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم<\/td><\/tr>'; return; }
+            tbody.innerHTML = orders.map((order, i) => `<tr><td>${i+1}<\/td><td>${order.factory}<\/td><td>${order.material}<\/td><td>${order.time}<\/td><td>${order.timestamp}<\/td><\/tr>`).join('');
         }
         
         function showToast(msg, type) {
@@ -560,6 +381,7 @@
                     document.getElementById('navLinks').innerHTML = isAdmin ? `
                         <a href="index.html" class="nav-link active">📊 الرئيسية</a>
                         <a href="orders.html" class="nav-link">📝 الطلبات</a>
+                        <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
                         <a href="trucks.html" class="nav-link">🚛 السيارات</a>
                         <a href="products.html" class="nav-link">📦 أنواع البحص</a>
                         <a href="factories.html" class="nav-link">🏭 المصانع</a>
@@ -573,22 +395,35 @@
             }).catch(() => { window.location.href = '/login.html'; });
         }
         
+        // بدء الاستماع للطلبات الجديدة (polling)
+        let lastOrderCount = 0;
+        function startPolling() {
+            setInterval(async () => {
+                try {
+                    const today = new Date().toISOString().split('T')[0];
+                    const dayData = await apiCall(`/day/${today}`);
+                    const orders = dayData.orders || [];
+                    
+                    if (orders.length > lastOrderCount && lastOrderCount > 0) {
+                        const newOrdersCount = orders.length - lastOrderCount;
+                        pendingOrdersCount += newOrdersCount;
+                        updateAlertBadge();
+                        localStorage.setItem('pendingOrdersCount', pendingOrdersCount);
+                        playBeep();
+                    }
+                    lastOrderCount = orders.length;
+                } catch(e) {}
+            }, 10000);
+        }
+        
         document.addEventListener('DOMContentLoaded', async () => {
             loadNav();
             await getCurrentUserRole();
+            loadAlertCount();
             showLoading(true);
             await loadDashboard();
             showLoading(false);
-            
-            if (typeof notifications !== 'undefined') {
-                window.renderNotifications = renderNotifications;
-                renderNotifications();
-                const soundEnabled = localStorage.getItem('soundEnabled');
-                if (soundEnabled !== null) notifications.audioEnabled = soundEnabled === 'true';
-                const soundBtn = document.getElementById('soundBtn');
-                if (soundBtn) soundBtn.innerHTML = notifications.audioEnabled ? '🔊 الصوت مفعل' : '🔇 الصوت معطل';
-                if (notifications.addListener) notifications.addListener(() => renderNotifications());
-            }
+            startPolling();
         });
     </script>
 </body>
