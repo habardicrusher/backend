@@ -49,6 +49,8 @@
         .upload-label:hover { background:#2a7fbf; transform:scale(1.02); }
         .file-name { color:#a8b2d1; font-size:0.9em; }
         .btn-clear { background:#eb3349; }
+        .road-badge { display:inline-block; background:#2a2a4e; padding:2px 6px; border-radius:12px; font-size:0.7em; margin:2px; }
+        .roads-container { display:flex; flex-wrap:wrap; justify-content:center; gap:4px; margin-top:5px; }
     </style>
 </head>
 <body>
@@ -165,29 +167,32 @@
                 const roads = truckRoads.get(t.number) || new Set();
                 let cls = 'available';
                 let statusText = '🟢 متاح';
+                let roadsHtml = '';
                 if (roads.size > 0) {
                     const roadArray = Array.from(roads).sort((a,b)=>a-b);
-                    const roadIcons = roadArray.map(r => {
-                        if (r === 1) return '🔵';
-                        if (r === 2) return '🔴';
-                        if (r === 3) return '🟠';
-                        if (r === 4) return '🟣';
-                        return `رود ${r}`;
-                    }).join('+');
-                    statusText = roadIcons + ` رود ${roadArray.join('+')}`;
                     const maxRoad = Math.max(...roadArray);
+                    // عرض أول 3 رودات فقط + عدد الباقي إن وجد
+                    const displayRoads = roadArray.slice(0, 3);
+                    const remaining = roadArray.length - 3;
+                    roadsHtml = `<div class="roads-container">` +
+                        displayRoads.map(r => `<span class="road-badge">رود ${r}</span>`).join('') +
+                        (remaining > 0 ? `<span class="road-badge">+${remaining}</span>` : '') +
+                        `</div>`;
+                    statusText = ''; // نعرض فقط البادجات، ونلغي النص الطويل
                     if (maxRoad === 1) cls = 'assigned-road1';
                     else if (maxRoad === 2) cls = 'assigned-road2';
                     else if (maxRoad === 3) cls = 'assigned-road3';
                     else if (maxRoad === 4) cls = 'assigned-road4';
                     else cls = 'assigned-road1';
+                } else {
+                    roadsHtml = `<div class="roads-container">—</div>`;
                 }
                 const originalIdx = trucks.findIndex(tr => tr.number === t.number);
                 return `<div class="truck-card ${cls}">
                             <div class="truck-number"><strong>${t.number}</strong></div>
                             <div class="truck-driver">${t.driver}</div>
-                            <div style="margin:8px 0;">${statusText}</div>
-                            <div>
+                            ${roadsHtml}
+                            <div style="margin-top:8px;">
                                 <button class="btn btn-warning btn-sm" onclick="openEditTruckModal(${originalIdx})">✏️</button>
                                 <button class="btn btn-danger btn-sm" onclick="deleteTruck(${originalIdx})">🗑️</button>
                             </div>
@@ -196,13 +201,11 @@
             renderStatsGrid();
         }
 
-        // استيراد السيارات من ملف Excel/CSV
         async function importTrucksFromFile(event) {
             const file = event.target.files[0];
             if (!file) return;
             const fileNameSpan = document.getElementById('fileNameDisplay');
             fileNameSpan.textContent = file.name;
-            
             showLoading(true);
             const reader = new FileReader();
             reader.onload = async function(e) {
@@ -211,12 +214,7 @@
                     const workbook = XLSX.read(data, { type: 'array' });
                     const sheet = workbook.Sheets[workbook.SheetNames[0]];
                     const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 });
-                    if (!rows || rows.length < 2) {
-                        showToast('الملف فارغ أو لا يحتوي على بيانات', 'error');
-                        showLoading(false);
-                        return;
-                    }
-                    // محاولة تحديد أسماء الأعمدة (الصف الأول)
+                    if (!rows || rows.length < 2) { showToast('الملف فارغ أو لا يحتوي على بيانات', 'error'); showLoading(false); return; }
                     const headers = rows[0].map(cell => String(cell || '').trim().toLowerCase());
                     let numberColIdx = -1, driverColIdx = -1;
                     for (let i = 0; i < headers.length; i++) {
@@ -224,13 +222,9 @@
                         if (h.includes('رقم') || h === 'number' || h === 'num' || h === 'id') numberColIdx = i;
                         if (h.includes('سائق') || h === 'driver' || h === 'name') driverColIdx = i;
                     }
-                    // إذا لم نجد العناوين، نفترض أن العمود الأول رقم والثاني سائق
                     if (numberColIdx === -1) numberColIdx = 0;
                     if (driverColIdx === -1) driverColIdx = 1;
-                    
-                    let addedCount = 0;
-                    let duplicateCount = 0;
-                    let duplicateNumbers = [];
+                    let addedCount = 0, duplicateCount = 0, duplicateNumbers = [];
                     for (let i = 1; i < rows.length; i++) {
                         const row = rows[i];
                         if (!row || row.length < 2) continue;
@@ -238,54 +232,35 @@
                         let driver = row[driverColIdx] ? String(row[driverColIdx]).trim() : '';
                         if (number === '' || driver === '') continue;
                         const existing = trucks.find(t => t.number === number);
-                        if (existing) {
-                            duplicateCount++;
-                            duplicateNumbers.push(number);
-                            continue;
-                        }
+                        if (existing) { duplicateCount++; duplicateNumbers.push(number); continue; }
                         trucks.push({ number, driver });
                         addedCount++;
                     }
                     if (addedCount > 0) {
                         await saveSettings();
                         await renderTrucksGrid();
-                        showToast(`✅ تم إضافة ${addedCount} سيارة جديدة (تم تخطي ${duplicateCount} مكررة: ${duplicateNumbers.slice(0,5).join(', ')}${duplicateCount>5?'...':''})`, 'success');
+                        showToast(`✅ تم إضافة ${addedCount} سيارة جديدة (تم تخطي ${duplicateCount} مكررة)`, 'success');
                     } else {
-                        if (duplicateCount > 0) {
-                            showToast(`⚠️ لم تتم إضافة أي سيارة جديدة. كل السيارات الموجودة في الملف مكررة بالفعل (${duplicateCount} سيارة). يمكنك مسح السيارات الحالية أولاً ثم إعادة الرفع.`, 'warning');
-                        } else {
-                            showToast('لم يتم العثور على بيانات صالحة في الملف', 'error');
-                        }
+                        if (duplicateCount > 0) showToast(`⚠️ جميع السيارات في الملف مكررة (${duplicateCount}). يمكنك مسح الحالية أولاً.`, 'warning');
+                        else showToast('لم يتم العثور على بيانات صالحة', 'error');
                     }
-                } catch (err) {
-                    console.error(err);
-                    showToast('خطأ في قراءة الملف: ' + err.message, 'error');
-                } finally {
-                    showLoading(false);
-                    event.target.value = '';
-                    setTimeout(() => { fileNameSpan.textContent = ''; }, 3000);
-                }
+                } catch (err) { showToast('خطأ في قراءة الملف', 'error'); }
+                finally { showLoading(false); event.target.value = ''; setTimeout(() => fileNameSpan.textContent = '', 3000); }
             };
             reader.readAsArrayBuffer(file);
         }
 
-        // مسح جميع السيارات (مع إصلاح مشكلة اللف)
         async function clearAllTrucks() {
             if (!confirm('⚠️ تحذير: هذا الإجراء سيمسح جميع السيارات الحالية. لا يمكن التراجع. هل أنت متأكد؟')) return;
             showLoading(true);
             try {
                 trucks = [];
                 await saveSettings();
-                // إعادة تحميل التوزيعات (لإزالة أي مراجع لسيارات قديمة)
                 await loadTodayDistribution();
                 await renderTrucksGrid();
-                showToast('✅ تم مسح جميع السيارات بنجاح', 'success');
-            } catch (err) {
-                console.error(err);
-                showToast('خطأ في المسح: ' + err.message, 'error');
-            } finally {
-                showLoading(false);
-            }
+                showToast('✅ تم مسح جميع السيارات', 'success');
+            } catch (err) { showToast('خطأ في المسح', 'error'); }
+            finally { showLoading(false); }
         }
 
         function openAddTruckModal() {
@@ -326,27 +301,17 @@
             showToast('تم الحذف','info');
         }
 
-        function logout() {
-            if(confirm('تسجيل الخروج؟')) fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html');
-        }
-
+        function logout() { if(confirm('تسجيل الخروج؟')) fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html'); }
         function showToast(msg,type){ const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
         function showLoading(show){ document.getElementById('loading').classList.toggle('active',show); }
         function closeModal(){ document.getElementById('truckModal').classList.remove('active'); }
 
         document.addEventListener('DOMContentLoaded', async ()=>{
             showLoading(true);
-            try {
-                await loadSettings();
-                await loadTodayDistribution();
-                await renderTrucksGrid();
-                console.log('عدد السيارات الحالية:', trucks.length);
-            } catch (err) {
-                console.error('خطأ في تحميل الصفحة:', err);
-                showToast('حدث خطأ في تحميل البيانات', 'error');
-            } finally {
-                showLoading(false);
-            }
+            await loadSettings();
+            await loadTodayDistribution();
+            await renderTrucksGrid();
+            showLoading(false);
         });
     </script>
 </body>
