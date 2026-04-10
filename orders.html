@@ -6,7 +6,7 @@
     <title>الطلبات - نظام إدارة طلبات البحص</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* نفس الأنماط السابقة (اخترتها للاختصار، لكن احتفظ بها كما هي) */
+        /* نفس الأنماط السابقة - مختصرة للاختصار */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -58,7 +58,9 @@
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
         <div class="header"><h1>📝 إدارة الطلبات</h1>
-            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"><button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button></div>
+            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
+                <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
+            </div>
         </div>
         <div class="nav-links" id="navLinks"></div>
         <div class="date-section">
@@ -90,6 +92,7 @@
         const API_BASE = '/api';
         let factories = [], materials = [], orders = [], currentDate = '';
         let currentDistribution = [];
+        let currentUser = null;
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -99,7 +102,8 @@
             if (!res.ok) throw new Error(await res.text());
             return res.json();
         }
-        setInterval(async () => { try { await fetch('/api/me', { credentials: 'include' }); } catch(e) {} }, 5 * 60 * 1000);
+
+        setInterval(async () => { try { await fetch('/api/me', { credentials: 'include' }); } catch(e) {} }, 4 * 60 * 1000);
 
         async function loadSettings() {
             try {
@@ -109,22 +113,33 @@
                 updateSelects(); renderQuickAddButtons();
             } catch(e) { showToast('خطأ في تحميل الإعدادات', 'error'); }
         }
+
+        async function loadCurrentUser() {
+            try {
+                const me = await apiCall('/me');
+                currentUser = me.user;
+            } catch(e) {}
+        }
+
         function updateSelects() {
             const validFactories = factories.filter(f => f && f.trim());
-            const factOpt = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
-            document.getElementById('factorySelect').innerHTML = factOpt;
-            document.getElementById('editOrderFactory').innerHTML = factOpt;
+            const factoryOptions = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
+            document.getElementById('factorySelect').innerHTML = factoryOptions;
+            document.getElementById('editOrderFactory').innerHTML = factoryOptions;
+
             const validMaterials = materials.filter(m => m && m.trim());
-            const matOpt = '<option value="">-- اختر --</option>' + validMaterials.map(m => `<option value="${m}">بحص ${m}</option>`).join('');
-            document.getElementById('materialType').innerHTML = matOpt;
-            document.getElementById('editOrderMaterial').innerHTML = matOpt;
+            const materialOptions = '<option value="">-- اختر --</option>' + validMaterials.map(m => `<option value="${m}">بحص ${m}</option>`).join('');
+            document.getElementById('materialType').innerHTML = materialOptions;
+            document.getElementById('editOrderMaterial').innerHTML = materialOptions;
         }
+
         function renderQuickAddButtons() {
             const container = document.getElementById('quickAddButtons');
             const valid = materials.filter(m => m && m.trim());
             if (!valid.length) { container.innerHTML = '<p>لا توجد أنواع بحص</p>'; return; }
             container.innerHTML = valid.map(m => `<button class="quick-btn" onclick="quickAdd('${m}',1)">${m} ×1</button><button class="quick-btn" onclick="quickAdd('${m}',5)">${m} ×5</button><button class="quick-btn" onclick="quickAdd('${m}',10)">${m} ×10</button>`).join('');
         }
+
         async function loadDayData() {
             currentDate = document.getElementById('orderDate').value;
             try {
@@ -134,17 +149,10 @@
                 renderOrders();
             } catch(e) { orders = []; renderOrders(); showToast('خطأ في تحميل الطلبات', 'error'); }
         }
-        
-        // إصلاح حفظ البيانات ليشمل timestamp
+
         async function saveData() {
             try {
-                const cleaned = orders.map(o => ({ 
-                    id: o.id, 
-                    factory: o.factory, 
-                    material: o.material, 
-                    time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '',
-                    timestamp: o.timestamp || new Date().toLocaleTimeString('ar-SA')
-                }));
+                const cleaned = orders.map(o => ({ id: o.id, factory: o.factory, material: o.material, time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '', timestamp: o.timestamp }));
                 await apiCall(`/day/${currentDate}`, 'PUT', { orders: cleaned, distribution: currentDistribution });
                 return true;
             } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
@@ -210,6 +218,7 @@
                 if (await saveData()) renderOrders();
             }
         }
+
         function openEditOrderModal(id) {
             let o = orders.find(o => o.id === id);
             if (o) {
@@ -220,6 +229,7 @@
                 openModal('editOrderModal');
             }
         }
+
         async function saveOrderEdit() {
             let id = document.getElementById('editOrderId').value;
             let idx = orders.findIndex(o => o.id === id);
@@ -236,6 +246,7 @@
                 }
             }
         }
+
         function renderOrders() {
             const container = document.getElementById('todayOrders');
             document.getElementById('ordersCount').textContent = orders.length;
@@ -265,6 +276,7 @@
                 `;
             }).join('');
         }
+
         function exportOrdersToExcel() {
             if (!orders.length) { showToast('لا توجد طلبات للتصدير', 'error'); return; }
             const data = orders.map((o, i) => ({
@@ -280,13 +292,47 @@
             XLSX.writeFile(wb, `طلبات_${currentDate}.xlsx`);
             showToast('✅ تم التصدير', 'success');
         }
+
         function showToast(msg,type) { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
         function showLoading(s) { document.getElementById('loading').classList.toggle('active', s); }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         function logout() { if(confirm('تسجيل الخروج؟')) fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html'); }
-        function loadNav() { fetch('/api/me',{credentials:'include'}).then(r=>r.json()).then(data=>{ if(data.user) document.getElementById('navLinks').innerHTML=`<a href="index.html" class="nav-link">📊 الرئيسية</a><a href="orders.html" class="nav-link active">📝 الطلبات</a><a href="distribution.html" class="nav-link">🚚 التوزيع</a><a href="trucks.html" class="nav-link">🚛 السيارات</a><a href="products.html" class="nav-link">📦 أنواع البحص</a><a href="factories.html" class="nav-link">🏭 المصانع</a><a href="reports.html" class="nav-link">📊 التقارير</a><a href="settings.html" class="nav-link">⚙️ الإعدادات</a><a href="restrictions.html" class="nav-link">⛔ الحظر</a><a href="users.html" class="nav-link">👥 المستخدمين</a><a href="logs.html" class="nav-link">📜 السجلات</a>`; else window.location.href='/login.html'; }).catch(()=>window.location.href='/login.html'); }
-        document.addEventListener('DOMContentLoaded', async () => { loadNav(); const today = new Date().toISOString().split('T')[0]; document.getElementById('orderDate').value = today; currentDate = today; showLoading(true); await loadSettings(); await loadDayData(); showLoading(false); });
+        
+        function loadNav() { 
+            fetch('/api/me',{credentials:'include'}).then(r=>r.json()).then(data=>{ 
+                if(data.user) {
+                    const isAdmin = data.user.role === 'admin';
+                    document.getElementById('navLinks').innerHTML = isAdmin ? `
+                        <a href="index.html" class="nav-link">📊 الرئيسية</a>
+                        <a href="orders.html" class="nav-link active">📝 الطلبات</a>
+                        <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+                        <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+                        <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+                        <a href="factories.html" class="nav-link">🏭 المصانع</a>
+                        <a href="reports.html" class="nav-link">📊 التقارير</a>
+                        <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
+                        <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
+                        <a href="users.html" class="nav-link">👥 المستخدمين</a>
+                        <a href="logs.html" class="nav-link">📜 السجلات</a>
+                    ` : `
+                        <a href="orders.html" class="nav-link active">📝 الطلبات</a>
+                    `;
+                } else window.location.href='/login.html'; 
+            }).catch(()=>window.location.href='/login.html'); 
+        }
+
+        document.addEventListener('DOMContentLoaded', async () => { 
+            loadNav(); 
+            await loadCurrentUser();
+            const today = new Date().toISOString().split('T')[0]; 
+            document.getElementById('orderDate').value = today; 
+            currentDate = today; 
+            showLoading(true); 
+            await loadSettings(); 
+            await loadDayData(); 
+            showLoading(false); 
+        });
     </script>
 </body>
 </html>
