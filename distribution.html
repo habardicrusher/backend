@@ -6,15 +6,39 @@
     <title>التوزيع - نظام إدارة طلبات البحص</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; position: relative; }
         .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
         .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; font-weight: 600; }
         .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transform: translateY(-2px); }
-        .date-section { background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+        .date-section {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
         .date-section input[type="date"] { padding: 12px 20px; border-radius: 10px; border: none; background: #fff; color: #333; cursor: pointer; }
-        .btn { padding: 12px 25px; border: none; border-radius: 12px; cursor: pointer; font-size: 1em; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
         .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
         .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
         .btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
@@ -58,7 +82,8 @@
         <div class="stats" id="statsSection" style="display: none;"><div class="stat-card"><h4>📋 عدد الطلبات</h4><div class="number" id="statOrders">0</div></div><div class="stat-card"><h4>🚛 عدد السيارات</h4><div class="number" id="statTrucks">0</div></div><div class="stat-card"><h4>✅ تم التوزيع</h4><div class="number" id="statDistributed">0</div></div><div class="stat-card"><h4>🔄 آخر رود</h4><div class="number" id="statRoad">-</div></div></div>
         <h2>📋 قائمة التوزيع</h2>
         <div style="overflow-x: auto;">
-            <table><thead><tr><th>#</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>نوع البحص</th><th>التوقيت</th><th>الرود</th></tr></thead><tbody id="distributionTable"><tr><td colspan="7" style="text-align:center; padding:30px;">لا يوجد توزيع بعد</td></tr></tbody></table>
+            <tr><thead><tr><th>#</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>نوع البحص</th><th>التوقيت</th><th>الرود</th></tr></thead><tbody id="distributionTable"><tr><td colspan="7" style="text-align:center; padding:30px;">لا يوجد توزيع بعد</td></tr></tbody>
+        </table>
         </div>
     </div>
     <script>
@@ -73,7 +98,7 @@
             if (!res.ok) throw new Error(await res.text());
             return res.json();
         }
-        setInterval(async () => { try { await fetch('/api/me', { credentials: 'include' }); } catch(e) {} }, 5 * 60 * 1000);
+        setInterval(async () => { try { await fetch('/api/me', { credentials: 'include' }); } catch(e) {} }, 4 * 60 * 1000);
 
         async function loadSettings() {
             try { const data = await apiCall('/settings'); trucks = data.trucks || []; document.getElementById('statTrucks').textContent = trucks.length; } catch(e) { showToast('خطأ في تحميل السيارات', 'error'); }
@@ -123,23 +148,17 @@
         function renderDistribution() {
             const tbody = document.getElementById('distributionTable');
             if(!distribution.length) { tbody.innerHTML='<tr><td colspan="7" style="text-align:center;padding:30px;">لا يوجد توزيع</td></tr>'; return; }
-            tbody.innerHTML = distribution.map((d,i) => {
-                let timeDisplay = '-';
-                if (d.time && d.time !== 'undefined' && d.time !== 'null' && d.time.trim() !== '') {
-                    timeDisplay = `<span class="time-badge">⏰ ${d.time}</span>`;
-                }
-                return `
-                    <tr>
-                        <td>${i+1}</td>
-                        <td><strong>${d.truck?.number||'?'}</strong></td>
-                        <td>${d.truck?.driver||'?'}</td>
-                        <td>${d.factory}</td>
-                        <td>بحص ${d.material}</td>
-                        <td>${timeDisplay}</td>
-                        <td><span class="road-badge road-${d.road}">رود ${d.road}</span></td>
-                    </tr>
-                `;
-            }).join('');
+            tbody.innerHTML = distribution.map((d,i)=>`
+                <tr>
+                    <td>${i+1}</td>
+                    <td><strong>${d.truck?.number||'?'}</strong></td>
+                    <td>${d.truck?.driver||'?'}</td>
+                    <td>${d.factory}</td>
+                    <td>بحص ${d.material}</td>
+                    <td>${d.time && d.time!=='undefined'? `<span class="time-badge">⏰ ${d.time}</span>` : '-'}</td>
+                    <td><span class="road-badge road-${d.road}">رود ${d.road}</span></td>
+                </tr>
+            `).join('');
         }
         function showToast(msg,type) { let c=document.getElementById('toastContainer'); let t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
         function showLoading(s) { document.getElementById('loading').classList.toggle('active',s); }
