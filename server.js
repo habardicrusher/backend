@@ -35,10 +35,12 @@ app.get('/login.html', (req, res) => {
 
 app.get('/', (req, res) => {
     if (req.session && req.session.user) {
-        // توجيه حسب الدور
+        // العملاء (clients) يذهبون فقط لصفحة الطلبات
         if (req.session.user.role === 'client') {
             res.redirect('/orders.html');
-        } else {
+        } 
+        // المدير (admin) والمستخدم العادي (user) يذهبون للرئيسية
+        else {
             res.redirect('/index.html');
         }
     } else {
