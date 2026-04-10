@@ -35,6 +35,7 @@
         .btn-sm { padding: 5px 10px; font-size: 0.8em; }
         .btn-info { background: #4facfe; color: #fff; }
         .btn-danger { background: #eb3349; color: #fff; }
+        .btn-warning { background: #f093fb; color: #fff; }
         .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; }
         .toast { padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; font-weight: 600; animation: slideIn 0.3s ease; }
         .toast-success { background: #11998e; }
@@ -45,7 +46,6 @@
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         
-        /* أيقونة التنبيه الحمراء */
         .alert-badge {
             position: absolute;
             top: 15px;
@@ -66,17 +66,13 @@
             z-index: 100;
             animation: pulse 1s infinite;
         }
-        .alert-badge:hover {
-            transform: scale(1.1);
-        }
+        .alert-badge:hover { transform: scale(1.1); }
         @keyframes pulse {
             0% { box-shadow: 0 0 0 0 rgba(235,51,73,0.7); }
             70% { box-shadow: 0 0 0 15px rgba(235,51,73,0); }
             100% { box-shadow: 0 0 0 0 rgba(235,51,73,0); }
         }
-        .alert-badge.hidden {
-            display: none;
-        }
+        .alert-badge.hidden { display: none; }
         
         @media (max-width:768px){ .charts-grid { grid-template-columns:1fr; } .chart-wrapper { height:250px; } }
     </style>
@@ -88,10 +84,10 @@
         <div class="header">
             <h1>📊 لوحة التحكم الرئيسية</h1>
             <p>نظام إدارة طلبات وتوزيع البحص</p>
-            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
+            <div style="position: absolute; top: 20px; left: 20px; display: flex; gap: 10px;">
                 <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
+                <button onclick="testAlert()" style="background: #4facfe; border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🔔 اختبار الإشعار</button>
             </div>
-            <!-- أيقونة التنبيه الحمراء -->
             <div id="alertBadge" class="alert-badge hidden" onclick="goToDistribution()">
                 <span id="alertCount">0</span>
             </div>
@@ -112,7 +108,7 @@
 
         <div class="recent-orders">
             <h3>📋 آخر 10 طلبات اليوم</h3>
-            <table>
+            <table id="recentOrdersTable">
                 <thead><tr><th>#</th><th>المصنع</th><th>نوع البحص</th><th>التوقيت</th><th>وقت الإضافة</th></tr></thead>
                 <tbody id="recentOrdersBody"></tbody>
             </table>
@@ -126,7 +122,6 @@
         let pendingOrdersCount = 0;
         let lastOrderCount = 0;
 
-        // دالة استدعاء API
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
             if (data) options.body = JSON.stringify(data);
@@ -136,7 +131,6 @@
             return res.json();
         }
 
-        // تحديث الأيقونة الحمراء
         function updateAlertBadge() {
             const badge = document.getElementById('alertBadge');
             const countSpan = document.getElementById('alertCount');
@@ -144,28 +138,28 @@
             if (pendingOrdersCount > 0) {
                 badge.classList.remove('hidden');
                 countSpan.textContent = pendingOrdersCount;
+                console.log('✅ الأيقونة ظهرت بعدد:', pendingOrdersCount);
             } else {
                 badge.classList.add('hidden');
+                console.log('❌ الأيقونة مخفية');
             }
         }
 
-        // زيادة العداد وتشغيل الصوت
         function incrementAlertCount() {
             pendingOrdersCount++;
             updateAlertBadge();
             playBeep();
-            // حفظ العداد في localStorage لاستعادته بعد تحديث الصفحة
             localStorage.setItem('pendingOrdersCount', pendingOrdersCount);
+            console.log('🔔 تم زيادة العداد إلى:', pendingOrdersCount);
         }
 
-        // تصفير العداد (عند الضغط على الأيقونة)
         function resetAlertCount() {
             pendingOrdersCount = 0;
             updateAlertBadge();
             localStorage.setItem('pendingOrdersCount', '0');
+            console.log('🔄 تم تصفير العداد');
         }
 
-        // تشغيل صوت التنبيه
         function playBeep() {
             try {
                 const AudioContext = window.AudioContext || window.webkitAudioContext;
@@ -182,35 +176,34 @@
                     gain.gain.exponentialRampToValueAtTime(0.00001, ctx.currentTime + 0.5);
                     osc.stop(ctx.currentTime + 0.5);
                     setTimeout(() => ctx.close(), 600);
+                    console.log('🔊 تم تشغيل الصوت');
                 }
-            } catch(e) {}
+            } catch(e) { console.log('⚠️ فشل تشغيل الصوت', e); }
         }
 
-        // الانتقال إلى صفحة التوزيع
         function goToDistribution() {
             resetAlertCount();
             window.location.href = 'distribution.html';
         }
 
-        // استعادة العداد من localStorage عند تحميل الصفحة
+        function testAlert() {
+            console.log('🧪 زر الاختبار: زيادة العداد يدوياً');
+            incrementAlertCount();
+        }
+
         function loadAlertCount() {
             const saved = localStorage.getItem('pendingOrdersCount');
-            if (saved && !isNaN(parseInt(saved))) {
-                pendingOrdersCount = parseInt(saved);
-            } else {
-                pendingOrdersCount = 0;
-            }
+            if (saved && !isNaN(parseInt(saved))) pendingOrdersCount = parseInt(saved);
+            else pendingOrdersCount = 0;
             updateAlertBadge();
         }
 
-        // التوزيع التلقائي (ذكي)
         async function autoDistributeAfterOrder() {
             try {
                 const today = new Date().toISOString().split('T')[0];
                 const settings = await apiCall('/settings');
                 const trucks = settings.trucks || [];
                 if (trucks.length === 0) return;
-
                 const dayData = await apiCall(`/day/${today}`);
                 let orders = dayData.orders || [];
                 if (orders.length === 0) return;
@@ -250,17 +243,13 @@
                     });
                     if (availableTrucks.length === 0) availableTrucks = [...trucks];
                 }
-
                 if (newDistribution.length) {
                     await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
-                    console.log('تم التوزيع التلقائي بنجاح');
+                    console.log('✅ التوزيع التلقائي تم بنجاح');
                 }
-            } catch(e) {
-                console.error('خطأ في التوزيع التلقائي:', e);
-            }
+            } catch(e) { console.error('❌ خطأ في التوزيع التلقائي:', e); }
         }
 
-        // جلب البيانات وتحديث الواجهة
         async function loadDashboard() {
             showLoading(true);
             try {
@@ -280,7 +269,6 @@
                 const percentage = target > 0 ? Math.min(100, Math.round((distribution.length / target) * 100)) : 0;
                 document.getElementById('completedPercentage').textContent = percentage + '%';
 
-                // إحصائيات للرسوم البيانية
                 const factoryStats = {};
                 orders.forEach(order => { const f = order.factory || 'غير محدد'; factoryStats[f] = (factoryStats[f] || 0) + 1; });
                 const materialStats = {};
@@ -289,7 +277,6 @@
                 renderFactoriesChart(factoryStats);
                 renderMaterialsChart(materialStats);
 
-                // آخر 10 طلبات
                 const recent = orders.slice(-10).reverse().map(order => ({
                     factory: order.factory || '—',
                     material: order.material || '—',
@@ -297,15 +284,9 @@
                     timestamp: order.timestamp || '—'
                 }));
                 const tbody = document.getElementById('recentOrdersBody');
-                if (!recent.length) {
-                    tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم</td></tr>';
-                } else {
-                    tbody.innerHTML = recent.map((o, i) => `<tr><td>${i+1}</td><td>${o.factory}</td><td>${o.material}</td><td>${o.time}</td><td>${o.timestamp}</td></tr>`).join('');
-                }
-            } catch(e) {
-                console.error(e);
-                showToast('خطأ في تحميل البيانات', 'error');
-            }
+                if (!recent.length) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم<\/td><\/tr>';
+                else tbody.innerHTML = recent.map((o, i) => `<tr><td>${i+1}<\/td><td>${o.factory}<\/td><td>${o.material}<\/td><td>${o.time}<\/td><td>${o.timestamp}<\/td><\/tr>`).join('');
+            } catch(e) { console.error(e); showToast('خطأ في تحميل البيانات', 'error'); }
             showLoading(false);
         }
 
@@ -334,37 +315,27 @@
             });
         }
 
-        // مراقبة الطلبات الجديدة كل 10 ثوانٍ
         async function checkNewOrders() {
             try {
                 const today = new Date().toISOString().split('T')[0];
                 const dayData = await apiCall(`/day/${today}`);
                 const currentOrders = dayData.orders || [];
                 const currentCount = currentOrders.length;
-
                 if (currentCount > lastOrderCount) {
                     const newOrdersCount = currentCount - lastOrderCount;
-                    // زيادة العداد بعدد الطلبات الجديدة
                     for (let i = 0; i < newOrdersCount; i++) incrementAlertCount();
-                    // إعادة التوزيع التلقائي (للتأكد من توزيع الطلبات الجديدة)
                     await autoDistributeAfterOrder();
-                    // تحديث الواجهة لعرض الطلبات الجديدة
                     await loadDashboard();
                 }
                 lastOrderCount = currentCount;
-            } catch(e) {
-                console.error('خطأ في مراقبة الطلبات', e);
-            }
+            } catch(e) { console.error('خطأ في مراقبة الطلبات', e); }
         }
 
         function startPolling() {
-            // جلب العدد الحالي أول مرة
-            setInterval(async () => {
-                await checkNewOrders();
-            }, 10000); // كل 10 ثوانٍ
+            setInterval(async () => { await checkNewOrders(); }, 10000);
+            console.log('🚀 بدء مراقبة الطلبات الجديدة كل 10 ثوانٍ');
         }
 
-        // دوال عامة
         function showToast(msg, type) {
             const container = document.getElementById('toastContainer');
             const toast = document.createElement('div');
@@ -404,23 +375,17 @@
                             <a href="users.html" class="nav-link">👥 المستخدمين</a>
                             <a href="logs.html" class="nav-link">📜 السجلات</a>
                         ` : `<a href="orders.html" class="nav-link">📝 الطلبات</a>`;
-                    } else {
-                        window.location.href = '/login.html';
-                    }
-                })
-                .catch(() => { window.location.href = '/login.html'; });
+                    } else { window.location.href = '/login.html'; }
+                }).catch(() => { window.location.href = '/login.html'; });
         }
 
-        // بدء التشغيل
         document.addEventListener('DOMContentLoaded', async () => {
             loadNav();
             loadAlertCount();
             showLoading(true);
             await loadDashboard();
             showLoading(false);
-            // تعيين العدد الحالي للطلبات
-            const today = new Date().toISOString().split('T')[0];
-            const initData = await apiCall(`/day/${today}`);
+            const initData = await apiCall(`/day/${currentDate}`);
             lastOrderCount = (initData.orders || []).length;
             startPolling();
         });
