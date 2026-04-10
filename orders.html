@@ -50,6 +50,7 @@
         .loading.active { display: flex; }
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .fixed-factory { background: rgba(102,126,234,0.3); padding: 12px 15px; border-radius: 10px; font-weight: bold; }
         @media (max-width:768px){ .header h1 { font-size:1.5em; } }
     </style>
 </head>
@@ -94,7 +95,6 @@
 
     <div class="modal" id="editOrderModal"><div class="modal-content"><div class="modal-header"><h3>✏️ تعديل الطلب</h3><button class="close-modal" onclick="closeModal('editOrderModal')">&times;</button></div><div class="modal-body"><input type="hidden" id="editOrderId"><div class="form-group" id="editFactoryFieldContainer"><label>🏭 المصنع</label><div id="editFactoryContainer"></div></div><div class="form-group"><label>📦 نوع البحص</label><select id="editOrderMaterial"></select></div><div class="form-group"><label>⏰ التوقيت</label><input type="text" id="editOrderTime" placeholder="اختياري"></div></div><div class="modal-footer"><button class="btn btn-danger" onclick="closeModal('editOrderModal')">إلغاء</button><button class="btn btn-success" onclick="saveOrderEdit()">حفظ</button></div></div></div>
 
-    <script src="notifications.js"></script>
     <script>
         const API_BASE = '/api';
         let factories = [], materials = [], orders = [], currentDate = '';
@@ -139,8 +139,8 @@
             const editFactoryContainer = document.getElementById('editFactoryContainer');
             
             if (currentUserRole === 'client' && currentUserFactory) {
-                factoryContainer.innerHTML = `<div class="fixed-factory" style="background:rgba(102,126,234,0.3); padding:12px 15px; border-radius:10px; font-weight:bold;">${currentUserFactory}</div>`;
-                editFactoryContainer.innerHTML = `<div class="fixed-factory" style="background:rgba(102,126,234,0.3); padding:12px 15px; border-radius:10px; font-weight:bold;">${currentUserFactory}</div>`;
+                factoryContainer.innerHTML = `<div class="fixed-factory">${currentUserFactory}</div>`;
+                editFactoryContainer.innerHTML = `<div class="fixed-factory">${currentUserFactory}</div>`;
             } else {
                 const validFactories = factories.filter(f => f && f.trim());
                 const factoryOptions = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
@@ -199,28 +199,20 @@
                 const today = new Date().toISOString().split('T')[0];
                 const settings = await apiCall('/settings');
                 const trucks = settings.trucks || [];
-                
-                if (trucks.length === 0) {
-                    console.log('لا توجد سيارات للتوزيع');
-                    return;
-                }
-                
+                if (trucks.length === 0) return;
                 const dayData = await apiCall(`/day/${today}`);
-                const orders = dayData.orders || [];
-                let distribution = dayData.distribution || [];
-                
+                let orders = dayData.orders || [];
                 if (orders.length === 0) return;
-                
+
                 let lastFactoryForTruck = {};
                 trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
                 let availableTrucks = [...trucks];
                 let newDistribution = [];
-                
+
                 for (let i = 0; i < orders.length; i++) {
                     const order = orders[i];
                     const requiredFactory = order.factory;
                     let selectedTruck = null, candidateIndex = -1;
-                    
                     for (let j = 0; j < availableTrucks.length; j++) {
                         if (lastFactoryForTruck[availableTrucks[j].number] !== requiredFactory) {
                             selectedTruck = availableTrucks[j];
@@ -233,11 +225,9 @@
                         candidateIndex = 0;
                     }
                     if (!selectedTruck) break;
-                    
                     availableTrucks.splice(candidateIndex, 1);
                     lastFactoryForTruck[selectedTruck.number] = requiredFactory;
                     const currentRoad = Math.floor(i / trucks.length) + 1;
-                    
                     newDistribution.push({
                         orderId: order.id,
                         orderIndex: i + 1,
@@ -247,32 +237,13 @@
                         time: order.time || '',
                         road: currentRoad
                     });
-                    
                     if (availableTrucks.length === 0) availableTrucks = [...trucks];
                 }
-                
                 if (newDistribution.length) {
                     await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
-                    
-                    const trucksUsed = new Set(newDistribution.map(d => d.truck?.number)).size;
-                    const lastRoad = newDistribution.length ? Math.max(...newDistribution.map(d => d.road)) : 1;
-                    
-                    if (typeof notifications !== 'undefined') {
-                        notifications.addDistributionNotification({
-                            totalOrders: orders.length,
-                            trucksUsed: trucksUsed,
-                            lastRoad: lastRoad,
-                            details: `تم توزيع ${orders.length} طلب على ${trucksUsed} سيارة`
-                        });
-                    }
-                    
-                    if (currentUserRole === 'admin') {
-                        showToast(`✅ تم توزيع ${orders.length} طلب تلقائياً على ${trucksUsed} سيارة (الرود ${lastRoad})`, 'success');
-                    }
+                    console.log('✅ التوزيع التلقائي تم بنجاح');
                 }
-            } catch(e) {
-                console.error('خطأ في التوزيع التلقائي:', e);
-            }
+            } catch(e) { console.error('❌ خطأ في التوزيع التلقائي:', e); }
         }
 
         async function manualDistribute() {
@@ -283,7 +254,7 @@
             showToast('✅ تم إعادة توزيع الطلبات', 'success');
         }
 
-        // ==================== دوال الطلبات ====================
+        // ==================== دوال الطلبات (مع إضافة إشارة الإشعار) ====================
         async function addOrder() {
             const factory = getSelectedFactory();
             const material = document.getElementById('materialType').value;
@@ -310,7 +281,7 @@
                 document.getElementById('orderTime').value = '';
                 showToast(`✅ تم إضافة ${count} طلب`, 'success');
                 
-                // ✅ إشارة للإشعار في index.html
+                // 🔔 إشارة للإشعار في index.html
                 localStorage.setItem('newOrderTimestamp', Date.now());
                 
                 await autoDistributeAfterOrder();
@@ -341,7 +312,7 @@
                 renderOrders();
                 showToast(`✅ تم إضافة ${count} طلب ${material}`, 'success');
                 
-                // ✅ إشارة للإشعار في index.html
+                // 🔔 إشارة للإشعار في index.html
                 localStorage.setItem('newOrderTimestamp', Date.now());
                 
                 await autoDistributeAfterOrder();
