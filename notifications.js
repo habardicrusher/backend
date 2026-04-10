@@ -1,8 +1,9 @@
-// notifications.js - نظام الإشعارات (للمدير والمستخدمين الداخليين فقط)
+// notifications.js - نظام الإشعارات
 const notifications = {
     items: [],
     audioEnabled: true,
     currentUserRole: null,
+    userChecked: false,
 
     init: function() {
         const saved = localStorage.getItem('gravel_notifications');
@@ -10,8 +11,8 @@ const notifications = {
             try { this.items = JSON.parse(saved); } catch(e) {}
         }
         this.updateBadge();
-        this.startPolling();
         this.getCurrentUserRole();
+        this.startPolling();
     },
 
     async getCurrentUserRole() {
@@ -20,13 +21,23 @@ const notifications = {
             const data = await res.json();
             if (data.user) {
                 this.currentUserRole = data.user.role;
-                console.log('User role:', this.currentUserRole);
+                this.userChecked = true;
+                console.log('✅ User role loaded:', this.currentUserRole);
+            } else {
+                console.log('⚠️ No user found');
             }
-        } catch(e) {}
+        } catch(e) {
+            console.error('Error getting user role:', e);
+        }
     },
 
     shouldNotify() {
-        return this.currentUserRole === 'admin' || this.currentUserRole === 'user';
+        // إذا لم نتحقق من المستخدم بعد، نرجع true مؤقتاً (حتى لا نفوت الإشعارات)
+        if (!this.userChecked) return true;
+        // الإشعارات فقط للمدير والمستخدمين العاديين (وليس العملاء)
+        const result = this.currentUserRole === 'admin' || this.currentUserRole === 'user';
+        console.log('shouldNotify:', result, 'role:', this.currentUserRole);
+        return result;
     },
 
     playBeep: function() {
@@ -52,47 +63,32 @@ const notifications = {
         } catch(e) {}
     },
 
-    addOrderWithDistribution: function(order, distributionResult) {
+    addOrderNotification: function(order) {
+        console.log('Adding order notification:', order);
         if (!this.shouldNotify()) return null;
         
-        const existing = this.items.find(n => !n.read && n.factory === order.factory && n.material === order.material);
-        let notification;
-        
-        const distributionInfo = distributionResult ? 
-            `✅ تم التوزيع: ${distributionResult.totalDistributed} طلب` : 
-            '⚠️ لم يتم التوزيع بعد';
-        
-        if (existing) {
-            existing.count++;
-            existing.distributionInfo = distributionInfo;
-            existing.timestamp = new Date().toLocaleTimeString('ar-SA');
-            existing.factory = order.factory;
-            existing.material = order.material;
-            notification = existing;
-        } else {
-            notification = {
-                id: Date.now(),
-                type: 'order',
-                factory: order.factory,
-                material: order.material,
-                count: order.count || 1,
-                distributionInfo: distributionInfo,
-                timestamp: new Date().toLocaleTimeString('ar-SA'),
-                read: false
-            };
-            this.items.unshift(notification);
-        }
+        const notification = {
+            id: Date.now(),
+            type: 'order',
+            factory: order.factory,
+            material: order.material,
+            count: order.count || 1,
+            timestamp: new Date().toLocaleTimeString('ar-SA'),
+            read: false
+        };
+        this.items.unshift(notification);
         
         if (this.items.length > 50) this.items.pop();
         localStorage.setItem('gravel_notifications', JSON.stringify(this.items));
         this.playBeep();
-        this.showPopup(order, distributionResult);
+        this.showOrderPopup(order);
         this.updateBadge();
         if (window.renderNotifications) window.renderNotifications();
         return notification;
     },
     
     addDistributionNotification: function(result) {
+        console.log('Adding distribution notification:', result);
         if (!this.shouldNotify()) return null;
         
         const notification = {
@@ -114,7 +110,7 @@ const notifications = {
         if (window.renderNotifications) window.renderNotifications();
     },
 
-    showPopup: function(order, distributionResult) {
+    showOrderPopup: function(order) {
         if (!this.shouldNotify()) return;
         
         let container = document.getElementById('notifyPopup');
@@ -125,9 +121,6 @@ const notifications = {
             document.body.appendChild(container);
         }
         
-        const distText = distributionResult ? 
-            `<div style="font-size:0.75em;color:#38ef7d;margin-top:5px;">✅ توزيع: ${distributionResult.totalDistributed} طلب</div>` : '';
-        
         container.innerHTML = `
             <div style="display:flex;align-items:center;gap:12px">
                 <div style="font-size:28px">📋</div>
@@ -136,7 +129,6 @@ const notifications = {
                     <div>🏭 ${order.factory}</div>
                     <div>📦 ${order.material}</div>
                     <div>🔢 ${order.count || 1} طلب</div>
-                    ${distText}
                     <div style="font-size:0.7em;color:#a8b2d1;margin-top:5px">${new Date().toLocaleTimeString('ar-SA')}</div>
                 </div>
                 <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:#fff;cursor:pointer">✕</button>
@@ -178,30 +170,31 @@ const notifications = {
     },
 
     startPolling: function() {
-        let lastNotifiedId = localStorage.getItem('lastNotifiedOrderId') || '';
+        let lastOrderCount = 0;
         setInterval(async () => {
             try {
+                // تأكد من أن المستخدم مدير أو مستخدم عادي
+                if (!this.shouldNotify()) return;
+                
                 const today = new Date().toISOString().split('T')[0];
                 const res = await fetch(`/api/day/${today}`, { credentials: 'include' });
                 const data = await res.json();
                 const orders = data.orders || [];
-                if (orders.length > 0 && orders[0].id !== lastNotifiedId) {
-                    const newOrder = orders[0];
-                    const distRes = await fetch(`/api/day/${today}`, { credentials: 'include' });
-                    const distData = await distRes.json();
-                    const distribution = distData.distribution || [];
-                    this.addOrderWithDistribution(newOrder, {
-                        totalDistributed: distribution.length,
-                        trucksUsed: new Set(distribution.map(d => d.truck?.number)).size,
-                        lastRoad: distribution.length ? Math.max(...distribution.map(d => d.road)) : 0
-                    });
-                    localStorage.setItem('lastNotifiedOrderId', orders[0].id);
+                
+                // إذا زاد عدد الطلبات، أضف إشعاراً
+                if (orders.length > lastOrderCount && lastOrderCount > 0) {
+                    const newOrders = orders.slice(0, orders.length - lastOrderCount);
+                    for (let i = 0; i < newOrders.length; i++) {
+                        this.addOrderNotification(newOrders[i]);
+                    }
                 }
+                lastOrderCount = orders.length;
             } catch(e) {}
-        }, 8000);
+        }, 10000);
     },
 
     getUnread: function() { return this.items.filter(n => !n.read); },
+    
     markAsRead: function(id) {
         const n = this.items.find(i => i.id == id);
         if (n) n.read = true;
@@ -209,18 +202,21 @@ const notifications = {
         this.updateBadge();
         if (window.renderNotifications) window.renderNotifications();
     },
+    
     markAllAsRead: function() {
         this.items.forEach(n => n.read = true);
         localStorage.setItem('gravel_notifications', JSON.stringify(this.items));
         this.updateBadge();
         if (window.renderNotifications) window.renderNotifications();
     },
+    
     delete: function(id) {
         this.items = this.items.filter(i => i.id != id);
         localStorage.setItem('gravel_notifications', JSON.stringify(this.items));
         this.updateBadge();
         if (window.renderNotifications) window.renderNotifications();
     },
+    
     toggleSound: function() {
         this.audioEnabled = !this.audioEnabled;
         localStorage.setItem('soundEnabled', this.audioEnabled);
@@ -228,5 +224,9 @@ const notifications = {
     }
 };
 
-if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => notifications.init());
-else notifications.init();
+// بدء التهيئة
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', () => notifications.init());
+} else {
+    notifications.init();
+}
