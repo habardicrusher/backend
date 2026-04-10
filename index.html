@@ -45,7 +45,24 @@
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .alert-badge {
-            position: absolute; top: 15px; right: 20px; background: #eb3349; color: white; border-radius: 50%; width: 50px; height: 50px; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.4em; cursor: pointer; box-shadow: 0 0 10px rgba(235,51,73,0.5); transition: all 0.3s ease; z-index: 100; animation: pulse 1s infinite;
+            position: absolute;
+            top: 15px;
+            right: 20px;
+            background: #eb3349;
+            color: white;
+            border-radius: 50%;
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 1.4em;
+            cursor: pointer;
+            box-shadow: 0 0 10px rgba(235,51,73,0.5);
+            transition: all 0.3s ease;
+            z-index: 100;
+            animation: pulse 1s infinite;
         }
         .alert-badge:hover { transform: scale(1.1); }
         @keyframes pulse {
@@ -256,7 +273,7 @@
                     timestamp: order.timestamp || '—'
                 }));
                 const tbody = document.getElementById('recentOrdersBody');
-                if (!recent.length) tbody.innerHTML = '<tr><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم<\/td><\/tr>';
+                if (!recent.length) tbody.innerHTML = '<td><td colspan="5" style="text-align:center;">لا توجد طلبات اليوم<\/td><\/tr>';
                 else tbody.innerHTML = recent.map((o, i) => `<tr><td>${i+1}<\/td><td>${o.factory}<\/td><td>${o.material}<\/td><td>${o.time}<\/td><td>${o.timestamp}<\/td><\/tr>`).join('');
 
                 // تحديث العداد بناءً على الطلبات الجديدة (للمدير فقط)
@@ -304,6 +321,7 @@
             showToast('تم تحديث البيانات بنجاح', 'success');
         }
 
+        // الاستماع للإشارة من orders.html
         window.addEventListener('storage', function(e) {
             if (e.key === 'newOrderTimestamp') {
                 console.log('🔄 تم اكتشاف طلب جديد، جارٍ التحديث');
@@ -335,7 +353,6 @@
                 if (data.user) {
                     currentUserRole = data.user.role;
                     const isAdmin = currentUserRole === 'admin';
-                    const isClient = currentUserRole === 'client';
                     let navHtml = '';
                     if (isAdmin) {
                         navHtml = `
@@ -351,25 +368,10 @@
                             <a href="users.html" class="nav-link">👥 المستخدمين</a>
                             <a href="logs.html" class="nav-link">📜 السجلات</a>
                         `;
-                    } else if (isClient) {
-                        navHtml = `<a href="orders.html" class="nav-link">📝 الطلبات</a>`;
-                        // العملاء لا يسمح لهم برؤية صفحة المدير، نعيدهم إلى orders.html
+                    } else {
+                        // إذا لم يكن مديراً، نعيده إلى orders.html
                         window.location.href = '/orders.html';
                         return;
-                    } else {
-                        navHtml = `
-                            <a href="index.html" class="nav-link active">📊 الرئيسية</a>
-                            <a href="orders.html" class="nav-link">📝 الطلبات</a>
-                            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
-                            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
-                            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
-                            <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                            <a href="reports.html" class="nav-link">📊 التقارير</a>
-                            <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
-                            <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
-                            <a href="users.html" class="nav-link">👥 المستخدمين</a>
-                            <a href="logs.html" class="nav-link">📜 السجلات</a>
-                        `;
                     }
                     document.getElementById('navLinks').innerHTML = navHtml;
                 } else {
