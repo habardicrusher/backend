@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>تسجيل الدخول - نظام إدارة طلبات البحص</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
             background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
@@ -21,17 +17,24 @@
         }
         .login-container {
             background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(10px);
             border-radius: 20px;
             padding: 40px;
-            width: 90%;
+            width: 100%;
             max-width: 400px;
-            backdrop-filter: blur(10px);
+            box-shadow: 0 8px 32px rgba(0,0,0,0.3);
             border: 1px solid rgba(255,255,255,0.1);
         }
         .login-container h1 {
             text-align: center;
-            margin-bottom: 30px;
+            margin-bottom: 10px;
             color: #667eea;
+        }
+        .login-container p {
+            text-align: center;
+            margin-bottom: 30px;
+            color: #a8b2d1;
+            font-size: 0.9em;
         }
         .form-group {
             margin-bottom: 20px;
@@ -39,6 +42,7 @@
         .form-group label {
             display: block;
             margin-bottom: 8px;
+            font-weight: 600;
             color: #a8b2d1;
         }
         .form-group input {
@@ -49,16 +53,18 @@
             background: rgba(255,255,255,0.05);
             color: #fff;
             font-size: 1em;
+            transition: all 0.3s;
         }
         .form-group input:focus {
-            border-color: #667eea;
             outline: none;
+            border-color: #667eea;
+            background: rgba(255,255,255,0.1);
         }
-        button {
+        .btn {
             width: 100%;
             padding: 12px;
             border: none;
-            border-radius: 10px;
+            border-radius: 12px;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: #fff;
             font-size: 1.1em;
@@ -66,66 +72,163 @@
             cursor: pointer;
             transition: all 0.3s;
         }
-        button:hover {
+        .btn:hover {
             transform: translateY(-2px);
-            box-shadow: 0 10px 30px rgba(102,126,234,0.3);
+            box-shadow: 0 5px 15px rgba(102,126,234,0.4);
         }
         .error-msg {
-            color: #f5576c;
+            background: rgba(235,51,73,0.2);
+            border-right: 3px solid #eb3349;
+            padding: 10px;
+            border-radius: 8px;
+            margin-bottom: 20px;
             text-align: center;
-            margin-top: 15px;
+            color: #ff6b6b;
             font-size: 0.9em;
+            display: none;
         }
-        .info {
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 3000;
+        }
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: 600;
+            animation: slideIn 0.3s ease;
+        }
+        .toast-error {
+            background: #eb3349;
+            color: #fff;
+        }
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        .loading {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.8);
+            z-index: 2000;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .loading.active {
+            display: flex;
+        }
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: #667eea;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .footer {
             text-align: center;
-            margin-top: 20px;
-            font-size: 0.8em;
+            margin-top: 25px;
+            font-size: 0.75em;
             color: #a8b2d1;
         }
     </style>
 </head>
 <body>
+    <div class="loading" id="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 15px;">جاري تسجيل الدخول...</p>
+    </div>
+    <div class="toast-container" id="toastContainer"></div>
+
     <div class="login-container">
-        <h1>🚛 نظام إدارة طلبات البحص</h1>
-        <form id="loginForm">
-            <div class="form-group">
-                <label>👤 اسم المستخدم</label>
-                <input type="text" id="username" required>
-            </div>
-            <div class="form-group">
-                <label>🔒 كلمة المرور</label>
-                <input type="password" id="password" required>
-            </div>
-            <button type="submit">تسجيل الدخول</button>
-            <div id="errorMsg" class="error-msg"></div>
-            <div class="info">المدير: Admin | كلمة المرور: ********</div>
-        </form>
+        <h1>📊 نظام إدارة طلبات البحص</h1>
+        <p>يرجى إدخال بيانات الاعتماد الخاصة بك</p>
+
+        <div id="errorMsg" class="error-msg"></div>
+
+        <div class="form-group">
+            <label>👤 اسم المستخدم</label>
+            <input type="text" id="username" placeholder="أدخل اسم المستخدم" autocomplete="off">
+        </div>
+        <div class="form-group">
+            <label>🔒 كلمة المرور</label>
+            <input type="password" id="password" placeholder="أدخل كلمة المرور">
+        </div>
+        <button class="btn" onclick="login()">تسجيل الدخول</button>
+        <div class="footer">
+            <span>© 2025 نظام إدارة البحص</span>
+        </div>
     </div>
 
     <script>
-        document.getElementById('loginForm').addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const username = document.getElementById('username').value;
+        async function login() {
+            const username = document.getElementById('username').value.trim();
             const password = document.getElementById('password').value;
             const errorDiv = document.getElementById('errorMsg');
-            
+            errorDiv.style.display = 'none';
+            errorDiv.innerText = '';
+
+            if (!username || !password) {
+                showError('يرجى إدخال اسم المستخدم وكلمة المرور');
+                return;
+            }
+
+            showLoading(true);
             try {
-                const response = await fetch('/api/login', {
+                const res = await fetch('/api/login', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
+                    credentials: 'include',
                     body: JSON.stringify({ username, password })
                 });
-                
-                const data = await response.json();
-                
-                if (response.ok && data.success) {
-                    window.location.href = '/index.html';
+                const data = await res.json();
+                if (!res.ok) {
+                    showError(data.error || 'فشل تسجيل الدخول');
+                    showLoading(false);
+                    return;
+                }
+                if (data.success) {
+                    // توجيه المستخدم بناءً على دوره (الخادم سيعيد التوجيه إلى الصفحة المناسبة)
+                    window.location.href = '/';
                 } else {
-                    errorDiv.textContent = data.error || 'خطأ في تسجيل الدخول';
+                    showError('اسم المستخدم أو كلمة المرور غير صحيحة');
                 }
             } catch (err) {
-                errorDiv.textContent = 'خطأ في الاتصال بالسيرفر. تأكد من تشغيل السيرفر.';
+                showError('حدث خطأ في الاتصال بالخادم');
+                console.error(err);
             }
+            showLoading(false);
+        }
+
+        function showError(msg) {
+            const errorDiv = document.getElementById('errorMsg');
+            errorDiv.innerText = msg;
+            errorDiv.style.display = 'block';
+            setTimeout(() => {
+                errorDiv.style.display = 'none';
+            }, 4000);
+        }
+
+        function showLoading(show) {
+            document.getElementById('loading').classList.toggle('active', show);
+        }
+
+        // السماح بالضغط على Enter لتسجيل الدخول
+        document.getElementById('password').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
+        });
+        document.getElementById('username').addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') login();
         });
     </script>
 </body>
