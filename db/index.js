@@ -28,12 +28,18 @@ async function initSettingsTable() {
         const res = await pool.query('SELECT * FROM app_settings WHERE id = 1');
         if (res.rows.length === 0) {
             const defaultFactories = [
-                { name: 'SCCCL', location: 'الدمام' }, { name: 'الحارث للمنتجات الاسمنيه', location: 'الدمام' },
-                { name: 'الحارثي القديم', location: 'الدمام' }, { name: 'المعجل لمنتجات الاسمنت', location: 'الدمام' },
-                { name: 'الحارث العزيزية', location: 'الدمام' }, { name: 'سارمكس النظيم', location: 'الرياض' },
-                { name: 'عبر الخليج', location: 'الرياض' }, { name: 'الكفاح للخرسانة الجاهزة', location: 'الدمام' },
-                { name: 'القيشان 3', location: 'الدمام' }, { name: 'القيشان 2 - الأحجار الشرقية', location: 'الدمام' },
-                { name: 'القيشان 1', location: 'الدمام' }, { name: 'الفهد للبلوك والخرسانة', location: 'الرياض' }
+                { name: 'SCCCL', location: 'الدمام' },
+                { name: 'الحارث للمنتجات الاسمنيه', location: 'الدمام' },
+                { name: 'الحارثي القديم', location: 'الدمام' },
+                { name: 'المعجل لمنتجات الاسمنت', location: 'الدمام' },
+                { name: 'الحارث العزيزية', location: 'الدمام' },
+                { name: 'سارمكس النظيم', location: 'الرياض' },
+                { name: 'عبر الخليج', location: 'الرياض' },
+                { name: 'الكفاح للخرسانة الجاهزة', location: 'الدمام' },
+                { name: 'القيشان 3', location: 'الدمام' },
+                { name: 'القيشان 2 - الأحجار الشرقية', location: 'الدمام' },
+                { name: 'القيشان 1', location: 'الدمام' },
+                { name: 'الفهد للبلوك والخرسانة', location: 'الرياض' }
             ];
             const defaultMaterials = ['3/4', '3/8', '3/16'];
             await pool.query(
@@ -47,9 +53,10 @@ async function initSettingsTable() {
     }
 }
 
-// إنشاء جدول السجلات (بدون IP و User-Agent)
+// إنشاء جدول السجلات (مع عمود location)
 async function initLogsTable() {
     try {
+        // إنشاء الجدول إذا لم يكن موجوداً
         await pool.query(`
             CREATE TABLE IF NOT EXISTS logs (
                 id SERIAL PRIMARY KEY,
@@ -60,13 +67,26 @@ async function initLogsTable() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             );
         `);
-        console.log('✅ تم إنشاء جدول السجلات');
+        
+        // التحقق من وجود عمود location وإضافته إذا كان مفقوداً
+        const checkColumn = await pool.query(`
+            SELECT column_name 
+            FROM information_schema.columns 
+            WHERE table_name = 'logs' AND column_name = 'location'
+        `);
+        
+        if (checkColumn.rows.length === 0) {
+            await pool.query(`ALTER TABLE logs ADD COLUMN location VARCHAR(100);`);
+            console.log('✅ تم إضافة عمود location إلى جدول السجلات');
+        }
+        
+        console.log('✅ جدول السجلات جاهز');
     } catch (err) {
         console.error('❌ خطأ في إنشاء جدول السجلات:', err);
     }
 }
 
-// دالة إضافة سجل (بدون IP وبدون user-agent، مع إضافة location)
+// دالة إضافة سجل
 async function addLog(username, action, details = null, location = null) {
     try {
         await pool.query(
@@ -91,6 +111,7 @@ async function getLogsCount() {
     return parseInt(res.rows[0].count);
 }
 
+// تشغيل دوال التهيئة
 initSettingsTable();
 initLogsTable();
 
