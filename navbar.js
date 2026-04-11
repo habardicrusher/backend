@@ -1,110 +1,39 @@
-// navbar.js - شريط التنقل الموحد
-(function() {
-    // Keep-alive
-    setInterval(async () => {
-        try {
-            await fetch('/api/me', { credentials: 'include' });
-        } catch(e) {}
-    }, 4 * 60 * 1000);
+// nav.js - شريط التنقل الموحد لكامل الموقع
+function loadNavigation(currentPage) {
+    const navLinks = [
+        { name: "📊 الرئيسية", href: "index.html" },
+        { name: "📝 الطلبات", href: "orders.html" },
+        { name: "🚚 التوزيع", href: "distribution.html" },
+        { name: "🚛 السيارات", href: "vehicles.html" },
+        { name: "📦 أنواع البحص", href: "aggregate_types.html" },
+        { name: "🏭 المصانع", href: "factories.html" },
+        { name: "📊 تقارير الطلبات اليومية", href: "daily_orders_report.html" },
+        { name: "📅 تقارير الميزان الشهرية", href: "reports_monthly.html" },
+        { name: "⚖️ تقرير الميزان", href: "scale_report.html" },      // الرابط الجديد
+        { name: "⚙️ الإعدادات", href: "settings.html" },
+        { name: "⛔ الحظر", href: "blocking.html" },
+        { name: "👥 المستخدمين", href: "users.html" },
+        { name: "📜 السجلات", href: "logs.html" }
+    ];
 
-    async function renderNavbar() {
-        try {
-            const res = await fetch('/api/me', { credentials: 'include' });
-            const data = await res.json();
-            if (!data.user) {
-                window.location.href = '/login.html';
-                return;
-            }
-            const role = data.user.role;
-            const isAdmin = (role === 'admin');
-            const isUser = (role === 'user');
-            const isClient = (role === 'client');
-
-            let navContainer = document.querySelector('.nav-links');
-            if (!navContainer) {
-                const container = document.querySelector('.container');
-                if (!container) return;
-                const header = document.querySelector('.header');
-                if (header && header.nextSibling) {
-                    navContainer = document.createElement('div');
-                    navContainer.className = 'nav-links';
-                    header.insertAdjacentElement('afterend', navContainer);
-                } else {
-                    return;
-                }
-            }
-
-            // الروابط الكاملة لجميع الصفحات
-            const allLinks = [
-                { href: 'index.html', text: '📊 الرئيسية' },
-                { href: 'orders.html', text: '📝 الطلبات' },
-                { href: 'distribution.html', text: '🚚 التوزيع' },
-                { href: 'trucks.html', text: '🚛 السيارات' },
-                { href: 'products.html', text: '📦 أنواع البحص' },
-                { href: 'factories.html', text: '🏭 المصانع' },
-                { href: 'reports.html', text: '📊 التقارير' },
-                { href: 'settings.html', text: '⚙️ الإعدادات' },
-                { href: 'restrictions.html', text: '⛔ الحظر' },
-                { href: 'users.html', text: '👥 المستخدمين' },
-                { href: 'logs.html', text: '📜 السجلات' }
-            ];
-
-            let linksToShow = [];
-            if (isAdmin || isUser) {
-                // المدير والمستخدم العادي يريان كل الصفحات
-                linksToShow = allLinks;
-            } else if (isClient) {
-                // العميل يرى فقط الطلبات
-                linksToShow = [{ href: 'orders.html', text: '📝 الطلبات' }];
-            }
-
-            const currentPage = window.location.pathname.split('/').pop();
-            navContainer.innerHTML = linksToShow.map(link => `
-                <a href="${link.href}" class="nav-link ${currentPage === link.href ? 'active' : ''}">${link.text}</a>
-            `).join('');
-
-            // إضافة زر تسجيل الخروج
-            if (!document.getElementById('logout-btn-container')) {
-                const logoutDiv = document.createElement('div');
-                logoutDiv.id = 'logout-btn-container';
-                logoutDiv.style.cssText = 'position: absolute; top: 20px; left: 20px; z-index: 100;';
-                const logoutBtn = document.createElement('button');
-                logoutBtn.innerHTML = '🚪 تسجيل الخروج';
-                logoutBtn.style.cssText = `
-                    background: linear-gradient(135deg, #f5576c, #eb3349);
-                    border: none;
-                    padding: 8px 20px;
-                    border-radius: 25px;
-                    color: white;
-                    font-weight: bold;
-                    cursor: pointer;
-                    transition: 0.3s;
-                    font-size: 14px;
-                `;
-                logoutBtn.onmouseover = () => logoutBtn.style.transform = 'scale(1.05)';
-                logoutBtn.onmouseout = () => logoutBtn.style.transform = 'scale(1)';
-                logoutBtn.onclick = () => {
-                    if (confirm('⚠️ هل أنت متأكد من تسجيل الخروج؟')) {
-                        fetch('/api/logout', { method: 'POST', credentials: 'include' })
-                            .then(() => { window.location.href = '/login.html'; })
-                            .catch(() => { window.location.href = '/login.html'; });
-                    }
-                };
-                logoutDiv.appendChild(logoutBtn);
-                const header = document.querySelector('.header');
-                if (header) {
-                    header.style.position = 'relative';
-                    header.appendChild(logoutDiv);
-                }
-            }
-        } catch(e) {
-            window.location.href = '/login.html';
+    const navbar = document.querySelector('.navbar .nav-links');
+    if (!navbar) return;
+    
+    navbar.innerHTML = '';
+    navLinks.forEach(link => {
+        const a = document.createElement('a');
+        a.href = link.href;
+        a.textContent = link.name;
+        if (currentPage && link.href.includes(currentPage)) {
+            a.classList.add('active');
         }
-    }
+        navbar.appendChild(a);
+    });
+}
 
-    if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', renderNavbar);
-    } else {
-        renderNavbar();
-    }
-})();
+// تنفيذ التحميل عند اكتمال الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    // استخراج اسم الملف الحالي من المسار
+    const currentFile = window.location.pathname.split('/').pop();
+    loadNavigation(currentFile);
+});
