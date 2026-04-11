@@ -3,9 +3,10 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>رفع تقرير - نظام إدارة طلبات كسارة الحبردي</title>
+  <title>رفع وتحليل التقارير - نظام إدارة طلبات كسارة الحبردي</title>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
@@ -13,7 +14,7 @@
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       color: #fff;
     }
-    .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+    .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
     .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; position: relative; }
     .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
     .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; font-weight: 600; transition: all 0.3s; }
@@ -49,6 +50,8 @@
     }
     .btn-primary { background: linear-gradient(135deg, #11998e, #38ef7d); color: #1a1a2e; }
     .btn-secondary { background: #4facfe; color: #fff; }
+    .btn-success { background: linear-gradient(135deg, #11998e, #38ef7d); color: #1a1a2e; }
+    .btn-info { background: #4facfe; color: #fff; }
     .status {
       margin-top: 20px;
       padding: 14px;
@@ -57,37 +60,38 @@
       color: #38ef7d;
       font-weight: 600;
     }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(4, 1fr);
-      gap: 16px;
-      margin-top: 20px;
-    }
-    .metric {
-      background: rgba(255,255,255,0.05);
-      border-radius: 16px;
-      padding: 16px;
-      text-align: center;
-    }
-    .metric .t { color: #a8b2d1; font-size: 13px; margin-bottom: 8px; }
-    .metric .v { font-size: 28px; font-weight: 800; color: #38ef7d; }
-    .chart-card {
-      margin-top: 20px;
-      background: rgba(255,255,255,0.05);
-      border-radius: 20px;
-      padding: 20px;
-      display: none;
-    }
-    .chart-title { font-weight: 800; margin-bottom: 15px; color: #667eea; }
-    .chart-wrap { height: 320px; }
-    @media (max-width: 768px) { .row, .grid { grid-template-columns: 1fr; } }
+    .reports-list { margin-top: 30px; overflow-x: auto; }
+    .reports-list table { width: 100%; border-collapse: collapse; }
+    .reports-list th, .reports-list td { padding: 12px; text-align: center; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .reports-list th { background: rgba(102,126,234,0.3); }
+    .report-detail { margin-top: 30px; background: rgba(255,255,255,0.05); border-radius: 20px; padding: 20px; display: none; }
+    .detail-stats { display: flex; gap: 20px; flex-wrap: wrap; margin-bottom: 20px; }
+    .detail-stat { background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; flex: 1; text-align: center; }
+    .detail-stat .number { font-size: 1.8em; color: #38ef7d; }
+    .progress-bar { width: 100%; height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 8px; }
+    .progress-bar-fill { height: 100%; background: linear-gradient(135deg, #667eea, #764ba2); width: 0%; }
+    .driver-table { overflow-x: auto; margin-top: 20px; }
+    .driver-table table { width: 100%; border-collapse: collapse; }
+    .driver-table th, .driver-table td { padding: 10px; border-bottom: 1px solid rgba(255,255,255,0.1); }
+    .chart-container { height: 300px; margin-top: 20px; }
+    .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; }
+    .toast { padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; font-weight: 600; animation: slideIn 0.3s ease; }
+    .toast-success { background: #11998e; }
+    .toast-error { background: #eb3349; }
+    .loading { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.8); z-index:2000; align-items:center; justify-content:center; flex-direction:column; }
+    .loading.active { display: flex; }
+    .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation:spin 1s linear infinite; }
+    @keyframes spin { to { transform:rotate(360deg); } }
+    @media (max-width:768px){ .row { grid-template-columns:1fr; } }
   </style>
 </head>
 <body>
+  <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
+  <div class="toast-container" id="toastContainer"></div>
   <div class="container">
     <div class="header">
-      <h1>📊 رفع تقرير رحلات</h1>
-      <p>تحليل ملف Excel وحفظ النتائج في قاعدة البيانات</p>
+      <h1>📊 رفع وتحليل التقارير الشهرية</h1>
+      <p>تحليل ملفات Excel الخاصة بالرحلات وعرض الإحصائيات (نسبة إنجاز السائقين، إجمالي المصانع، أنواع البحص)</p>
       <div style="position: absolute; top: 20px; left: 20px;">
         <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
       </div>
@@ -102,7 +106,7 @@
         </div>
         <div>
           <label>📝 اسم التقرير</label>
-          <input type="text" id="reportName" placeholder="مثال: تقرير أبريل 2026" />
+          <input type="text" id="reportName" placeholder="مثال: تقرير مارس 2026" />
         </div>
       </div>
       <div class="btns">
@@ -110,21 +114,48 @@
         <button class="btn-secondary" onclick="downloadExcludedList()">📄 تنزيل قائمة الاستثناءات</button>
       </div>
       <div class="status" id="status">✅ جاهز للمعالجة</div>
-      <div class="grid" id="metrics" style="display:none">
-        <div class="metric"><div class="t">إجمالي الصفوف</div><div class="v" id="mTotal">0</div></div>
-        <div class="metric"><div class="t">رحلات محققة</div><div class="v" id="mMatched">0</div></div>
-        <div class="metric"><div class="t">غير تابعة</div><div class="v" id="mNotMatched">0</div></div>
-        <div class="metric"><div class="t">نسبة الإنجاز</div><div class="v" id="mRate">0%</div></div>
+    </div>
+
+    <div class="reports-list">
+      <h3>📋 التقارير المحفوظة</h3>
+      <table id="reportsTable">
+        <thead><tr><th>#</th><th>تاريخ التقرير</th><th>اسم التقرير</th><th>إجمالي الصفوف</th><th>رحلات محققة</th><th>نسبة الإنجاز</th><th>تاريخ الرفع</th><th>إجراءات</th></tr></thead>
+        <tbody id="reportsBody"><tr><td colspan="8">جاري التحميل...<\/td><\/tr></tbody>
+      </table>
+    </div>
+
+    <div id="reportDetail" class="report-detail">
+      <h3>📄 تفاصيل التقرير: <span id="detailTitle"></span></h3>
+      <div class="detail-stats" id="detailStats"></div>
+      <div class="btns" style="margin-bottom:15px;">
+        <button class="btn-success" onclick="exportDetailToExcel()">📥 تصدير التقرير (8 أوراق Excel)</button>
       </div>
-      <div class="chart-card" id="chartCard">
-        <div class="chart-title">📈 ملخص الرحلات</div>
-        <div class="chart-wrap"><canvas id="dashboardChart"></canvas></div>
+      <div id="driverTableContainer">
+        <h4>🏆 ترتيب السائقين حسب عدد الرحلات ونسبة الإنجاز (الهدف: 2 رود لكل يوم عمل)</h4>
+        <div class="driver-table">
+          <table id="driverStatsTable">
+            <thead><tr><th>السائق</th><th>رقم السيارة</th><th>عدد الرحلات</th><th>أيام عمل</th><th>الهدف المطلوب</th><th>نسبة الإنجاز</th><th>تفاصيل الرحلات</th></tr></thead>
+            <tbody id="driverStatsBody"></tbody>
+          </table>
+        </div>
+      </div>
+      <div id="factoryChartContainer" style="margin-top:25px;">
+        <h4>🏭 إجمالي الطلبات حسب المصنع</h4>
+        <div class="chart-container"><canvas id="factoryChart"></canvas></div>
+      </div>
+      <div id="materialChartContainer" style="margin-top:25px;">
+        <h4>📦 توزيع أنواع البحص</h4>
+        <div class="chart-container"><canvas id="materialChart"></canvas></div>
       </div>
     </div>
   </div>
 
   <script>
     const API_BASE = '/api';
+    let currentReports = [];
+    let currentDetailData = null;
+    let factoryChart, materialChart;
+
     const VALID_TRIP_NUMBERS = new Set([
       "1091","2757","2758","2759","2760","2762","2818","2927","2928","2929",
       "3321","3322","3324","3325","3326","3461","3462","3963","4445","5324",
@@ -139,8 +170,6 @@
       "eisam خ","eisam ح","عادل خ","عادل ح","mamoon","zeshan","برهان","ابراهيم"
     ]);
 
-    let currentChart = null;
-
     async function apiCall(endpoint, method = 'GET', data = null) {
       const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
       if (data) options.body = JSON.stringify(data);
@@ -150,69 +179,183 @@
       return res.json();
     }
 
-    function normalizeText(value) {
-      return String(value ?? "").trim().normalize("NFKC").replace(/\s+/g, " ").toLowerCase();
+    async function loadReports() {
+      showLoading(true);
+      try {
+        const reports = await apiCall('/reports-list');
+        currentReports = reports;
+        renderReportsTable(reports);
+      } catch (err) {
+        showToast('خطأ في تحميل التقارير', 'error');
+      }
+      showLoading(false);
     }
+
+    function renderReportsTable(reports) {
+      const tbody = document.getElementById('reportsBody');
+      if (!reports.length) {
+        tbody.innerHTML = '<tr><td colspan="8">لا توجد تقارير مرفوعة<\/td><\/tr>';
+        return;
+      }
+      tbody.innerHTML = reports.map((r, idx) => `
+        <tr>
+          <td>${idx+1}</td>
+          <td>${new Date(r.report_date).toLocaleDateString('ar-SA')}</td>
+          <td>${escapeHtml(r.filename)}</td>
+          <td>${r.total_rows}</td>
+          <td>${r.matched_count}</td>
+          <td>${(r.achievement_rate * 100).toFixed(2)}%</td>
+          <td>${new Date(r.created_at).toLocaleString('ar-SA')}</td>
+          <td><button class="btn btn-info btn-sm" onclick="showReportDetail(${r.id})">📊 عرض التفاصيل</button></td>
+        </tr>
+      `).join('');
+    }
+
+    async function showReportDetail(id) {
+      showLoading(true);
+      try {
+        const report = await apiCall(`/reports/${id}`);
+        currentDetailData = report;
+        document.getElementById('detailTitle').innerText = report.filename;
+        const statsHtml = `
+          <div class="detail-stat"><div class="number">${report.total_rows}</div><div>إجمالي الصفوف</div></div>
+          <div class="detail-stat"><div class="number">${report.matched_count}</div><div>رحلات محققة</div></div>
+          <div class="detail-stat"><div class="number">${report.not_matched_count}</div><div>غير تابعة</div></div>
+          <div class="detail-stat"><div class="number">${(report.achievement_rate * 100).toFixed(2)}%</div><div>نسبة الإنجاز</div></div>
+        `;
+        document.getElementById('detailStats').innerHTML = statsHtml;
+
+        const details = report.details || {};
+        const driverStats = details.driverStats || {};
+        const factoryStats = details.factoryStats || {};
+        const materialStats = details.materialStats || {};
+        const trips = details.trips || [];
+
+        const uniqueDays = new Set(trips.map(t => t.date).filter(d => d));
+        const totalActiveDays = uniqueDays.size;
+        const targetPerDriver = totalActiveDays * 2;
+
+        const driversArray = Object.values(driverStats).map(d => ({
+          driver: d.driver,
+          truckNumber: d.truckNumber,
+          trips: d.count,
+          target: targetPerDriver,
+          percentage: targetPerDriver > 0 ? (d.count / targetPerDriver) * 100 : 0
+        })).sort((a,b) => b.trips - a.trips);
+
+        const driverRows = driversArray.map(d => `
+          <tr>
+            <td>${escapeHtml(d.driver)}</td>
+            <td>${escapeHtml(d.truckNumber)}</td>
+            <td>${d.trips}</td>
+            <td>${totalActiveDays}</td>
+            <td>${d.target}</td>
+            <td>
+              <div class="progress-bar"><div class="progress-bar-fill" style="width:${Math.min(d.percentage, 200)}%"></div></div>
+              <small>${d.percentage.toFixed(1)}%</small>
+             </td>
+            <td><button class="btn btn-sm btn-info" onclick="showDriverTrips('${escapeHtml(d.driver)}')">📋 تفاصيل</button></td>
+          </tr>
+        `).join('');
+        document.getElementById('driverStatsBody').innerHTML = driverRows;
+
+        // رسم المصانع
+        if (factoryChart) factoryChart.destroy();
+        const factoryCtx = document.getElementById('factoryChart').getContext('2d');
+        const factoryLabels = Object.keys(factoryStats);
+        const factoryData = Object.values(factoryStats);
+        factoryChart = new Chart(factoryCtx, {
+          type: 'bar',
+          data: { labels: factoryLabels, datasets: [{ label: 'عدد الطلبات', data: factoryData, backgroundColor: 'rgba(56,239,125,0.7)' }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { ticks: { color: '#a8b2d1' }, beginAtZero: true }, x: { ticks: { color: '#a8b2d1', maxRotation: 45, minRotation: 45 } } } }
+        });
+
+        // رسم المواد
+        if (materialChart) materialChart.destroy();
+        const materialCtx = document.getElementById('materialChart').getContext('2d');
+        const materialLabels = Object.keys(materialStats);
+        const materialData = Object.values(materialStats);
+        materialChart = new Chart(materialCtx, {
+          type: 'doughnut',
+          data: { labels: materialLabels, datasets: [{ data: materialData, backgroundColor: ['#667eea', '#f5576c', '#38ef7d', '#4facfe', '#f093fb'] }] },
+          options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff' } } } }
+        });
+
+        document.getElementById('reportDetail').style.display = 'block';
+      } catch (err) {
+        console.error(err);
+        showToast('خطأ في تحميل تفاصيل التقرير', 'error');
+      }
+      showLoading(false);
+    }
+
+    function showDriverTrips(driverName) {
+      if (!currentDetailData) return;
+      const trips = currentDetailData.details?.trips || [];
+      const driverTrips = trips.filter(t => t.driver === driverName);
+      if (!driverTrips.length) { showToast('لا توجد رحلات لهذا السائق', 'info'); return; }
+      let msg = `تفاصيل رحلات السائق ${driverName}:\n`;
+      driverTrips.forEach(t => {
+        msg += `📅 ${t.date || 'بدون تاريخ'} | 🏭 ${t.factory || 'بدون مصنع'} | 🚛 ${t.truckNumber} | 📦 ${t.material || 'نوع غير محدد'}\n`;
+      });
+      alert(msg);
+    }
+
+    // دوال معالجة ورفع الملف (كما هي من السابق مع تحسين استخراج البيانات)
+    function normalizeText(value) { return String(value ?? "").trim().normalize("NFKC").replace(/\s+/g, " ").toLowerCase(); }
     function keepDigitsOnly(value) {
       const arabicDigits = {"٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9"};
       const txt = String(value ?? "").replace(/[٠-٩]/g, d => arabicDigits[d]);
       const m = txt.match(/\d+/g);
       return m ? m.join("") : "";
     }
-    function rowHasExcludedName(row) {
-      return row.some(v => EXCLUDED_NAMES.has(normalizeText(v)));
+    function rowHasExcludedName(row) { return row.some(v => EXCLUDED_NAMES.has(normalizeText(v))); }
+    function extractTripData(row) {
+      const factory = row[1] ? String(row[1]).trim() : '';
+      const driver = row[2] ? String(row[2]).trim() : '';
+      const truckNumber = row[3] ? keepDigitsOnly(row[3]) : '';
+      const dateRaw = row[0] ? new Date(row[0]) : null;
+      const date = dateRaw && !isNaN(dateRaw) ? dateRaw.toISOString().split('T')[0] : null;
+      let material = '';
+      if (row[4] && String(row[4]).match(/[\d\/]/)) material = String(row[4]).trim();
+      else if (row[5] && String(row[5]).match(/[\d\/]/)) material = String(row[5]).trim();
+      return { factory, driver, truckNumber, date, material };
     }
-
     function processData(rows) {
-      const headers = rows[0] || [];
-      let matched_count = 0, not_matched_count = 0, total_rows = 0;
-      const summaryRows = [headers.slice()];
-      const notOursRows = [headers.slice()];
-      const seenValidNumbers = new Set();
-
-      for (let r = 1; r < rows.length; r++) {
-        const row = (rows[r] || []).slice();
-        if (!row.some(v => v !== null && v !== undefined && v !== "")) continue;
-        total_rows++;
-        const cleanedE = keepDigitsOnly(row[4] ?? "");
-        if (row.length >= 5) row[4] = cleanedE;
-
-        if (rowHasExcludedName(row)) {
-          notOursRows.push(row);
-          not_matched_count++;
-          continue;
-        }
-        if (VALID_TRIP_NUMBERS.has(cleanedE)) {
-          summaryRows.push(row);
-          matched_count++;
-          seenValidNumbers.add(cleanedE);
-        } else {
-          notOursRows.push(row);
-          not_matched_count++;
+      let dataStartIndex = 0;
+      for (let i = 0; i < Math.min(10, rows.length); i++) {
+        const row = rows[i];
+        if (row && row.length > 3 && keepDigitsOnly(row[3]) && VALID_TRIP_NUMBERS.has(keepDigitsOnly(row[3]))) {
+          dataStartIndex = i;
+          break;
         }
       }
-      const missingNumbers = [...VALID_TRIP_NUMBERS].filter(x => !seenValidNumbers.has(x)).sort((a,b)=>Number(a)-Number(b));
-      return { summaryRows, notOursRows, matched_count, not_matched_count, total_rows, missingNumbers };
-    }
-
-    function setMetrics(result) {
-      document.getElementById("metrics").style.display = "grid";
-      document.getElementById("mTotal").textContent = result.total_rows;
-      document.getElementById("mMatched").textContent = result.matched_count;
-      document.getElementById("mNotMatched").textContent = result.not_matched_count;
-      const rate = result.total_rows ? ((result.matched_count / result.total_rows) * 100).toFixed(2) : 0;
-      document.getElementById("mRate").textContent = rate + "%";
-    }
-
-    function renderChart(result) {
-      document.getElementById("chartCard").style.display = "block";
-      const ctx = document.getElementById("dashboardChart");
-      if (currentChart) currentChart.destroy();
-      currentChart = new Chart(ctx, {
-        type: "bar",
-        data: { labels: ["رحلات محققة", "غير تابعة"], datasets: [{ label: "العدد", data: [result.matched_count, result.not_matched_count], backgroundColor: ["#38ef7d", "#f5576c"], borderRadius: 8 }] },
-        options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: "#fff" } } }, scales: { y: { ticks: { color: "#a8b2d1", precision: 0 }, beginAtZero: true }, x: { ticks: { color: "#a8b2d1" } } } }
+      const trips = [];
+      let matched_count = 0, not_matched_count = 0;
+      for (let r = dataStartIndex; r < rows.length; r++) {
+        const row = rows[r];
+        if (!row || row.length < 4) continue;
+        const truckNum = keepDigitsOnly(row[3]);
+        if (!truckNum) continue;
+        const trip = extractTripData(row);
+        if (!trip.truckNumber) continue;
+        const isValid = VALID_TRIP_NUMBERS.has(trip.truckNumber) && !rowHasExcludedName(row);
+        if (isValid) { matched_count++; trips.push(trip); }
+        else { not_matched_count++; }
+      }
+      const total_rows = matched_count + not_matched_count;
+      const driverStats = {};
+      const factoryStats = {};
+      const materialStats = {};
+      trips.forEach(t => {
+        if (t.driver) {
+          if (!driverStats[t.driver]) driverStats[t.driver] = { driver: t.driver, count: 0, truckNumber: t.truckNumber };
+          driverStats[t.driver].count++;
+        }
+        if (t.factory) factoryStats[t.factory] = (factoryStats[t.factory] || 0) + 1;
+        if (t.material) materialStats[t.material] = (materialStats[t.material] || 0) + 1;
       });
+      return { trips, matched_count, not_matched_count, total_rows, driverStats, factoryStats, materialStats };
     }
 
     async function processAndUpload() {
@@ -233,9 +376,7 @@
           rows.push(vals);
         });
         const result = processData(rows);
-        setMetrics(result);
-        renderChart(result);
-
+        setStatus(`✅ تمت المعالجة: ${result.matched_count} رحلة محققة من ${result.total_rows}`, "success");
         const reportData = {
           report_date: new Date().toISOString().split('T')[0],
           filename: reportName,
@@ -244,17 +385,63 @@
           not_matched_count: result.not_matched_count,
           achievement_rate: result.total_rows ? (result.matched_count / result.total_rows) : 0,
           details: {
-            summaryRows: result.summaryRows.slice(0, 1000),
-            notOursRows: result.notOursRows.slice(0, 1000),
-            missingNumbers: result.missingNumbers
+            trips: result.trips.slice(0, 5000),
+            driverStats: result.driverStats,
+            factoryStats: result.factoryStats,
+            materialStats: result.materialStats
           }
         };
         await apiCall('/upload-report', 'POST', reportData);
-        setStatus("✅ تمت المعالجة ورفع التقرير بنجاح إلى قاعدة البيانات!", "success");
+        setStatus("✅ تم رفع التقرير بنجاح!", "success");
+        loadReports(); // تحديث القائمة
+        fileInput.value = '';
+        document.getElementById("reportName").value = '';
       } catch (err) {
         console.error(err);
         setStatus("❌ خطأ: " + err.message, "error");
       }
+    }
+
+    async function exportDetailToExcel() {
+      if (!currentDetailData) { showToast('لا توجد بيانات للتصدير', 'error'); return; }
+      showLoading(true);
+      try {
+        const ExcelJS = window.ExcelJS;
+        const workbook = new ExcelJS.Workbook();
+        const ws1 = workbook.addWorksheet('ملخص التقرير');
+        ws1.addRow(['اسم التقرير', currentDetailData.filename]);
+        ws1.addRow(['تاريخ التقرير', new Date(currentDetailData.report_date).toLocaleDateString('ar-SA')]);
+        ws1.addRow(['إجمالي الصفوف', currentDetailData.total_rows]);
+        ws1.addRow(['رحلات محققة', currentDetailData.matched_count]);
+        ws1.addRow(['غير تابعة', currentDetailData.not_matched_count]);
+        ws1.addRow(['نسبة الإنجاز', (currentDetailData.achievement_rate * 100).toFixed(2) + '%']);
+        const ws2 = workbook.addWorksheet('ترتيب السائقين');
+        ws2.addRow(['السائق', 'رقم السيارة', 'عدد الرحلات', 'أيام عمل', 'الهدف', 'النسبة']);
+        const details = currentDetailData.details || {};
+        const trips = details.trips || [];
+        const uniqueDays = new Set(trips.map(t => t.date).filter(d => d));
+        const totalDays = uniqueDays.size;
+        const target = totalDays * 2;
+        const drivers = Object.values(details.driverStats || {});
+        drivers.sort((a,b) => b.count - a.count);
+        drivers.forEach(d => {
+          const perc = target > 0 ? (d.count / target) * 100 : 0;
+          ws2.addRow([d.driver, d.truckNumber, d.count, totalDays, target, perc.toFixed(1) + '%']);
+        });
+        const ws3 = workbook.addWorksheet('المصانع');
+        ws3.addRow(['المصنع', 'عدد الطلبات']);
+        Object.entries(details.factoryStats || {}).forEach(([name, count]) => ws3.addRow([name, count]));
+        const ws4 = workbook.addWorksheet('أنواع البحص');
+        ws4.addRow(['نوع البحص', 'عدد الطلبات']);
+        Object.entries(details.materialStats || {}).forEach(([mat, count]) => ws4.addRow([mat, count]));
+        const ws5 = workbook.addWorksheet('تفاصيل الرحلات');
+        ws5.addRow(['التاريخ', 'المصنع', 'السائق', 'رقم السيارة', 'نوع البحص']);
+        trips.forEach(t => ws5.addRow([t.date || '', t.factory || '', t.driver || '', t.truckNumber || '', t.material || '']));
+        const buffer = await workbook.xlsx.writeBuffer();
+        saveAs(new Blob([buffer]), `تقرير_${currentDetailData.filename}.xlsx`);
+        showToast('✅ تم تصدير التقرير (5 أوراق)', 'success');
+      } catch (err) { console.error(err); showToast('خطأ في التصدير', 'error'); }
+      showLoading(false);
     }
 
     function downloadExcludedList() {
@@ -272,11 +459,10 @@
       el.textContent = msg;
       el.style.color = type === "error" ? "#f5576c" : (type === "success" ? "#38ef7d" : "#a8b2d1");
     }
-
-    function logout() {
-      if (confirm("تسجيل الخروج؟")) fetch('/api/logout', { method: 'POST', credentials: 'include' }).then(() => window.location.href = '/login.html');
-    }
-
+    function showToast(msg,type){ const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
+    function showLoading(show){ document.getElementById('loading').classList.toggle('active', show); }
+    function logout(){ if(confirm('تسجيل الخروج؟')) fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html'); }
+    function escapeHtml(str) { if (!str) return ''; return String(str).replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
     function loadNav() {
       fetch('/api/me', { credentials: 'include' }).then(r => r.json()).then(data => {
         if (data.user) {
@@ -287,9 +473,9 @@
             <a href="trucks.html" class="nav-link">🚛 السيارات</a>
             <a href="products.html" class="nav-link">📦 أنواع البحص</a>
             <a href="factories.html" class="nav-link">🏭 المصانع</a>
-            <a href="reports.html" class="nav-link">📊 التقارير</a>
+            <a href="reports.html" class="nav-link">📊 تقارير الكسارة</a>
             <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
-            <a href="upload-report.html" class="nav-link active">📤 رفع تقرير</a>
+            <a href="upload-report.html" class="nav-link active">📤 تقارير التحليل</a>
             <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
             <a href="users.html" class="nav-link">👥 المستخدمين</a>
             <a href="logs.html" class="nav-link">📜 السجلات</a>
@@ -297,8 +483,7 @@
         } else window.location.href = '/login.html';
       }).catch(() => window.location.href = '/login.html');
     }
-
-    document.addEventListener('DOMContentLoaded', () => loadNav());
+    document.addEventListener('DOMContentLoaded', () => { loadNav(); loadReports(); });
   </script>
 </body>
 </html>
