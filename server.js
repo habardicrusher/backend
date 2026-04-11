@@ -3,7 +3,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const path = require('path');
-const { pool, addLog, getLogs, getLogsCount } = require('./db');
+const { pool, addLog } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -30,7 +30,13 @@ function requireAdmin(req, res, next) {
     res.status(403).json({ error: 'صلاحيات المدير مطلوبة' });
 }
 
-// ==================== دوال قاعدة البيانات (باستخدام db/index.js) ====================
+// دالة تسجيل الإجراءات
+async function logAction(req, action, details, location = null) {
+    const username = req.session?.user?.username || 'unknown';
+    await addLog(username, action, details, location);
+}
+
+// ==================== دوال قاعدة البيانات ====================
 async function getDayData(date) {
     const res = await pool.query('SELECT orders, distribution FROM daily_data WHERE date = $1', [date]);
     if (res.rows.length === 0) return { orders: [], distribution: [] };
@@ -46,21 +52,14 @@ async function saveDayData(date, orders, distribution) {
 async function getSettings() {
     const res = await pool.query('SELECT factories, materials, trucks FROM app_settings WHERE id = 1');
     if (res.rows.length === 0) {
-        // بيانات افتراضية
         return {
             factories: [
-                { name: 'SCCCL', location: 'الدمام' },
-                { name: 'الحارث للمنتجات الاسمنيه', location: 'الدمام' },
-                { name: 'الحارثي القديم', location: 'الدمام' },
-                { name: 'المعجل لمنتجات الاسمنت', location: 'الدمام' },
-                { name: 'الحارث العزيزية', location: 'الدمام' },
-                { name: 'سارمكس النظيم', location: 'الرياض' },
-                { name: 'عبر الخليج', location: 'الرياض' },
-                { name: 'الكفاح للخرسانة الجاهزة', location: 'الدمام' },
-                { name: 'القيشان 3', location: 'الدمام' },
-                { name: 'القيشان 2 - الأحجار الشرقية', location: 'الدمام' },
-                { name: 'القيشان 1', location: 'الدمام' },
-                { name: 'الفهد للبلوك والخرسانة', location: 'الرياض' }
+                { name: 'SCCCL', location: 'الدمام' }, { name: 'الحارث للمنتجات الاسمنيه', location: 'الدمام' },
+                { name: 'الحارثي القديم', location: 'الدمام' }, { name: 'المعجل لمنتجات الاسمنت', location: 'الدمام' },
+                { name: 'الحارث العزيزية', location: 'الدمام' }, { name: 'سارمكس النظيم', location: 'الرياض' },
+                { name: 'عبر الخليج', location: 'الرياض' }, { name: 'الكفاح للخرسانة الجاهزة', location: 'الدمام' },
+                { name: 'القيشان 3', location: 'الدمام' }, { name: 'القيشان 2 - الأحجار الشرقية', location: 'الدمام' },
+                { name: 'القيشان 1', location: 'الدمام' }, { name: 'الفهد للبلوك والخرسانة', location: 'الرياض' }
             ],
             materials: ['3/4', '3/8', '3/16'],
             trucks: []
@@ -140,11 +139,11 @@ app.post('/api/login', async (req, res) => {
         factory: user.factory,
         permissions: user.permissions
     };
-    await addLog(user.username, 'تسجيل دخول', null, req);
+    await logAction(req, 'تسجيل دخول', null, null);
     res.json({ success: true, user: req.session.user });
 });
 app.post('/api/logout', async (req, res) => {
-    if (req.session.user) await addLog(req.session.user.username, 'تسجيل خروج', null, req);
+    if (req.session.user) await logAction(req, 'تسجيل خروج', null, null);
     req.session.destroy();
     res.json({ success: true });
 });
@@ -155,7 +154,6 @@ app.get('/api/me', requireAuth, (req, res) => {
 // Settings
 app.get('/api/settings', requireAuth, async (req, res) => {
     const settings = await getSettings();
-    // إذا كان المستخدم عميلاً، نعطيه مصنعه فقط
     if (req.session.user.role === 'client' && req.session.user.factory) {
         settings.factories = settings.factories.filter(f => f.name === req.session.user.factory);
     }
@@ -165,7 +163,7 @@ app.put('/api/settings', requireAuth, async (req, res) => {
     if (req.session.user.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
     const { factories, materials, trucks } = req.body;
     await saveSettings(factories, materials, trucks);
-    await addLog(req.session.user.username, 'تحديث الإعدادات', `المصانع: ${factories.length}, المواد: ${materials.length}, السيارات: ${trucks.length}`, req);
+    await logAction(req, 'تحديث الإعدادات', `المصانع: ${factories.length}, المواد: ${materials.length}, السيارات: ${trucks.length}`, null);
     res.json({ success: true });
 });
 
@@ -180,7 +178,7 @@ app.put('/api/day/:date', requireAuth, async (req, res) => {
     res.json({ success: true });
 });
 
-// Users management (admin only)
+// Users management
 app.get('/api/users', requireAuth, requireAdmin, async (req, res) => {
     const users = await getUsers();
     res.json(users);
@@ -190,14 +188,14 @@ app.post('/api/users', requireAuth, requireAdmin, async (req, res) => {
     const existing = await getUserByUsername(username);
     if (existing) return res.status(400).json({ error: 'اسم المستخدم موجود' });
     await createUser(username, password, role, factory, permissions);
-    await addLog(req.session.user.username, 'إضافة مستخدم', `المستخدم: ${username}, الدور: ${role}`, req);
+    await logAction(req, 'إضافة مستخدم', `المستخدم: ${username}, الدور: ${role}`, null);
     res.json({ success: true });
 });
 app.put('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
     const id = parseInt(req.params.id);
     const { username, role, factory, permissions, password } = req.body;
     await updateUser(id, username, role, factory, permissions, password);
-    await addLog(req.session.user.username, 'تعديل مستخدم', `المستخدم: ${username}`, req);
+    await logAction(req, 'تعديل مستخدم', `المستخدم: ${username}`, null);
     res.json({ success: true });
 });
 app.delete('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
@@ -205,7 +203,7 @@ app.delete('/api/users/:id', requireAuth, requireAdmin, async (req, res) => {
     const user = (await getUsers()).find(u => u.id === id);
     if (user?.username === 'Admin') return res.status(400).json({ error: 'لا يمكن حذف المدير الرئيسي' });
     await deleteUser(id);
-    await addLog(req.session.user.username, 'حذف مستخدم', `المستخدم: ${user?.username}`, req);
+    await logAction(req, 'حذف مستخدم', `المستخدم: ${user?.username}`, null);
     res.json({ success: true });
 });
 
@@ -218,7 +216,7 @@ app.post('/api/restrictions', requireAuth, async (req, res) => {
     if (!req.session.user.permissions?.manageRestrictions) return res.status(403).json({ error: 'غير مصرح' });
     const { truckNumber, driverName, restrictedFactories, reason } = req.body;
     const newRestriction = await addRestriction(truckNumber, driverName, restrictedFactories, reason, req.session.user.username);
-    await addLog(req.session.user.username, 'إضافة قيد', `السيارة: ${truckNumber} - المصانع: ${restrictedFactories.join(', ')}`, req);
+    await logAction(req, 'إضافة قيد حظر', `السيارة: ${truckNumber} - المصانع: ${restrictedFactories.join(', ')}`, null);
     res.json(newRestriction);
 });
 app.put('/api/restrictions/:id', requireAuth, async (req, res) => {
@@ -226,18 +224,18 @@ app.put('/api/restrictions/:id', requireAuth, async (req, res) => {
     const id = parseInt(req.params.id);
     const { active } = req.body;
     await updateRestriction(id, active);
-    await addLog(req.session.user.username, 'تعديل قيد', `ID: ${id}, الحالة: ${active ? 'نشط' : 'غير نشط'}`, req);
+    await logAction(req, 'تعديل قيد حظر', `ID: ${id}, الحالة: ${active ? 'نشط' : 'غير نشط'}`, null);
     res.json({ success: true });
 });
 app.delete('/api/restrictions/:id', requireAuth, async (req, res) => {
     if (!req.session.user.permissions?.manageRestrictions) return res.status(403).json({ error: 'غير مصرح' });
     const id = parseInt(req.params.id);
     await deleteRestriction(id);
-    await addLog(req.session.user.username, 'حذف قيد', `ID: ${id}`, req);
+    await logAction(req, 'حذف قيد حظر', `ID: ${id}`, null);
     res.json({ success: true });
 });
 
-// Reports (accessible by admin and normal users)
+// Reports
 app.get('/api/reports', requireAuth, async (req, res) => {
     const { startDate, endDate } = req.query;
     const start = new Date(startDate);
@@ -269,48 +267,35 @@ app.get('/api/reports', requireAuth, async (req, res) => {
             });
         }
     }
-    res.json({
-        allDistributions,
-        dailyData,
-        driverStats: Object.values(driverStats),
-        factoryStats: Object.values(factoryStats),
-        materialStats: Object.values(materialStats),
-        startDate,
-        endDate
-    });
+    res.json({ allDistributions, dailyData, driverStats: Object.values(driverStats), factoryStats: Object.values(factoryStats), materialStats: Object.values(materialStats), startDate, endDate });
 });
 
-// Backup & Restore (admin only)
+// Backup & Restore
 app.get('/api/backup', requireAuth, requireAdmin, async (req, res) => {
     const settings = await getSettings();
     const users = await getUsers();
     const restrictions = await getRestrictions();
-    const days = {}; // يمكن إضافة جميع الأيام المخزنة إذا أردت
-    await addLog(req.session.user.username, 'تصدير نسخة احتياطية', null, req);
-    res.json({ settings, users, restrictions, days, exportDate: new Date().toISOString() });
+    await logAction(req, 'تصدير نسخة احتياطية', null, null);
+    res.json({ settings, users, restrictions, exportDate: new Date().toISOString() });
 });
 app.post('/api/restore', requireAuth, requireAdmin, async (req, res) => {
     const data = req.body;
-    // استعادة الإعدادات
     if (data.settings) await saveSettings(data.settings.factories, data.settings.materials, data.settings.trucks);
-    // استعادة المستخدمين (يجب التعامل بحذر)
-    // استعادة القيود
     if (data.restrictions) {
         await pool.query('DELETE FROM restrictions');
         for (const r of data.restrictions) {
             await addRestriction(r.truck_number, r.driver_name, r.restricted_factories, r.reason, r.created_by);
         }
     }
-    await addLog(req.session.user.username, 'استعادة نسخة احتياطية', null, req);
+    await logAction(req, 'استعادة نسخة احتياطية', null, null);
     res.json({ success: true });
 });
 
-// Clear all data (admin only)
+// Clear all data
 app.delete('/api/clear-all', requireAuth, requireAdmin, async (req, res) => {
     await pool.query('DELETE FROM daily_data');
     await pool.query('DELETE FROM restrictions');
-    // لا نحذف المستخدمين والإعدادات
-    await addLog(req.session.user.username, 'مسح جميع البيانات', null, req);
+    await logAction(req, 'مسح جميع البيانات', null, null);
     res.json({ success: true });
 });
 
@@ -322,12 +307,7 @@ app.get('/api/logs', requireAuth, async (req, res) => {
     const offset = (page - 1) * limit;
     const logs = await getLogs(limit, offset);
     const total = await getLogsCount();
-    res.json({
-        logs,
-        currentPage: page,
-        totalPages: Math.ceil(total / limit),
-        total
-    });
+    res.json({ logs, currentPage: page, totalPages: Math.ceil(total / limit), total });
 });
 app.get('/api/logs/all', requireAuth, async (req, res) => {
     if (req.session.user.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
@@ -336,7 +316,7 @@ app.get('/api/logs/all', requireAuth, async (req, res) => {
 });
 app.delete('/api/logs/clear', requireAuth, requireAdmin, async (req, res) => {
     await pool.query('DELETE FROM logs');
-    await addLog(req.session.user.username, 'مسح السجلات', 'قام بحذف جميع سجلات النظام', req);
+    await logAction(req, 'مسح السجلات', 'قام بحذف جميع سجلات النظام', null);
     res.json({ success: true });
 });
 
