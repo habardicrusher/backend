@@ -113,6 +113,11 @@
             animation: spin 1s linear infinite;
         }
         @keyframes spin { to { transform: rotate(360deg); } }
+        .date-cell {
+            font-family: monospace;
+            font-size: 0.85em;
+            direction: ltr;
+        }
     </style>
 </head>
 <body>
@@ -121,8 +126,10 @@
     <div class="container">
         <div class="header">
             <h1>📜 سجل النظام</h1>
-            <p>تتبع جميع الإجراءات التي تمت في النظام (بدون IP)</p>
-            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"><button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button></div>
+            <p>تتبع جميع الإجراءات التي تمت في النظام</p>
+            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
+                <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
+            </div>
         </div>
         <div class="nav-links" id="navLinks"></div>
 
@@ -150,7 +157,7 @@
                     </tr>
                 </thead>
                 <tbody id="logsBody">
-                    <tr><td colspan="6" style="text-align:center;">جاري التحميل...</td><tr>
+                    <tr><td colspan="6" style="text-align:center;">جاري التحميل...</td></tr>
                 </tbody>
             </table>
         </div>
@@ -173,16 +180,35 @@
             return res.json();
         }
 
+        // دالة تنسيق التاريخ بشكل جميل
+        function formatDate(dateString) {
+            if (!dateString) return '—';
+            try {
+                const date = new Date(dateString);
+                // تنسيق: 2026-04-11 07:42:14
+                const year = date.getFullYear();
+                const month = String(date.getMonth() + 1).padStart(2, '0');
+                const day = String(date.getDate()).padStart(2, '0');
+                const hours = String(date.getHours()).padStart(2, '0');
+                const minutes = String(date.getMinutes()).padStart(2, '0');
+                const seconds = String(date.getSeconds()).padStart(2, '0');
+                return `${year}-${month}-${day} ${hours}:${minutes}:${seconds}`;
+            } catch(e) {
+                return dateString;
+            }
+        }
+
         async function loadLogs(page = 1) {
             showLoading(true);
             try {
                 const data = await apiCall(`/logs?page=${page}&limit=50`);
-                allLogs = data.logs;
-                totalPages = data.totalPages;
-                currentPage = data.currentPage;
+                allLogs = data.logs || [];
+                totalPages = data.totalPages || 1;
+                currentPage = data.currentPage || 1;
                 renderLogsTable(allLogs);
                 renderPagination();
             } catch (err) {
+                console.error(err);
                 showToast('خطأ في تحميل السجلات', 'error');
             }
             showLoading(false);
@@ -191,7 +217,7 @@
         function renderLogsTable(logs) {
             const tbody = document.getElementById('logsBody');
             if (!logs.length) {
-                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد سجلات</td><tr>';
+                tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد سجلات</td></tr>';
                 return;
             }
             tbody.innerHTML = logs.map((log, idx) => `
@@ -201,7 +227,7 @@
                     <td>${escapeHtml(log.action || '—')}</td>
                     <td style="text-align:right;">${escapeHtml(log.details || '—')}</td>
                     <td>${escapeHtml(log.location || '—')}</td>
-                    <td>${new Date(log.created_at).toLocaleString('ar-SA')}</td>
+                    <td class="date-cell">${formatDate(log.created_at)}</td>
                 </tr>
             `).join('');
         }
@@ -235,12 +261,12 @@
             showLoading(true);
             try {
                 const data = await apiCall('/logs/all');
-                const wsData = data.map(log => ({
+                const wsData = (data || []).map(log => ({
                     'المستخدم': log.username || '',
                     'الإجراء': log.action || '',
                     'التفاصيل': log.details || '',
                     'الموقع': log.location || '',
-                    'التاريخ': new Date(log.created_at).toLocaleString('ar-SA')
+                    'التاريخ': formatDate(log.created_at)
                 }));
                 const ws = XLSX.utils.json_to_sheet(wsData);
                 const wb = XLSX.utils.book_new();
@@ -285,28 +311,51 @@
         }
 
         function escapeHtml(str) { if (!str) return ''; return str.replace(/[&<>]/g, function(m){ if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;}); }
-        function showToast(msg,type){ const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
-        function showLoading(show){ document.getElementById('loading').classList.toggle('active', show); }
-        function logout(){ if(confirm('تسجيل الخروج؟')) fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html'); }
+        
+        function showToast(msg, type) {
+            const container = document.getElementById('toastContainer');
+            const toast = document.createElement('div');
+            toast.className = `toast toast-${type}`;
+            toast.textContent = msg;
+            container.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
+        }
+        
+        function showLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
+        
+        function logout() {
+            const logoutBtn = document.querySelector('button[onclick="logout()"]');
+            if (logoutBtn) {
+                logoutBtn.disabled = true;
+                logoutBtn.style.opacity = '0.5';
+                logoutBtn.innerText = '⏳ جاري...';
+            }
+            fetch('/api/logout', { method: 'POST', credentials: 'include' })
+                .then(() => { localStorage.clear(); window.location.href = '/login.html'; })
+                .catch(() => { localStorage.clear(); window.location.href = '/login.html'; });
+        }
 
         function loadNav() {
-            fetch('/api/me',{credentials:'include'}).then(r=>r.json()).then(data=>{
-                if(data.user) {
-                    document.getElementById('navLinks').innerHTML = `
-                        <a href="index.html" class="nav-link">📊 الرئيسية</a>
-                        <a href="orders.html" class="nav-link">📝 الطلبات</a>
-                        <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
-                        <a href="trucks.html" class="nav-link">🚛 السيارات</a>
-                        <a href="products.html" class="nav-link">📦 أنواع البحص</a>
-                        <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                        <a href="reports.html" class="nav-link">📊 التقارير</a>
-                        <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
-                        <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
-                        <a href="users.html" class="nav-link">👥 المستخدمين</a>
-                        <a href="logs.html" class="nav-link active">📜 السجلات</a>
-                    `;
-                } else window.location.href='/login.html';
-            }).catch(()=>window.location.href='/login.html');
+            fetch('/api/me', { credentials: 'include' })
+                .then(r => r.json())
+                .then(data => {
+                    if (data.user) {
+                        document.getElementById('navLinks').innerHTML = `
+                            <a href="index.html" class="nav-link">📊 الرئيسية</a>
+                            <a href="orders.html" class="nav-link">📝 الطلبات</a>
+                            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+                            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+                            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+                            <a href="factories.html" class="nav-link">🏭 المصانع</a>
+                            <a href="reports.html" class="nav-link">📊 التقارير</a>
+                            <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
+                            <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
+                            <a href="users.html" class="nav-link">👥 المستخدمين</a>
+                            <a href="logs.html" class="nav-link active">📜 السجلات</a>
+                        `;
+                    } else { window.location.href = '/login.html'; }
+                })
+                .catch(() => { window.location.href = '/login.html'; });
         }
 
         document.addEventListener('DOMContentLoaded', () => {
