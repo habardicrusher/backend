@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>تقارير الكسارة - نظام إدارة طلبات كسارة الحبردي</title>
+    <title>التقارير - نظام إدارة طلبات كسارة الحبردي</title>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
@@ -13,7 +13,7 @@
         .container { max-width:1400px; margin:0 auto; padding:20px; }
         .header { text-align:center; padding:30px; background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); border-radius:20px; margin-bottom:30px; position:relative; }
         .nav-links { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin-bottom:30px; }
-        .nav-link { padding:12px 24px; background:rgba(255,255,255,0.1); border-radius:12px; text-decoration:none; color:#fff; font-weight:600; transition:all 0.3s; }
+        .nav-link { padding:12px 24px; background:rgba(255,255,255,0.1); border-radius:12px; text-decoration:none; color:#fff; font-weight:600; }
         .nav-link:hover,.nav-link.active { background:linear-gradient(135deg,#667eea 0%,#764ba2 100%); transform:translateY(-2px); }
         .report-filters { background:rgba(255,255,255,0.05); padding:20px; border-radius:15px; margin-bottom:25px; display:flex; flex-wrap:wrap; gap:15px; align-items:flex-end; }
         .filter-group { display:flex; flex-direction:column; gap:5px; }
@@ -26,10 +26,10 @@
         .summary-cards { display:grid; grid-template-columns:repeat(auto-fit,minmax(180px,1fr)); gap:15px; margin-bottom:25px; }
         .summary-card { background:linear-gradient(135deg,rgba(102,126,234,0.3),rgba(118,75,162,0.3)); border-radius:12px; padding:20px; text-align:center; }
         .summary-card .value { font-size:2em; font-weight:700; color:#38ef7d; }
-        .charts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(450px,1fr)); gap:25px; margin-bottom:25px; }
+        .charts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(500px,1fr)); gap:25px; margin-bottom:25px; }
         .chart-container { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; }
         .chart-container h3 { margin-bottom:15px; color:#667eea; text-align:center; }
-        .chart-wrapper { height:350px; width:100%; }
+        .chart-wrapper { height:400px; width:100%; position:relative; }
         .report-table-container { background:rgba(255,255,255,0.05); border-radius:15px; padding:20px; overflow-x:auto; margin-top:20px; }
         table { width:100%; border-collapse:collapse; }
         th, td { padding:12px; text-align:center; border-bottom:1px solid rgba(255,255,255,0.1); }
@@ -45,45 +45,31 @@
         .loading.active { display:flex; }
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation:spin 1s linear infinite; }
         @keyframes spin { to { transform:rotate(360deg); } }
-        @media (max-width:768px){ .charts-grid { grid-template-columns:1fr; } .chart-wrapper { height:250px; } }
+        @media (max-width:768px){ .charts-grid { grid-template-columns:1fr; } .chart-wrapper { height:300px; } }
     </style>
 </head>
 <body>
     <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
-        <div class="header">
-            <h1>📊 تقارير الكسارة</h1>
-            <p>تحليل أداء السائقين حسب المصانع والمواقع (الهدف: 2 رود لكل يوم عمل)</p>
-            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
-                <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
-            </div>
+        <div class="header"><h1>📊 التقارير والإحصائيات</h1><p>تحليل أداء السائقين حسب المصانع والمواقع</p>
+            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"><button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button></div>
         </div>
         <div class="nav-links" id="navLinks"></div>
-
         <div class="report-filters">
-            <div class="filter-group"><label>📅 نوع الفترة</label>
-                <select id="reportPeriod" onchange="updateReportDates()">
-                    <option value="day">يوم</option>
-                    <option value="week">أسبوع</option>
-                    <option value="month">شهر</option>
-                    <option value="custom">مخصص</option>
-                </select>
-            </div>
+            <div class="filter-group"><label>📅 نوع الفترة</label><select id="reportPeriod" onchange="updateReportDates()"><option value="day">يوم</option><option value="week">أسبوع</option><option value="month">شهر</option><option value="custom">مخصص</option></select></div>
             <div class="filter-group"><label>من تاريخ</label><input type="date" id="reportStartDate"></div>
             <div class="filter-group"><label>إلى تاريخ</label><input type="date" id="reportEndDate"></div>
             <div class="filter-group"><button class="btn btn-primary" onclick="generateReports()">📊 عرض التقرير</button></div>
         </div>
-
         <div class="summary-cards" id="reportSummary"></div>
         <div class="charts-grid">
             <div class="chart-container"><h3>📈 رحلات السائقين (أفضل 15)</h3><div class="chart-wrapper"><canvas id="driversChart"></canvas></div></div>
-            <div class="chart-container"><h3>🏭 طلبات المصانع</h3><div class="chart-wrapper"><canvas id="factoriesChart"></canvas></div></div>
+            <div class="chart-container"><h3>🏭 طلبات المصانع (أسماء كاملة)</h3><div class="chart-wrapper"><canvas id="factoriesChart"></canvas></div></div>
             <div class="chart-container"><h3>📦 توزيع أنواع البحص</h3><div class="chart-wrapper"><canvas id="materialsChart"></canvas></div></div>
             <div class="chart-container"><h3>📍 الرحلات حسب الموقع</h3><div class="chart-wrapper"><canvas id="locationChart"></canvas></div></div>
             <div class="chart-container"><h3>📅 الرحلات اليومية</h3><div class="chart-wrapper"><canvas id="dailyChart"></canvas></div></div>
         </div>
-
         <div class="report-table-container">
             <h3>🏆 ترتيب السائقين حسب عدد الرحلات ونسبة الإنجاز (الهدف اليومي: 2 رود لكل يوم عمل)</h3>
             <table id="driversTable">
@@ -91,11 +77,7 @@
                 <tbody id="driversRankBody"></tbody>
             </table>
         </div>
-        <div class="export-buttons">
-            <button class="btn btn-success" onclick="exportFullExcel()">📊 تصدير Excel كامل (8 أوراق)</button>
-            <button class="btn btn-info" onclick="exportSimpleExcel()">📥 تصدير Excel بسيط</button>
-            <button class="btn btn-primary" onclick="window.print()">🖨️ طباعة التقرير</button>
-        </div>
+        <div class="export-buttons"><button class="btn btn-success" onclick="exportFullExcel()">📊 تصدير Excel كامل (8 أوراق)</button><button class="btn btn-info" onclick="exportSimpleExcel()">📥 تصدير Excel بسيط</button><button class="btn btn-primary" onclick="window.print()">🖨️ طباعة التقرير</button></div>
     </div>
 
     <script>
@@ -104,35 +86,6 @@
         let currentReportData = null;
         let totalActiveDays = 0;
         let factoriesWithLocation = [];
-
-        // دالة حساب التواريخ بناءً على نوع الفترة
-        function updateReportDates() {
-            const period = document.getElementById('reportPeriod').value;
-            const today = new Date();
-            let startDate = new Date(today);
-            let endDate = new Date(today);
-            
-            if (period === 'day') {
-                startDate = today;
-                endDate = today;
-            } else if (period === 'week') {
-                startDate.setDate(today.getDate() - 6);
-                endDate = today;
-            } else if (period === 'month') {
-                startDate = new Date(today.getFullYear(), today.getMonth(), 1);
-                endDate = today;
-            } else {
-                return; // مخصص، لا نغير التواريخ
-            }
-            
-            document.getElementById('reportStartDate').value = startDate.toISOString().split('T')[0];
-            document.getElementById('reportEndDate').value = endDate.toISOString().split('T')[0];
-            
-            // إذا كانت الفترة غير مخصصة، نعرض التقرير تلقائياً
-            if (period !== 'custom') {
-                generateReports();
-            }
-        }
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -154,28 +107,21 @@
 
         function getFactoryLocation(factoryName) { let f = factoriesWithLocation.find(f=>f.name===factoryName); return f ? f.location : 'أخرى'; }
 
-        function initReportDates() {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('reportStartDate').value = today;
-            document.getElementById('reportEndDate').value = today;
-            document.getElementById('reportPeriod').value = 'day';
-            generateReports();
-        }
+        function initReportDates() { let t=new Date(); let ts=t.toISOString().split('T')[0]; document.getElementById('reportStartDate').value=ts; document.getElementById('reportEndDate').value=ts; document.getElementById('reportPeriod').value='day'; }
+        function updateReportDates() { let p=document.getElementById('reportPeriod').value; let t=new Date(); let s; if(p==='day') s=t; else if(p==='week'){ s=new Date(t); s.setDate(t.getDate()-6); } else if(p==='month') s=new Date(t.getFullYear(),t.getMonth(),1); else return; document.getElementById('reportStartDate').value=s.toISOString().split('T')[0]; document.getElementById('reportEndDate').value=t.toISOString().split('T')[0]; generateReports(); }
         
         async function generateReports() {
-            let start = document.getElementById('reportStartDate').value;
-            let end = document.getElementById('reportEndDate').value;
-            if(!start || !end){ showToast('اختر الفترة','error'); return; }
+            let start=document.getElementById('reportStartDate').value, end=document.getElementById('reportEndDate').value;
+            if(!start||!end){ showToast('اختر الفترة','error'); return; }
             showLoading(true);
             try {
-                let settings = await apiCall('/settings'); 
-                factoriesWithLocation = settings.factories || [];
+                let settings = await apiCall('/settings'); factoriesWithLocation = settings.factories || [];
                 let data = await apiCall(`/reports?startDate=${start}&endDate=${end}`);
                 currentReportData = data;
                 const allDates = new Set();
                 data.allDistributions.forEach(d => { if(d.date) allDates.add(d.date); });
                 totalActiveDays = allDates.size;
-                renderReportSummary(data.allDistributions, data.driverStats);
+                renderReportSummary(data.allDistributions,data.driverStats);
                 renderDriversChart(data.driverStats);
                 renderFactoriesChart(data.factoryStats);
                 renderMaterialsChart(data.materialStats);
@@ -192,22 +138,92 @@
             let riyadh=factoriesWithLocation.filter(f=>f.location==='الرياض').length, dammam=factoriesWithLocation.filter(f=>f.location==='الدمام').length;
             document.getElementById('reportSummary').innerHTML=`<div class="summary-card"><div class="value">${totalTrips}</div><div>إجمالي الرحلات</div></div><div class="summary-card"><div class="value">${driversCount}</div><div>عدد السائقين</div></div><div class="summary-card"><div class="value">${avg}</div><div>متوسط الرحلات/سائق</div></div><div class="summary-card"><div class="value">${maxTrips}</div><div>أعلى رحلات</div></div><div class="summary-card"><div class="value">${totalActiveDays}</div><div>أيام عمل</div></div><div class="summary-card"><div class="value">${riyadh}</div><div>مصانع الرياض</div></div><div class="summary-card"><div class="value">${dammam}</div><div>مصانع الدمام</div></div>`;
         }
-        function renderDriversChart(stats) { let ctx=document.getElementById('driversChart').getContext('2d'); if(driversChart) driversChart.destroy(); let sorted=Object.values(stats||{}).sort((a,b)=>b.total-a.total).slice(0,15); driversChart=new Chart(ctx,{type:'bar',data:{labels:sorted.map(d=>d.number),datasets:[{label:'عدد الرحلات',data:sorted.map(d=>d.total),backgroundColor:'rgba(102,126,234,0.8)'}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#fff'}}},scales:{x:{ticks:{color:'#a8b2d1'}},y:{ticks:{color:'#a8b2d1'},beginAtZero:true}}}}); }
-        function renderFactoriesChart(stats) { let ctx=document.getElementById('factoriesChart').getContext('2d'); if(factoriesChart) factoriesChart.destroy(); let sorted=Object.entries(stats||{}).sort((a,b)=>b[1].total-a[1].total).slice(0,10); factoriesChart=new Chart(ctx,{type:'bar',data:{labels:sorted.map(([n])=>n.length>20?n.substring(0,20)+'...':n),datasets:[{label:'عدد الطلبات',data:sorted.map(([,s])=>s.total),backgroundColor:'rgba(56,239,125,0.8)'}]},options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{x:{ticks:{color:'#a8b2d1'}},y:{ticks:{color:'#a8b2d1'}}}}}); }
-        function renderMaterialsChart(stats) { let ctx=document.getElementById('materialsChart').getContext('2d'); if(materialsChart) materialsChart.destroy(); let labels=Object.keys(stats||{}).map(m=>'بحص '+m), data=Object.values(stats||{}).map(s=>s.total); materialsChart=new Chart(ctx,{type:'doughnut',data:{labels,datasets:[{data,backgroundColor:['#667eea','#f5576c','#38ef7d','#4facfe','#f093fb']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{color:'#fff'}}}}}); }
-        function renderDailyChart(data) { let ctx=document.getElementById('dailyChart').getContext('2d'); if(dailyChart) dailyChart.destroy(); let dates=Object.keys(data||{}).sort(); dailyChart=new Chart(ctx,{type:'line',data:{labels:dates.map(d=>d.slice(5)),datasets:[{label:'عدد الرحلات',data:dates.map(d=>data[d]),borderColor:'#667eea',backgroundColor:'rgba(102,126,234,0.2)',fill:true,tension:0.4}]},options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true,ticks:{color:'#a8b2d1'}},x:{ticks:{color:'#a8b2d1'}}}}}); }
-        function renderLocationChart(distributions) { let ctx=document.getElementById('locationChart').getContext('2d'); if(locationChart) locationChart.destroy(); let locStats={'الرياض':0,'الدمام':0,'أخرى':0}; distributions.forEach(d=>{ let l=getFactoryLocation(d.factory); if(l==='الرياض') locStats['الرياض']++; else if(l==='الدمام') locStats['الدمام']++; else locStats['أخرى']++; }); locationChart=new Chart(ctx,{type:'doughnut',data:{labels:['الرياض','الدمام','أخرى'],datasets:[{data:[locStats['الرياض'],locStats['الدمام'],locStats['أخرى']],backgroundColor:['#38ef7d','#4facfe','#f5576c']}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{labels:{color:'#fff'}}}}}); }
+        
+        function renderDriversChart(stats) {
+            const ctx = document.getElementById('driversChart').getContext('2d');
+            if (driversChart) driversChart.destroy();
+            const sorted = Object.values(stats || {}).sort((a,b) => b.total - a.total).slice(0, 15);
+            driversChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(d => `${d.number} - ${d.driver}`),
+                    datasets: [{ label: 'عدد الرحلات', data: sorted.map(d => d.total), backgroundColor: 'rgba(102,126,234,0.8)' }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { labels: { color: '#fff' } }, tooltip: { bodyColor: '#fff', titleColor: '#fff' } },
+                    scales: { x: { ticks: { color: '#a8b2d1' }, title: { display: true, text: 'عدد الرحلات', color: '#fff' } }, y: { ticks: { color: '#a8b2d1', font: { size: 11 } }, title: { display: true, text: 'السائق (رقم السيارة)', color: '#fff' } } }
+                }
+            });
+        }
+        
+        function renderFactoriesChart(stats) {
+            const ctx = document.getElementById('factoriesChart').getContext('2d');
+            if (factoriesChart) factoriesChart.destroy();
+            const sorted = Object.entries(stats || {}).sort((a,b) => b[1].total - a[1].total);
+            const labels = sorted.map(([name]) => name.length > 25 ? name.substring(0,22) + '...' : name);
+            const data = sorted.map(([,s]) => s.total);
+            factoriesChart = new Chart(ctx, {
+                type: 'bar',
+                data: { labels, datasets: [{ label: 'عدد الطلبات', data, backgroundColor: 'rgba(56,239,125,0.8)' }] },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    indexAxis: 'y',
+                    plugins: { legend: { labels: { color: '#fff' } }, tooltip: { callbacks: { label: function(context) { return `${context.raw} طلب`; } } } },
+                    scales: { x: { ticks: { color: '#a8b2d1' }, title: { display: true, text: 'عدد الطلبات', color: '#fff' } }, y: { ticks: { color: '#a8b2d1', font: { size: 10 } }, title: { display: true, text: 'اسم المصنع', color: '#fff' } } }
+                }
+            });
+        }
+        
+        function renderMaterialsChart(stats) {
+            const ctx = document.getElementById('materialsChart').getContext('2d');
+            if (materialsChart) materialsChart.destroy();
+            const labels = Object.keys(stats || {}).map(m => 'بحص ' + m);
+            const data = Object.values(stats || {}).map(s => s.total);
+            materialsChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data, backgroundColor: ['#667eea','#f5576c','#38ef7d','#4facfe','#f093fb','#ff9a44','#fc6076'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff', font: { size: 12 } } }, tooltip: { callbacks: { label: function(context) { return `${context.label}: ${context.raw} طلب (${((context.raw / data.reduce((a,b)=>a+b,0))*100).toFixed(1)}%)`; } } } } }
+            });
+        }
+        
+        function renderDailyChart(data) {
+            const ctx = document.getElementById('dailyChart').getContext('2d');
+            if (dailyChart) dailyChart.destroy();
+            const dates = Object.keys(data || {}).sort();
+            dailyChart = new Chart(ctx, {
+                type: 'line',
+                data: { labels: dates.map(d => d.slice(5)), datasets: [{ label: 'عدد الرحلات', data: dates.map(d => data[d]), borderColor: '#667eea', backgroundColor: 'rgba(102,126,234,0.2)', fill: true, tension: 0.4 }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { labels: { color: '#fff' } } }, scales: { y: { beginAtZero: true, ticks: { color: '#a8b2d1' }, title: { display: true, text: 'عدد الرحلات', color: '#fff' } }, x: { ticks: { color: '#a8b2d1' }, title: { display: true, text: 'التاريخ', color: '#fff' } } } }
+            });
+        }
+        
+        function renderLocationChart(distributions) {
+            const ctx = document.getElementById('locationChart').getContext('2d');
+            if (locationChart) locationChart.destroy();
+            const locStats = { 'الرياض': 0, 'الدمام': 0, 'أخرى': 0 };
+            distributions.forEach(d => { let l = getFactoryLocation(d.factory); if (l === 'الرياض') locStats['الرياض']++; else if (l === 'الدمام') locStats['الدمام']++; else locStats['أخرى']++; });
+            locationChart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels: ['الرياض', 'الدمام', 'أخرى'], datasets: [{ data: [locStats['الرياض'], locStats['الدمام'], locStats['أخرى']], backgroundColor: ['#38ef7d', '#4facfe', '#f5576c'] }] },
+                options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { color: '#fff' } }, tooltip: { callbacks: { label: function(context) { return `${context.label}: ${context.raw} رحلة (${((context.raw / (locStats['الرياض']+locStats['الدمام']+locStats['أخرى']))*100).toFixed(1)}%)`; } } } } }
+            });
+        }
 
         function renderDriversRankTable(stats, distributions) {
-            let tbody=document.getElementById('driversRankBody');
-            let arr=Object.values(stats||{}); if(!arr.length){ tbody.innerHTML='作用<td colspan="10">لا توجد بيانات<\/td><\/tr>'; return; }
-            let sorted=arr.sort((a,b)=>b.total-a.total);
+            let tbody = document.getElementById('driversRankBody');
+            let arr = Object.values(stats || {});
+            if (!arr.length) { tbody.innerHTML = '<tr><td colspan="10">لا توجد بيانات<\/td><\/tr>'; return; }
+            let sorted = arr.sort((a,b) => b.total - a.total);
             let requiredTotal = totalActiveDays * 2;
-            tbody.innerHTML=sorted.map((d,i)=>{
-                let trips=d.total, perc=requiredTotal>0?((trips/requiredTotal)*100).toFixed(1):0, barWidth=Math.min(perc, 200);
-                let f1=getMostFrequentFactoryForDriverByRoad(d.number,distributions,1);
-                let f2=getMostFrequentFactoryForDriverByRoad(d.number,distributions,2);
-                let f3=getMostFrequentFactoryForDriverByRoad(d.number,distributions,3);
+            tbody.innerHTML = sorted.map((d,i) => {
+                let trips = d.total, perc = requiredTotal > 0 ? ((trips / requiredTotal) * 100).toFixed(1) : 0, barWidth = Math.min(perc, 200);
+                let f1 = getMostFrequentFactoryForDriverByRoad(d.number, distributions, 1);
+                let f2 = getMostFrequentFactoryForDriverByRoad(d.number, distributions, 2);
+                let f3 = getMostFrequentFactoryForDriverByRoad(d.number, distributions, 3);
                 return `<tr>
                     <td>${i+1}</td>
                     <td><strong>${d.number}</strong></td>
@@ -223,7 +239,7 @@
             }).join('');
         }
 
-        // ===================== تصدير Excel كامل بـ 8 أوراق (نفس الكود السابق) =====================
+        // ===================== تصدير Excel (يُترك كما هو - لا تغيير) =====================
         async function exportFullExcel() {
             if(!currentReportData){ showToast('لا توجد بيانات','error'); return; }
             let start=document.getElementById('reportStartDate').value, end=document.getElementById('reportEndDate').value;
@@ -280,13 +296,13 @@
                 ws7.mergeCells('A1:G1'); ws7.getCell('A1').value='🏆 أفضل 10 سائقين (حسب عدد الرحلات)'; ws7.getCell('A1').font={...titleFont,size:18}; ws7.getCell('A1').alignment=centerAlign; ws7.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFFF2CC'}}; ws7.getRow(1).height=42;
                 let th=['الترتيب','رقم السيارة','السائق','عدد الرحلات','المصنع (رود 1)','المصنع (رود 2)','الميدالية']; let thRow=ws7.getRow(2); thRow.values=th; thRow.height=30; thRow.eachCell(cell=>{ cell.font=headerFont; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFBF8F00'}}; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let medals=['🥇 الأول','🥈 الثاني','🥉 الثالث']; let medalColors=['FFFFD700','FFC0C0C0','FFCD7F32'];
-                for(let i=0;i<Math.min(10,sortedDrivers.length);i++){ let d=sortedDrivers[i]; let f1=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,1); let f2=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,2); let row=ws7.getRow(3+i); row.values=[i+1,d.number,d.driver,d.total,f1,f2,i<3?medals[i]:'⭐ متميز']; row.height=32; row.eachCell(cell=>{ cell.font={...dataFont,bold:i<3,size:i<3?13:11}; cell.alignment=centerAlign; cell.border=thinBorder; }); if(i<3) row.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:medalColors[i]}}; }); else row.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:i%2===0?'FFFFF2CC':'FFFFFFFF'}}; }); });
+                for(let i=0;i<Math.min(10,sortedDrivers.length);i++){ let d=sortedDrivers[i]; let f1=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,1); let f2=getMostFrequentFactoryForDriverByRoad(d.number,data.allDistributions,2); let row=ws7.getRow(3+i); row.values=[i+1,d.number,d.driver,d.total,f1,f2,i<3?medals[i]:'⭐ متميز']; row.height=32; row.eachCell(cell=>{ cell.font={...dataFont,bold:i<3,size:i<3?13:11}; cell.alignment=centerAlign; cell.border=thinBorder; }); if(i<3) row.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:medalColors[i]}}; }); else row.eachCell(cell=>{ cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:i%2===0?'FFFFF2CC':'FFFFFFFF'}}; }); }
 
                 let ws8=workbook.addWorksheet('تفاصيل الرحلات',{views:[{rightToLeft:true}]}); ws8.columns=[{width:8},{width:14},{width:14},{width:20},{width:35},{width:15},{width:12},{width:15}];
                 ws8.mergeCells('A1:H1'); ws8.getCell('A1').value='📋 تفاصيل جميع الرحلات (مع التوقيت)'; ws8.getCell('A1').font={...titleFont,size:16}; ws8.getCell('A1').alignment=centerAlign; ws8.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E4F0'}}; ws8.getRow(1).height=38;
                 let trh=['#','التاريخ','رقم السيارة','السائق','المصنع','نوع البحص','الرود','التوقيت']; let trhRow=ws8.getRow(2); trhRow.values=trh; trhRow.height=28; trhRow.eachCell(cell=>{ cell.font=headerFont; cell.fill=headerFill; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let sortedTrips=data.allDistributions.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-                sortedTrips.forEach((trip,i)=>{ let row=ws8.getRow(3+i); row.values=[i+1,trip.date||'',trip.truck?.number||'',trip.truck?.driver||'',trip.factory||'',trip.material||'',trip.road===1?'رود 1':(trip.road===2?'رود 2':'رود '+trip.road), formatTime(trip.time)]; row.height=20; let bg=i%2===0?'FFF2F7FB':'FFFFFFFF'; row.eachCell(cell=>{ cell.font=dataFont; cell.alignment=centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; }); ws8.getCell(`G${3+i}`).fill={type:'pattern',pattern:'solid',fgColor:{argb:trip.road===1?'FFD6E4F0':(trip.road===2?'FFFCE4D6':'FFE2EFDA')}}; ws8.getCell(`G${3+i}`).font={...dataFont,bold:true,color:{argb:trip.road===1?'FF2E75B6':(trip.road===2?'FFED7D31':'FF548235')}}; });
+                sortedTrips.forEach((trip,i)=>{ let row=ws8.getRow(3+i); row.values=[i+1,trip.date||'',trip.truck?.number||'',trip.truck?.driver||'',trip.factory||'',trip.material||'',trip.road===1?'رود 1':(trip.road===2?'رود 2':'رוד '+trip.road), formatTime(trip.time)]; row.height=20; let bg=i%2===0?'FFF2F7FB':'FFFFFFFF'; row.eachCell(cell=>{ cell.font=dataFont; cell.alignment=centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; }); ws8.getCell(`G${3+i}`).fill={type:'pattern',pattern:'solid',fgColor:{argb:trip.road===1?'FFD6E4F0':(trip.road===2?'FFFCE4D6':'FFE2EFDA')}}; ws8.getCell(`G${3+i}`).font={...dataFont,bold:true,color:{argb:trip.road===1?'FF2E75B6':(trip.road===2?'FFED7D31':'FF548235')}}; });
 
                 let buffer=await workbook.xlsx.writeBuffer();
                 saveAs(new Blob([buffer]),`تقرير_شامل_${start}_إلى_${end}.xlsx`);
@@ -329,8 +345,7 @@
                             <a href="trucks.html" class="nav-link">🚛 السيارات</a>
                             <a href="products.html" class="nav-link">📦 أنواع البحص</a>
                             <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                            <a href="reports.html" class="nav-link active">📊 تقارير الكسارة</a>
-                            <a href="upload-report.html" class="nav-link">📤 رفع وتحليل التقارير الشهرية</a>
+                            <a href="reports.html" class="nav-link active">📊 التقارير</a>
                             <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
                             <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
                             <a href="users.html" class="nav-link">👥 المستخدمين</a>
