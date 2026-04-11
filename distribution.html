@@ -5,17 +5,40 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>التوزيع - نظام إدارة طلبات كسارة الحبردي</title>
     <style>
-        /* جميع الأنماط السابقة - مختصرة للاختصار */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; position: relative; }
         .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
         .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; font-weight: 600; }
         .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transform: translateY(-2px); }
-        .date-section { background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
+        .date-section {
+            background: rgba(255,255,255,0.1);
+            padding: 15px 25px;
+            border-radius: 15px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
         .date-section input[type="date"] { padding: 12px 20px; border-radius: 10px; border: none; background: #fff; color: #333; cursor: pointer; }
-        .btn { padding: 12px 25px; border: none; border-radius: 12px; cursor: pointer; font-size: 1em; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 12px;
+            cursor: pointer;
+            font-size: 1em;
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
         .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
         .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
         .btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
@@ -55,7 +78,7 @@
     <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
-        <div class="header"><h1>🚚 التوزيع (يدوي / تلقائي)</h1><p>توزيع الطلبات الجديدة على السيارات</p>
+        <div class="header"><h1>🚚 التوزيع (يدوي / تلقائي عادل)</h1><p>توزيع الطلبات على جميع السيارات بالتساوي</p>
             <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"><button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button></div>
         </div>
         <div class="nav-links" id="navLinks"></div>
@@ -73,7 +96,7 @@
             <div class="stat-card"><h4>✅ تم التوزيع</h4><div class="number" id="statDistributed">0</div></div>
         </div>
         
-        <h2>📋 الطلبات غير الموزعة (من العملاء)</h2>
+        <h2>📋 الطلبات غير الموزعة</h2>
         <div style="overflow-x: auto; margin-bottom: 30px;">
             <table id="undistributedTable">
                 <thead><tr><th>#</th><th>المصنع</th><th>نوع البحص</th><th>التوقيت</th><th>وقت الإضافة</th><th>توزيع يدوي</th></tr></thead>
@@ -154,7 +177,7 @@
 
         function renderUndistributed(undistributed) {
             const tbody = document.getElementById('undistributedBody');
-            if (!undistributed.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد طلبات غير موزعة</td><\/tr>'; return; }
+            if (!undistributed.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;">لا توجد طلبات غير موزعة</td></tr>'; return; }
             tbody.innerHTML = undistributed.map((order, i) => `
                 <tr>
                     <td>${i+1}</td>
@@ -169,8 +192,7 @@
 
         function renderDistribution() {
             const tbody = document.getElementById('distributionBody');
-            if (!distribution.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا يوجد توزيع</td><\/tr>'; return; }
-            // إزالة التكرارات عند العرض
+            if (!distribution.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا يوجد توزيع</td></tr>'; return; }
             const uniqueMap = new Map();
             distribution.forEach(d => { if (!uniqueMap.has(d.orderId)) uniqueMap.set(d.orderId, d); });
             const uniqueDistributions = Array.from(uniqueMap.values());
@@ -208,14 +230,8 @@
             if (!currentOrderToDistribute) { showToast('لا يوجد طلب محدد', 'error'); return; }
             showLoading(true);
             try {
-                // التأكد من عدم وجود توزيع مسبق لهذا الطلب
                 const alreadyDistributed = distribution.some(d => d.orderId === currentOrderToDistribute.id);
-                if (alreadyDistributed) {
-                    showToast('هذا الطلب موزع بالفعل', 'warning');
-                    closeManualModal();
-                    showLoading(false);
-                    return;
-                }
+                if (alreadyDistributed) { showToast('هذا الطلب موزع بالفعل', 'warning'); closeManualModal(); showLoading(false); return; }
                 distribution.push({
                     orderId: currentOrderToDistribute.id,
                     orderIndex: distribution.length + 1,
@@ -234,7 +250,7 @@
             showLoading(false);
         }
 
-        // التوزيع التلقائي العادل
+        // ========== التوزيع التلقائي العادل على جميع السيارات ==========
         async function autoDistribute() {
             const distributedOrderIds = new Set(distribution.map(d => d.orderId));
             const undistributed = orders.filter(o => !distributedOrderIds.has(o.id));
@@ -243,17 +259,17 @@
             showLoading(true);
             
             // حساب عدد الرحلات لكل سيارة حالياً
-            const truckTripCount = {};
-            trucks.forEach(t => { truckTripCount[t.number] = 0; });
-            distribution.forEach(d => { if (d.truck) truckTripCount[d.truck.number]++; });
+            const truckTrips = {};
+            trucks.forEach(t => { truckTrips[t.number] = 0; });
+            distribution.forEach(d => { if (d.truck) truckTrips[d.truck.number]++; });
             
-            // ترتيب السيارات حسب أقل عدد رحلات (للتوزيع العادل)
-            let availableTrucks = [...trucks].sort((a, b) => truckTripCount[a.number] - truckTripCount[b.number]);
+            // نسخة من السيارات مرتبة حسب أقل عدد رحلات
+            let sortedTrucks = [...trucks].sort((a, b) => truckTrips[a.number] - truckTrips[b.number]);
+            let truckIndex = 0;
             let lastFactoryForTruck = {};
             trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
             
             let newDistributions = [];
-            let truckIndex = 0;
             
             for (let i = 0; i < undistributed.length; i++) {
                 const order = undistributed[i];
@@ -262,10 +278,9 @@
                 // البحث عن سيارة مناسبة (تجنب تكرار المصنع)
                 let selectedTruck = null;
                 let attempts = 0;
-                const maxAttempts = availableTrucks.length * 2;
                 
-                while (!selectedTruck && attempts < maxAttempts) {
-                    const candidate = availableTrucks[truckIndex % availableTrucks.length];
+                while (!selectedTruck && attempts < sortedTrucks.length * 2) {
+                    const candidate = sortedTrucks[truckIndex % sortedTrucks.length];
                     if (lastFactoryForTruck[candidate.number] !== requiredFactory) {
                         selectedTruck = candidate;
                     }
@@ -274,15 +289,15 @@
                 }
                 
                 if (!selectedTruck) {
-                    selectedTruck = availableTrucks[0];
+                    selectedTruck = sortedTrucks[0];
                 }
                 
                 // تحديث الإحصائيات
-                truckTripCount[selectedTruck.number]++;
+                truckTrips[selectedTruck.number]++;
                 lastFactoryForTruck[selectedTruck.number] = requiredFactory;
                 
-                // إعادة ترتيب السيارات حسب أقل عدد رحلات
-                availableTrucks.sort((a, b) => truckTripCount[a.number] - truckTripCount[b.number]);
+                // إعادة ترتيب السيارات حسب أقل عدد رحلات (للتوزيع العادل)
+                sortedTrucks = [...trucks].sort((a, b) => truckTrips[a.number] - truckTrips[b.number]);
                 truckIndex = 0;
                 
                 const currentRoad = Math.floor((distribution.length + newDistributions.length) / trucks.length) + 1;
@@ -301,7 +316,13 @@
                 distribution.push(...newDistributions);
                 await saveData();
                 await loadData();
-                showToast(`✅ تم توزيع ${newDistributions.length} طلب تلقائياً (توزيع عادل)`, 'success');
+                // عرض إحصائيات التوزيع الجديدة
+                const finalTrips = {};
+                trucks.forEach(t => { finalTrips[t.number] = 0; });
+                distribution.forEach(d => { if (d.truck) finalTrips[d.truck.number]++; });
+                const minTrips = Math.min(...Object.values(finalTrips));
+                const maxTrips = Math.max(...Object.values(finalTrips));
+                showToast(`✅ تم توزيع ${newDistributions.length} طلب. أقل سيارة: ${minTrips} رحلة، أكثر سيارة: ${maxTrips} رحلة`, 'success');
                 localStorage.setItem('pendingOrdersCount', '0');
             } else { showToast('فشل التوزيع التلقائي', 'error'); }
             showLoading(false);
