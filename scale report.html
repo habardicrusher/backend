@@ -15,6 +15,7 @@
     .nav-links{display:flex;flex-wrap:wrap;gap:12px;}
     .nav-links a{color:white;text-decoration:none;padding:8px 16px;border-radius:28px;font-size:0.9rem;font-weight:500;transition:0.2s;display:inline-flex;align-items:center;gap:6px;}
     .nav-links a:hover{background:#ffb347;color:#1f4e78;}
+    .nav-links a.active{background:#ffb347;color:#1f4e78;}
     
     .container{max-width:1400px;margin:30px auto;padding:0 20px;}
     .hero{background:linear-gradient(135deg,#1f4e78,#16324f);border-radius:32px;padding:28px 32px;margin-bottom:28px;color:white;}
@@ -57,6 +58,7 @@
     <a href="factories.html">🏭 المصانع</a>
     <a href="daily_orders_report.html">📊 تقارير الطلبات اليومية</a>
     <a href="reports_monthly.html" class="active">📅 تقارير الميزان الشهرية</a>
+    <a href="scale_report.html">⚖️ تقرير الميزان</a>
     <a href="settings.html">⚙️ الإعدادات</a>
     <a href="blocking.html">⛔ الحظر</a>
     <a href="users.html">👥 المستخدمين</a>
@@ -94,7 +96,7 @@
     <div id="chartsArea" style="display:none;">
       <div class="charts-row">
         <div class="chart-card">
-          <div class="chart-title">📦 إجمالي الأوزان حسب كود مادة التحميل (بحص)</div>
+          <div class="chart-title">📦 إجمالي الأوزان حسب نوع البحص</div>
           <div class="chart-wrap"><canvas id="materialChart"></canvas></div>
         </div>
         <div class="chart-card">
@@ -133,6 +135,16 @@
 
   const SHEETS_TO_DELETE = new Set(["summary","Summary","cdsDailyReportReadOnly","Summary Trips","Not our trips","Trips Dashboard"]);
 
+  // دالة تحويل أكواد المواد إلى أسماء تجارية
+  function mapMaterialCode(code) {
+    const mapping = {
+      "46089": "3/8",
+      "46085": "3/4",
+      "46097": "3/16"
+    };
+    return mapping[code] || code;
+  }
+
   let materialChart = null, topDriversChart = null;
 
   function normalizeText(v){ return String(v??"").trim().normalize("NFKC").replace(/\s+/g," ").toLowerCase(); }
@@ -150,7 +162,7 @@
     const notOurRows = [headers.slice()];
     let matched=0, notMatched=0, total=0;
     const driverStats = new Map();
-    const materialStats = new Map();
+    const materialStats = new Map(); // المفتاح هو الاسم المُحوَّل
 
     for(let i=1;i<rows.length;i++){
       let row = (rows[i]||[]).slice();
@@ -164,18 +176,21 @@
         matched++;
         let driver = String(row[3]??"").trim();
         let weight = parseFloat(row[11]) || 0;
-        let matCode = String(row[5]??"").trim();
+        let rawCode = String(row[5]??"").trim();
+        let materialName = mapMaterialCode(rawCode);  // تحويل الكود إلى اسم
         if(driver){
           if(!driverStats.has(driver)) driverStats.set(driver,{trips:0,weight:0});
           let d = driverStats.get(driver);
           d.trips++; d.weight+=weight;
         }
-        if(matCode) materialStats.set(matCode, (materialStats.get(matCode)||0) + weight);
+        if(materialName){
+          materialStats.set(materialName, (materialStats.get(materialName)||0) + weight);
+        }
       } else { notOurRows.push(row); notMatched++; }
     }
     const driversArr = Array.from(driverStats.entries()).map(([n,d])=>({name:n, trips:d.trips, totalWeight:d.weight}));
     driversArr.sort((a,b)=>b.trips-a.trips);
-    const materialsArr = Array.from(materialStats.entries()).map(([c,w])=>({code:c, weight:w}));
+    const materialsArr = Array.from(materialStats.entries()).map(([name, w])=>({name: name, weight:w}));
     materialsArr.sort((a,b)=>b.weight-a.weight);
     const totalWeight = materialsArr.reduce((s,m)=>s+m.weight,0);
     return { headers, ourTripsRows, notOurRows, matchedCount:matched, notMatchedCount:notMatched, totalRows:total,
@@ -203,7 +218,7 @@
     const topMats = res.materialsStats.slice(0,10);
     if(materialChart) materialChart.destroy();
     const ctxMat = document.getElementById("materialChart").getContext("2d");
-    materialChart = new Chart(ctxMat, { type:"bar", data:{ labels:topMats.map(m=>m.code), datasets:[{ label:"الوزن الإجمالي (طن)", data:topMats.map(m=>m.weight/1000), backgroundColor:"#1f4e78", borderRadius:8 }] }, options:{ responsive:true, maintainAspectRatio:false } });
+    materialChart = new Chart(ctxMat, { type:"bar", data:{ labels:topMats.map(m=>m.name), datasets:[{ label:"الوزن الإجمالي (طن)", data:topMats.map(m=>m.weight/1000), backgroundColor:"#1f4e78", borderRadius:8 }] }, options:{ responsive:true, maintainAspectRatio:false } });
     if(topDriversChart) topDriversChart.destroy();
     const ctxDrv = document.getElementById("topDriversChart").getContext("2d");
     topDriversChart = new Chart(ctxDrv, { type:"bar", data:{ labels:res.top10Drivers.map(d=>d.name), datasets:[{ label:"عدد الرحلات", data:res.top10Drivers.map(d=>d.trips), backgroundColor:"#548235", borderRadius:8 }] }, options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y' } });
@@ -213,6 +228,7 @@
   async function buildOutputWorkbook(result, originalWb){
     const outWb = new ExcelJS.Workbook();
     outWb.creator = "Monthly Report System";
+    // نسخ الأوراق الأصلية مع حذف الأوراق غير المرغوب فيها
     for(let ws of originalWb.worksheets){
       if(!SHEETS_TO_DELETE.has(ws.name)){
         let cloned = outWb.addWorksheet(ws.name, {views:[{rightToLeft:false}]});
@@ -220,9 +236,23 @@
         ws.columns.forEach((col,i)=>{ cloned.getColumn(i+1).width = col.width||15; });
       }
     }
-    const addSheet = (name, data, green)=>{ let ws = outWb.addWorksheet(name); data.forEach(r=>ws.addRow(r)); ws.views=[{state:'frozen',ySplit:1}]; let w = data[0]?data[0].map((_,i)=>Math.min(40,Math.max(12,(data.reduce((m,r)=>Math.max(m,String(r[i]??"").length),12)+2)))):[12]; w.forEach((w,i)=>ws.getColumn(i+1).width=w); let hr=ws.getRow(1); hr.eachCell(c=>{ c.font={bold:true,color:{argb:"FFFFFFFF"}}; c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E78"}}; c.alignment={horizontal:"center"}; }); for(let r=2;r<=ws.rowCount;r++){ ws.getRow(r).eachCell(c=>{ c.alignment={horizontal:"center"}; if(green){ c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFC6EFCE"}}; c.font={color:{argb:"FF006100"}}; } }); } };
+    // دالة إضافة ورقة ملخصة
+    const addSheet = (name, data, green)=>{ 
+      let ws = outWb.addWorksheet(name); 
+      data.forEach(r=>ws.addRow(r)); 
+      ws.views=[{state:'frozen',ySplit:1}]; 
+      let w = data[0]?data[0].map((_,i)=>Math.min(40,Math.max(12,(data.reduce((m,r)=>Math.max(m,String(r[i]??"").length),12)+2)))):[12]; 
+      w.forEach((w,i)=>ws.getColumn(i+1).width=w); 
+      let hr=ws.getRow(1); 
+      hr.eachCell(c=>{ c.font={bold:true,color:{argb:"FFFFFFFF"}}; c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E78"}}; c.alignment={horizontal:"center"}; }); 
+      for(let r=2;r<=ws.rowCount;r++){ 
+        ws.getRow(r).eachCell(c=>{ c.alignment={horizontal:"center"}; if(green){ c.fill={type:"pattern",pattern:"solid",fgColor:{argb:"FFC6EFCE"}}; c.font={color:{argb:"FF006100"}}; } }); 
+      } 
+    };
     addSheet("Summary Trips", result.ourTripsRows, true);
     addSheet("Not our trips", result.notOurRows, false);
+    
+    // لوحة التحكم Dashboard
     let dash = outWb.addWorksheet("Trips Dashboard");
     dash.columns=[{width:28},{width:18},{width:18},{width:18}];
     dash.mergeCells("A1:D1"); dash.getCell("A1").value="📊 التقرير الشهري - لوحة التحكم"; dash.getCell("A1").font={size:14,bold:true,color:{argb:"FFFFFFFF"}}; dash.getCell("A1").fill={type:"pattern",pattern:"solid",fgColor:{argb:"FF1F4E78"}};
@@ -231,8 +261,8 @@
     [[ "إجمالي الصفوف", result.totalRows ],[ "رحلاتنا (المحققة)", result.matchedCount ],[ "رحلات غير تابعة", result.notMatchedCount ],[ "نسبة الإنجاز", result.totalRows?result.matchedCount/result.totalRows:0 ],[ "عدد السائقين", result.driversStats.length ],[ "إجمالي الوزن (كجم)", result.totalWeightAll ],[ "إجمالي الوزن (طن)", (result.totalWeightAll/1000).toFixed(2) ]].forEach(([l,v])=>{ dash.getCell(`A${r}`).value=l; dash.getCell(`B${r}`).value=v; if(l.includes("نسبة")) dash.getCell(`B${r}`).numFmt="0.00%"; r++; });
     let drRow = r+2; dash.getCell(`A${drRow}`).value="إجمالي رحلات الشهر لكل سائق"; dash.mergeCells(`A${drRow}:C${drRow}`); dash.getCell(`A${drRow+1}`).value="اسم السائق"; dash.getCell(`B${drRow+1}`).value="عدد الرحلات"; dash.getCell(`C${drRow+1}`).value="مجموع الوزن (كجم)";
     let drIdx = drRow+2; for(let d of result.driversStats){ dash.getCell(`A${drIdx}`).value=d.name; dash.getCell(`B${drIdx}`).value=d.trips; dash.getCell(`C${drIdx}`).value=d.totalWeight; drIdx++; }
-    let matRow = drIdx+2; dash.getCell(`A${matRow}`).value="إجمالي الأوزان حسب كود المادة"; dash.mergeCells(`A${matRow}:B${matRow}`); dash.getCell(`A${matRow+1}`).value="كود المادة"; dash.getCell(`B${matRow+1}`).value="الوزن الإجمالي (كجم)";
-    let mIdx = matRow+2; for(let m of result.materialsStats){ dash.getCell(`A${mIdx}`).value=m.code; dash.getCell(`B${mIdx}`).value=m.weight; mIdx++; }
+    let matRow = drIdx+2; dash.getCell(`A${matRow}`).value="إجمالي الأوزان حسب نوع البحص"; dash.mergeCells(`A${matRow}:B${matRow}`); dash.getCell(`A${matRow+1}`).value="نوع البحص"; dash.getCell(`B${matRow+1}`).value="الوزن الإجمالي (كجم)";
+    let mIdx = matRow+2; for(let m of result.materialsStats){ dash.getCell(`A${mIdx}`).value=m.name; dash.getCell(`B${mIdx}`).value=m.weight; mIdx++; }
     return outWb;
   }
 
