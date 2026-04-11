@@ -1,5 +1,11 @@
-// nav.js - شريط التنقل الموحد لكامل الموقع
-function loadNavigation(currentPage) {
+// nav.js - نسخة محسنة تعمل في كل الظروف
+function loadNavigation() {
+    const navContainer = document.querySelector('.navbar .nav-links');
+    if (!navContainer) {
+        console.error('لم يتم العثور على العنصر .navbar .nav-links');
+        return;
+    }
+    
     const navLinks = [
         { name: "📊 الرئيسية", href: "index.html" },
         { name: "📝 الطلبات", href: "orders.html" },
@@ -9,31 +15,37 @@ function loadNavigation(currentPage) {
         { name: "🏭 المصانع", href: "factories.html" },
         { name: "📊 تقارير الطلبات اليومية", href: "daily_orders_report.html" },
         { name: "📅 تقارير الميزان الشهرية", href: "reports_monthly.html" },
-        { name: "⚖️ تقرير الميزان", href: "scale_report.html" },      // الرابط الجديد
+        { name: "⚖️ تقرير الميزان", href: "scale_report.html" },
         { name: "⚙️ الإعدادات", href: "settings.html" },
         { name: "⛔ الحظر", href: "blocking.html" },
         { name: "👥 المستخدمين", href: "users.html" },
         { name: "📜 السجلات", href: "logs.html" }
     ];
 
-    const navbar = document.querySelector('.navbar .nav-links');
-    if (!navbar) return;
+    // تفريغ المحتوى القديم
+    navContainer.innerHTML = '';
     
-    navbar.innerHTML = '';
+    // إضافة الروابط
     navLinks.forEach(link => {
         const a = document.createElement('a');
         a.href = link.href;
         a.textContent = link.name;
-        if (currentPage && link.href.includes(currentPage)) {
+        
+        // تمييز الصفحة الحالية
+        const currentPage = window.location.pathname.split('/').pop();
+        if (currentPage === link.href || (currentPage === '' && link.href === 'index.html')) {
             a.classList.add('active');
         }
-        navbar.appendChild(a);
+        
+        navContainer.appendChild(a);
     });
+    
+    console.log('تم تحميل شريط التنقل بنجاح');
 }
 
-// تنفيذ التحميل عند اكتمال الصفحة
-document.addEventListener('DOMContentLoaded', () => {
-    // استخراج اسم الملف الحالي من المسار
-    const currentFile = window.location.pathname.split('/').pop();
-    loadNavigation(currentFile);
-});
+// تأخير بسيط لضمان تحميل DOM بالكامل
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', loadNavigation);
+} else {
+    loadNavigation();
+}
