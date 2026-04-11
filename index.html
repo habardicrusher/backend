@@ -60,7 +60,6 @@
             <div style="position: absolute; top: 20px; left: 20px;">
                 <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
                 <button onclick="manualCheckOrders()" style="background: #4facfe; border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer; margin-right: 10px;">🔄 تحديث يدوي</button>
-                <button onclick="distributePendingOrders()" style="background: #f093fb; border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer; margin-right: 10px;">⚡ توزيع الطلبات المعلقة</button>
             </div>
             <div id="alertBadge" class="alert-badge hidden" onclick="goToDistribution()">
                 <span id="alertCount">0</span>
@@ -120,7 +119,7 @@
             updateAlertBadge();
             playBeep();
             localStorage.setItem('pendingOrdersCount', pendingOrdersCount);
-            showToast('🔔 تم استلام طلب جديد! لم يتم توزيعه بعد. اضغط على "⚡ توزيع الطلبات المعلقة" لتوزيعه.', 'warning');
+            showToast('🔔 تم استلام طلب جديد! اذهب إلى صفحة التوزيع لتوزيعه (يدوي أو تلقائي).', 'warning');
         }
 
         function resetAlertCount() {
@@ -151,7 +150,6 @@
         }
 
         function goToDistribution() {
-            resetAlertCount();
             window.location.href = 'distribution.html';
         }
 
@@ -160,61 +158,6 @@
             if (saved && !isNaN(parseInt(saved))) pendingOrdersCount = parseInt(saved);
             else pendingOrdersCount = 0;
             updateAlertBadge();
-        }
-
-        // دالة توزيع الطلبات المعلقة
-        async function distributePendingOrders() {
-            showLoading(true);
-            try {
-                const today = new Date().toISOString().split('T')[0];
-                const settings = await apiCall('/settings');
-                const trucks = settings.trucks || [];
-                if (trucks.length === 0) { showToast('لا توجد سيارات للتوزيع', 'error'); showLoading(false); return; }
-                const dayData = await apiCall(`/day/${today}`);
-                let orders = dayData.orders || [];
-                if (orders.length === 0) { showToast('لا توجد طلبات لتوزيعها', 'error'); showLoading(false); return; }
-                
-                let lastFactoryForTruck = {};
-                trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
-                let availableTrucks = [...trucks];
-                let newDistribution = [];
-                for (let i = 0; i < orders.length; i++) {
-                    const order = orders[i];
-                    const requiredFactory = order.factory;
-                    let selectedTruck = null, candidateIndex = -1;
-                    for (let j = 0; j < availableTrucks.length; j++) {
-                        if (lastFactoryForTruck[availableTrucks[j].number] !== requiredFactory) {
-                            selectedTruck = availableTrucks[j];
-                            candidateIndex = j;
-                            break;
-                        }
-                    }
-                    if (!selectedTruck && availableTrucks.length) { selectedTruck = availableTrucks[0]; candidateIndex = 0; }
-                    if (!selectedTruck) break;
-                    availableTrucks.splice(candidateIndex, 1);
-                    lastFactoryForTruck[selectedTruck.number] = requiredFactory;
-                    const currentRoad = Math.floor(i / trucks.length) + 1;
-                    newDistribution.push({
-                        orderId: order.id,
-                        orderIndex: i + 1,
-                        truck: selectedTruck,
-                        factory: order.factory,
-                        material: order.material,
-                        time: order.time || '',
-                        road: currentRoad
-                    });
-                    if (availableTrucks.length === 0) availableTrucks = [...trucks];
-                }
-                if (newDistribution.length) {
-                    await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
-                    const trucksUsed = new Set(newDistribution.map(d => d.truck?.number)).size;
-                    const lastRoad = newDistribution.length ? Math.max(...newDistribution.map(d => d.road)) : 1;
-                    showToast(`✅ تم توزيع ${orders.length} طلب على ${trucksUsed} سيارة (آخر رود: ${lastRoad})`, 'success');
-                    resetAlertCount();
-                    await loadDashboard();
-                } else { showToast('فشل في توزيع الطلبات', 'error'); }
-            } catch(e) { showToast('خطأ في التوزيع: ' + e.message, 'error'); }
-            showLoading(false);
         }
 
         async function loadDashboard() {
