@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>الطلبات - نظام إدارة طلبات البحص</title>
+    <title>الطلبات - نظام إدارة طلبات كسارة الحبردي</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -58,7 +58,7 @@
     <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
-        <div class="header"><h1>📝 إدارة الطلبات</h1>
+        <div class="header"><h1>📝 إدارة الطلبات - كسارة الحبردي</h1>
             <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
                 <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
             </div>
@@ -117,7 +117,6 @@
                 currentUser = me.user;
                 currentUserRole = me.user.role;
                 currentUserFactory = me.user.factory;
-                console.log('User role:', currentUserRole, 'Factory:', currentUserFactory);
             } catch(e) {}
         }
 
@@ -190,21 +189,22 @@
             } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
         }
 
-        async function autoDistributeAfterOrder() {
+        // دالة التوزيع اليدوي (للمدير والمستخدم)
+        async function manualDistribute() {
+            showLoading(true);
             try {
                 const today = new Date().toISOString().split('T')[0];
                 const settings = await apiCall('/settings');
                 const trucks = settings.trucks || [];
-                if (trucks.length === 0) return;
+                if (trucks.length === 0) { showToast('لا توجد سيارات للتوزيع', 'error'); showLoading(false); return; }
                 const dayData = await apiCall(`/day/${today}`);
                 let orders = dayData.orders || [];
-                if (orders.length === 0) return;
-
+                if (orders.length === 0) { showToast('لا توجد طلبات لتوزيعها', 'error'); showLoading(false); return; }
+                
                 let lastFactoryForTruck = {};
                 trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
                 let availableTrucks = [...trucks];
                 let newDistribution = [];
-
                 for (let i = 0; i < orders.length; i++) {
                     const order = orders[i];
                     const requiredFactory = order.factory;
@@ -216,10 +216,7 @@
                             break;
                         }
                     }
-                    if (!selectedTruck && availableTrucks.length) {
-                        selectedTruck = availableTrucks[0];
-                        candidateIndex = 0;
-                    }
+                    if (!selectedTruck && availableTrucks.length) { selectedTruck = availableTrucks[0]; candidateIndex = 0; }
                     if (!selectedTruck) break;
                     availableTrucks.splice(candidateIndex, 1);
                     lastFactoryForTruck[selectedTruck.number] = requiredFactory;
@@ -237,19 +234,16 @@
                 }
                 if (newDistribution.length) {
                     await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
-                    console.log('✅ التوزيع التلقائي تم بنجاح');
-                }
-            } catch(e) { console.error('❌ خطأ في التوزيع التلقائي:', e); }
-        }
-
-        async function manualDistribute() {
-            showLoading(true);
-            await autoDistributeAfterOrder();
-            await loadDayData();
+                    const trucksUsed = new Set(newDistribution.map(d => d.truck?.number)).size;
+                    const lastRoad = newDistribution.length ? Math.max(...newDistribution.map(d => d.road)) : 1;
+                    showToast(`✅ تم توزيع ${orders.length} طلب على ${trucksUsed} سيارة (آخر رود: ${lastRoad})`, 'success');
+                    await loadDayData();
+                } else { showToast('فشل في توزيع الطلبات', 'error'); }
+            } catch(e) { showToast('خطأ في التوزيع: ' + e.message, 'error'); }
             showLoading(false);
-            showToast('✅ تم إعادة توزيع الطلبات', 'success');
         }
 
+        // دوال إضافة الطلبات (بدون توزيع تلقائي)
         async function addOrder() {
             const factory = getSelectedFactory();
             const material = document.getElementById('materialType').value;
@@ -276,8 +270,6 @@
                 document.getElementById('orderTime').value = '';
                 showToast(`✅ تم إضافة ${count} طلب`, 'success');
                 localStorage.setItem('newOrderTimestamp', Date.now());
-                await autoDistributeAfterOrder();
-                await loadDayData();
             }
             showLoading(false);
         }
@@ -286,10 +278,7 @@
             const factory = getSelectedFactory();
             let time = document.getElementById('orderTime').value.trim();
             if (time === 'undefined' || time === 'null') time = '';
-            if (!factory) {
-                showToast('اختر المصنع أولاً', 'error');
-                return;
-            }
+            if (!factory) { showToast('اختر المصنع أولاً', 'error'); return; }
             showLoading(true);
             for (let i = 0; i < count; i++) {
                 orders.push({
@@ -304,8 +293,6 @@
                 renderOrders();
                 showToast(`✅ تم إضافة ${count} طلب ${material}`, 'success');
                 localStorage.setItem('newOrderTimestamp', Date.now());
-                await autoDistributeAfterOrder();
-                await loadDayData();
             }
             showLoading(false);
         }
@@ -313,11 +300,7 @@
         async function deleteOrder(id) {
             if (confirm('حذف الطلب؟')) {
                 orders = orders.filter(o => o.id !== id);
-                if (await saveData()) {
-                    renderOrders();
-                    await autoDistributeAfterOrder();
-                    await loadDayData();
-                }
+                if (await saveData()) renderOrders();
             }
         }
 
@@ -349,8 +332,6 @@
                     renderOrders();
                     closeModal('editOrderModal');
                     showToast('✅ تم التعديل', 'success');
-                    await autoDistributeAfterOrder();
-                    await loadDayData();
                 }
             }
         }
@@ -387,13 +368,7 @@
 
         function exportOrdersToExcel() {
             if (!orders.length) { showToast('لا توجد طلبات للتصدير', 'error'); return; }
-            const data = orders.map((o, i) => ({
-                '#': i+1,
-                'المصنع': o.factory,
-                'نوع البحص': o.material,
-                'التوقيت': (o.time && o.time !== 'undefined') ? o.time : '',
-                'وقت الإضافة': o.timestamp || '—'
-            }));
+            const data = orders.map((o, i) => ({ '#': i+1, 'المصنع': o.factory, 'نوع البحص': o.material, 'التوقيت': (o.time && o.time !== 'undefined') ? o.time : '', 'وقت الإضافة': o.timestamp || '—' }));
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
             XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
@@ -412,7 +387,7 @@
                 if(data.user) {
                     const role = data.user.role;
                     let navHtml = '';
-                    if (role === 'admin') {
+                    if (role === 'admin' || role === 'user') {
                         navHtml = `
                             <a href="index.html" class="nav-link">📊 الرئيسية</a>
                             <a href="orders.html" class="nav-link active">📝 الطلبات</a>
@@ -428,20 +403,6 @@
                         `;
                     } else if (role === 'client') {
                         navHtml = `<a href="orders.html" class="nav-link active">📝 الطلبات</a>`;
-                    } else {
-                        navHtml = `
-                            <a href="index.html" class="nav-link">📊 الرئيسية</a>
-                            <a href="orders.html" class="nav-link active">📝 الطلبات</a>
-                            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
-                            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
-                            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
-                            <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                            <a href="reports.html" class="nav-link">📊 التقارير</a>
-                            <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
-                            <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
-                            <a href="users.html" class="nav-link">👥 المستخدمين</a>
-                            <a href="logs.html" class="nav-link">📜 السجلات</a>
-                        `;
                     }
                     document.getElementById('navLinks').innerHTML = navHtml;
                 } else window.location.href='/login.html'; 
