@@ -87,6 +87,24 @@
         let totalActiveDays = 0;
         let factoriesWithLocation = [];
 
+        // ================= دالة تحويل أكواد البحص إلى الأسماء التجارية =================
+        function mapMaterialCode(code) {
+            const mapping = {
+                "46089": "3/8",
+                "46085": "3/4",
+                "46097": "3/16"
+            };
+            // إذا كان الكود موجوداً في التعيين أرجع الاسم، وإلا أرجع الكود نفسه
+            return mapping[code] || code;
+        }
+
+        // دالة لتحويل مادة مفردة (قد تأتي ككود أو كاسم)
+        function getMaterialDisplayName(materialCodeOrName) {
+            if (!materialCodeOrName) return "غير محدد";
+            // نحاول التعيين المباشر
+            return mapMaterialCode(materialCodeOrName);
+        }
+
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
             if (data) options.body = JSON.stringify(data);
@@ -117,17 +135,41 @@
             try {
                 let settings = await apiCall('/settings'); factoriesWithLocation = settings.factories || [];
                 let data = await apiCall(`/reports?startDate=${start}&endDate=${end}`);
-                currentReportData = data;
+                
+                // تحويل أسماء المواد في البيانات القادمة من API (إن أمكن)
+                // سنقوم بإنشاء نسخة معدلة من materialStats بالمفاتيح الجديدة
+                const originalMaterialStats = data.materialStats || {};
+                const mappedMaterialStats = {};
+                for (const [code, stat] of Object.entries(originalMaterialStats)) {
+                    const displayName = mapMaterialCode(code);
+                    if (!mappedMaterialStats[displayName]) {
+                        mappedMaterialStats[displayName] = { total: 0, name: displayName };
+                    }
+                    mappedMaterialStats[displayName].total += stat.total;
+                }
+                // استبدال المادة في كل توزيعة (رحلة) بالاسم المعروض
+                const allDistributionsMapped = (data.allDistributions || []).map(trip => ({
+                    ...trip,
+                    material: getMaterialDisplayName(trip.material)
+                }));
+                
+                // تحديث كائن البيانات المستخدم لاحقاً
+                currentReportData = {
+                    ...data,
+                    materialStats: mappedMaterialStats,
+                    allDistributions: allDistributionsMapped
+                };
+                
                 const allDates = new Set();
-                data.allDistributions.forEach(d => { if(d.date) allDates.add(d.date); });
+                currentReportData.allDistributions.forEach(d => { if(d.date) allDates.add(d.date); });
                 totalActiveDays = allDates.size;
-                renderReportSummary(data.allDistributions,data.driverStats);
-                renderDriversChart(data.driverStats);
-                renderFactoriesChart(data.factoryStats);
-                renderMaterialsChart(data.materialStats);
-                renderDailyChart(data.dailyData);
-                renderLocationChart(data.allDistributions);
-                renderDriversRankTable(data.driverStats, data.allDistributions);
+                renderReportSummary(currentReportData.allDistributions, currentReportData.driverStats);
+                renderDriversChart(currentReportData.driverStats);
+                renderFactoriesChart(currentReportData.factoryStats);
+                renderMaterialsChart(currentReportData.materialStats);
+                renderDailyChart(currentReportData.dailyData);
+                renderLocationChart(currentReportData.allDistributions);
+                renderDriversRankTable(currentReportData.driverStats, currentReportData.allDistributions);
                 showToast('✅ تم تحديث التقرير','success');
             } catch(e){ console.error(e); showToast('خطأ في تحميل البيانات','error'); }
             showLoading(false);
@@ -181,7 +223,8 @@
         function renderMaterialsChart(stats) {
             const ctx = document.getElementById('materialsChart').getContext('2d');
             if (materialsChart) materialsChart.destroy();
-            const labels = Object.keys(stats || {}).map(m => 'بحص ' + m);
+            // stats الآن تحتوي على المفاتيح بعد التحويل (مثل "3/8", "3/4", "3/16")
+            const labels = Object.keys(stats || {}).map(name => `بحص ${name}`);
             const data = Object.values(stats || {}).map(s => s.total);
             materialsChart = new Chart(ctx, {
                 type: 'doughnut',
@@ -239,13 +282,13 @@
             }).join('');
         }
 
-        // ===================== تصدير Excel (يُترك كما هو - لا تغيير) =====================
+        // ================= تحديث دالة تصدير Excel لاستخدام الأسماء المعروضة =================
         async function exportFullExcel() {
             if(!currentReportData){ showToast('لا توجد بيانات','error'); return; }
             let start=document.getElementById('reportStartDate').value, end=document.getElementById('reportEndDate').value;
             showLoading(true);
             try {
-                let data=currentReportData;
+                let data=currentReportData; // البيانات تحتوي على materialStats و allDistributions بعد التحويل
                 let totalTrips=data.allDistributions.length, totalDrivers=Object.keys(data.driverStats).length;
                 let road1Total=data.allDistributions.filter(d=>d.road===1).length, road2Total=data.allDistributions.filter(d=>d.road===2).length, road3Total=data.allDistributions.filter(d=>d.road===3).length;
                 let sortedDrivers=Object.values(data.driverStats).sort((a,b)=>b.total-a.total);
@@ -283,7 +326,9 @@
                 let ws5=workbook.addWorksheet('رسم البحص',{views:[{rightToLeft:true}]}); ws5.columns=[{width:20},{width:16},{width:16},{width:50}];
                 ws5.mergeCells('A1:D1'); ws5.getCell('A1').value='📦 توزيع أنواع البحص'; ws5.getCell('A1').font={...titleFont,size:16}; ws5.getCell('A1').alignment=centerAlign; ws5.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFFCE4D6'}}; ws5.getRow(1).height=38;
                 let mh=['نوع البحص','عدد الرحلات','النسبة %','رسم بياني']; let mhRow=ws5.getRow(2); mhRow.values=mh; mhRow.height=28; mhRow.eachCell(cell=>{ cell.font=headerFont; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFED7D31'}}; cell.alignment=centerAlign; cell.border=thinBorder; });
-                let sortedMaterials=Object.values(data.materialStats).sort((a,b)=>b.total-a.total); let matColors=['FF4472C4','FFED7D31','FFA5A5A5','FFFFC000','FF5B9BD5'];
+                // استخدام data.materialStats بعد التحويل
+                let sortedMaterials=Object.values(data.materialStats).sort((a,b)=>b.total-a.total); 
+                let matColors=['FF4472C4','FFED7D31','FFA5A5A5','FFFFC000','FF5B9BD5'];
                 sortedMaterials.forEach((m,i)=>{ let percent=totalTrips>0?((m.total/totalTrips)*100).toFixed(1):0; let pie='●'.repeat(Math.round(parseFloat(percent)/2.5))+` ${percent}%`; let row=ws5.getRow(3+i); row.values=[`بحص ${m.name}`,m.total,percent+'%',pie]; row.height=30; let color=matColors[i%matColors.length]; row.eachCell((cell,col)=>{ cell.font=col===4?{name:'Consolas',size:12,bold:true,color:{argb:color}}:{...dataFont,bold:true}; cell.alignment=col===4?{horizontal:'left',vertical:'middle'}:centerAlign; cell.border=thinBorder; }); ws5.getCell(`A${3+i}`).fill={type:'pattern',pattern:'solid',fgColor:{argb:color}}; ws5.getCell(`A${3+i}`).font={...dataFont,bold:true,color:{argb:'FFFFFFFF'},size:12}; });
 
                 let ws6=workbook.addWorksheet('الرحلات اليومية',{views:[{rightToLeft:true}]}); ws6.columns=[{width:16},{width:16},{width:14},{width:55}];
@@ -302,7 +347,7 @@
                 ws8.mergeCells('A1:H1'); ws8.getCell('A1').value='📋 تفاصيل جميع الرحلات (مع التوقيت)'; ws8.getCell('A1').font={...titleFont,size:16}; ws8.getCell('A1').alignment=centerAlign; ws8.getCell('A1').fill={type:'pattern',pattern:'solid',fgColor:{argb:'FFD6E4F0'}}; ws8.getRow(1).height=38;
                 let trh=['#','التاريخ','رقم السيارة','السائق','المصنع','نوع البحص','الرود','التوقيت']; let trhRow=ws8.getRow(2); trhRow.values=trh; trhRow.height=28; trhRow.eachCell(cell=>{ cell.font=headerFont; cell.fill=headerFill; cell.alignment=centerAlign; cell.border=thinBorder; });
                 let sortedTrips=data.allDistributions.sort((a,b)=>(a.date||'').localeCompare(b.date||''));
-                sortedTrips.forEach((trip,i)=>{ let row=ws8.getRow(3+i); row.values=[i+1,trip.date||'',trip.truck?.number||'',trip.truck?.driver||'',trip.factory||'',trip.material||'',trip.road===1?'رود 1':(trip.road===2?'رود 2':'رוד '+trip.road), formatTime(trip.time)]; row.height=20; let bg=i%2===0?'FFF2F7FB':'FFFFFFFF'; row.eachCell(cell=>{ cell.font=dataFont; cell.alignment=centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; }); ws8.getCell(`G${3+i}`).fill={type:'pattern',pattern:'solid',fgColor:{argb:trip.road===1?'FFD6E4F0':(trip.road===2?'FFFCE4D6':'FFE2EFDA')}}; ws8.getCell(`G${3+i}`).font={...dataFont,bold:true,color:{argb:trip.road===1?'FF2E75B6':(trip.road===2?'FFED7D31':'FF548235')}}; });
+                sortedTrips.forEach((trip,i)=>{ let row=ws8.getRow(3+i); row.values=[i+1,trip.date||'',trip.truck?.number||'',trip.truck?.driver||'',trip.factory||'',trip.material||'',trip.road===1?'رود 1':(trip.road===2?'رود 2':'رود '+trip.road), formatTime(trip.time)]; row.height=20; let bg=i%2===0?'FFF2F7FB':'FFFFFFFF'; row.eachCell(cell=>{ cell.font=dataFont; cell.alignment=centerAlign; cell.border=thinBorder; cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:bg}}; }); ws8.getCell(`G${3+i}`).fill={type:'pattern',pattern:'solid',fgColor:{argb:trip.road===1?'FFD6E4F0':(trip.road===2?'FFFCE4D6':'FFE2EFDA')}}; ws8.getCell(`G${3+i}`).font={...dataFont,bold:true,color:{argb:trip.road===1?'FF2E75B6':(trip.road===2?'FFED7D31':'FF548235')}}; });
 
                 let buffer=await workbook.xlsx.writeBuffer();
                 saveAs(new Blob([buffer]),`تقرير_شامل_${start}_إلى_${end}.xlsx`);
@@ -346,6 +391,7 @@
                             <a href="products.html" class="nav-link">📦 أنواع البحص</a>
                             <a href="factories.html" class="nav-link">🏭 المصانع</a>
                             <a href="reports.html" class="nav-link active">📊 التقارير</a>
+                            <a href="scale_report.html" class="nav-link">⚖️ تقرير الميزان</a>
                             <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
                             <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
                             <a href="users.html" class="nav-link">👥 المستخدمين</a>
