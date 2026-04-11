@@ -3,7 +3,7 @@ const session = require('express-session');
 const bcrypt = require('bcryptjs');
 const cors = require('cors');
 const path = require('path');
-const { pool, addLog } = require('./db');
+const { pool, addLog, getLogs, getLogsCount } = require('./db');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -20,7 +20,7 @@ app.use(session({
     name: 'gravel.sid'
 }));
 
-// ==================== دوال مساعدة ====================
+// دوال مساعدة
 function requireAuth(req, res, next) {
     if (req.session && req.session.user) return next();
     res.status(401).json({ error: 'غير مصرح' });
@@ -30,7 +30,6 @@ function requireAdmin(req, res, next) {
     res.status(403).json({ error: 'صلاحيات المدير مطلوبة' });
 }
 
-// دالة تسجيل الإجراءات
 async function logAction(req, action, details, location = null) {
     const username = req.session?.user?.username || 'unknown';
     await addLog(username, action, details, location);
@@ -299,25 +298,51 @@ app.delete('/api/clear-all', requireAuth, requireAdmin, async (req, res) => {
     res.json({ success: true });
 });
 
-// Logs endpoints
+// ==================== سجلات النظام (Logs) ====================
 app.get('/api/logs', requireAuth, async (req, res) => {
-    if (req.session.user.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
-    const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
-    const offset = (page - 1) * limit;
-    const logs = await getLogs(limit, offset);
-    const total = await getLogsCount();
-    res.json({ logs, currentPage: page, totalPages: Math.ceil(total / limit), total });
+    try {
+        if (req.session.user.role !== 'admin') {
+            return res.status(403).json({ error: 'غير مصرح' });
+        }
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 50;
+        const offset = (page - 1) * limit;
+        const logs = await getLogs(limit, offset);
+        const total = await getLogsCount();
+        res.json({
+            logs: logs || [],
+            currentPage: page,
+            totalPages: Math.ceil(total / limit),
+            total: total || 0
+        });
+    } catch (err) {
+        console.error('خطأ في /api/logs:', err);
+        res.status(500).json({ error: 'فشل في تحميل السجلات' });
+    }
 });
+
 app.get('/api/logs/all', requireAuth, async (req, res) => {
-    if (req.session.user.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
-    const logs = await getLogs(10000, 0);
-    res.json(logs);
+    try {
+        if (req.session.user.role !== 'admin') {
+            return res.status(403).json({ error: 'غير مصرح' });
+        }
+        const logs = await getLogs(10000, 0);
+        res.json(logs || []);
+    } catch (err) {
+        console.error('خطأ في /api/logs/all:', err);
+        res.status(500).json({ error: 'فشل في تحميل السجلات' });
+    }
 });
+
 app.delete('/api/logs/clear', requireAuth, requireAdmin, async (req, res) => {
-    await pool.query('DELETE FROM logs');
-    await logAction(req, 'مسح السجلات', 'قام بحذف جميع سجلات النظام', null);
-    res.json({ success: true });
+    try {
+        await pool.query('DELETE FROM logs');
+        await addLog(req.session.user.username, 'مسح السجلات', 'قام بحذف جميع سجلات النظام', null);
+        res.json({ success: true });
+    } catch (err) {
+        console.error('خطأ في /api/logs/clear:', err);
+        res.status(500).json({ error: 'فشل في مسح السجلات' });
+    }
 });
 
 // ==================== صفحات HTML ====================
