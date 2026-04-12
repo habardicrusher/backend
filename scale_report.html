@@ -13,6 +13,7 @@
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
       background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
       color: #fff;
+      min-height: 100vh;
     }
     .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
     .header {
@@ -51,6 +52,11 @@
       margin-bottom: 28px;
       border: 1px solid rgba(255,255,255,0.15);
     }
+    .card h2 {
+      color: #667eea;
+      margin-bottom: 20px;
+      font-size: 1.4em;
+    }
     .upload-row {
       display: flex;
       flex-wrap: wrap;
@@ -68,13 +74,17 @@
       margin-bottom: 8px;
       color: #a8b2d1;
     }
-    .upload-field input {
+    .upload-field input, .upload-field select {
       width: 100%;
       padding: 12px 14px;
       border-radius: 16px;
       border: 1px solid rgba(255,255,255,0.2);
       background: rgba(0,0,0,0.3);
       color: #fff;
+      font-size: 1em;
+    }
+    .upload-field select option {
+      background: #1a1a2e;
     }
     .btn-primary {
       background: linear-gradient(135deg, #11998e, #38ef7d);
@@ -87,6 +97,7 @@
       transition: 0.2s;
       margin-left: 10px;
     }
+    .btn-primary:hover { transform: scale(1.05); }
     .btn-secondary {
       background: #4facfe;
       border: none;
@@ -96,6 +107,7 @@
       color: #fff;
       cursor: pointer;
     }
+    .btn-secondary:hover { transform: scale(1.05); }
     .btn-advanced {
       background: linear-gradient(135deg, #f093fb, #f5576c);
       border: none;
@@ -106,6 +118,41 @@
       cursor: pointer;
       margin-right: 10px;
     }
+    .btn-advanced:hover { transform: scale(1.05); }
+    .btn-save {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: none;
+      padding: 12px 28px;
+      border-radius: 40px;
+      font-weight: 700;
+      color: #fff;
+      cursor: pointer;
+      transition: 0.2s;
+      margin-right: 10px;
+    }
+    .btn-save:hover { transform: scale(1.05); box-shadow: 0 5px 20px rgba(102,126,234,0.5); }
+    .btn-danger {
+      background: linear-gradient(135deg, #eb3349, #f45c43);
+      border: none;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-weight: 600;
+      color: #fff;
+      cursor: pointer;
+      font-size: 0.85em;
+    }
+    .btn-danger:hover { transform: scale(1.05); }
+    .btn-load {
+      background: linear-gradient(135deg, #4facfe, #00f2fe);
+      border: none;
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-weight: 600;
+      color: #1a1a2e;
+      cursor: pointer;
+      font-size: 0.85em;
+    }
+    .btn-load:hover { transform: scale(1.05); }
     .status {
       background: rgba(0,0,0,0.3);
       padding: 14px 18px;
@@ -125,6 +172,7 @@
       border-radius: 20px;
       padding: 16px;
       border: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
     }
     .stat-label {
       font-size: 0.8rem;
@@ -177,6 +225,89 @@
       background: rgba(102,126,234,0.3);
       color: white;
     }
+    /* جدول التقارير المحفوظة */
+    .saved-reports-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 15px;
+    }
+    .saved-reports-table th, .saved-reports-table td {
+      border: 1px solid rgba(255,255,255,0.1);
+      padding: 12px 10px;
+      text-align: center;
+    }
+    .saved-reports-table th {
+      background: rgba(102,126,234,0.3);
+      color: white;
+      font-weight: 700;
+    }
+    .saved-reports-table tr:hover {
+      background: rgba(255,255,255,0.05);
+    }
+    .saved-reports-table .actions {
+      display: flex;
+      gap: 8px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .no-reports {
+      text-align: center;
+      padding: 40px;
+      color: #a8b2d1;
+      font-size: 1.1em;
+    }
+    .report-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 0.8em;
+      font-weight: 600;
+    }
+    .badge-trips { background: rgba(17,153,142,0.3); color: #38ef7d; }
+    .badge-weight { background: rgba(79,172,254,0.3); color: #4facfe; }
+    .badge-drivers { background: rgba(240,147,251,0.3); color: #f093fb; }
+    /* Save section */
+    .save-section {
+      display: none;
+      background: rgba(102,126,234,0.1);
+      border: 2px dashed rgba(102,126,234,0.4);
+      border-radius: 20px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .save-section.active {
+      display: block;
+      animation: fadeIn 0.3s ease;
+    }
+    .save-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      align-items: flex-end;
+    }
+    .save-field {
+      flex: 1;
+      min-width: 200px;
+    }
+    .save-field label {
+      display: block;
+      font-weight: 700;
+      margin-bottom: 8px;
+      color: #a8b2d1;
+    }
+    .save-field input {
+      width: 100%;
+      padding: 12px 14px;
+      border-radius: 16px;
+      border: 1px solid rgba(255,255,255,0.2);
+      background: rgba(0,0,0,0.3);
+      color: #fff;
+      font-size: 1em;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(-10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
     .toast-container {
       position: fixed;
       top: 20px;
@@ -189,9 +320,11 @@
       margin-bottom: 10px;
       font-weight: 600;
       animation: slideIn 0.3s ease;
+      color: #fff;
     }
     .toast-success { background: #11998e; }
     .toast-error { background: #eb3349; }
+    .toast-info { background: #4facfe; }
     @keyframes slideIn {
       from { transform: translateX(-100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
@@ -219,6 +352,39 @@
       animation: spin 1s linear infinite;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
+    .tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 0;
+    }
+    .tab {
+      padding: 14px 28px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid rgba(255,255,255,0.1);
+      border-bottom: none;
+      border-radius: 15px 15px 0 0;
+      cursor: pointer;
+      font-weight: 700;
+      color: #a8b2d1;
+      transition: all 0.3s;
+    }
+    .tab.active {
+      background: rgba(255,255,255,0.08);
+      color: #667eea;
+      border-color: rgba(102,126,234,0.3);
+    }
+    .tab:hover { color: #fff; }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    @media (max-width:768px) {
+      .charts-row { flex-direction: column; }
+      .chart-wrap { height: 250px; }
+      .upload-row, .save-row { flex-direction: column; }
+    }
   </style>
 </head>
 <body>
@@ -229,54 +395,98 @@
     <div class="header">
       <h1>⚖️ تقارير الميزان الشهرية</h1>
       <p>تحليل ملفات Excel الخاصة بالوزن اليومي وعرض إحصائيات السائقين والمواد</p>
-      <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"></div>
+      <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
+        <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
+      </div>
     </div>
     <div class="nav-links" id="navLinks"></div>
 
-    <div class="card">
-      <div class="upload-row">
-        <div class="upload-field">
-          <label>📂 اختر ملف Excel</label>
-          <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+    <!-- التبويبات -->
+    <div class="tabs">
+      <div class="tab active" onclick="switchTab('upload')">📂 تحليل ملف جديد</div>
+      <div class="tab" onclick="switchTab('saved')">💾 التقارير المحفوظة</div>
+    </div>
+
+    <!-- تبويب تحليل ملف جديد -->
+    <div class="tab-content active" id="tab-upload">
+      <div class="card" style="border-radius: 0 0 28px 28px; border-top: 2px solid rgba(102,126,234,0.3);">
+        <div class="upload-row">
+          <div class="upload-field">
+            <label>📂 اختر ملف Excel</label>
+            <input type="file" id="fileInput" accept=".xlsx,.xlsm,.xls">
+          </div>
+          <div class="upload-field">
+            <label>📄 اسم الملف الناتج</label>
+            <input type="text" id="outputName" value="Monthly_Report.xlsx">
+          </div>
+          <div>
+            <button class="btn-primary" id="showResultsBtn">📊 عرض النتائج</button>
+            <button class="btn-secondary" id="exportExcelBtn">📥 تصدير بسيط</button>
+            <button class="btn-advanced" id="exportAdvancedBtn">📊 تصدير متقدم (8 أوراق)</button>
+          </div>
         </div>
-        <div class="upload-field">
-          <label>📄 اسم الملف الناتج</label>
-          <input type="text" id="outputName" value="Monthly_Report.xlsx">
+
+        <div id="statusMsg" class="status">✅ انتظار رفع ملف Excel...</div>
+
+        <!-- قسم الحفظ في قاعدة البيانات -->
+        <div class="save-section" id="saveSection">
+          <h3 style="margin-bottom: 15px; color: #667eea;">💾 حفظ التقرير في قاعدة البيانات</h3>
+          <div class="save-row">
+            <div class="save-field">
+              <label>📝 اسم التقرير</label>
+              <input type="text" id="reportName" placeholder="مثال: تقرير شهر يناير 2025">
+            </div>
+            <div class="save-field">
+              <label>📅 تاريخ التقرير</label>
+              <input type="date" id="reportDate">
+            </div>
+            <div>
+              <button class="btn-save" onclick="saveReportToDB()">💾 حفظ في قاعدة البيانات</button>
+            </div>
+          </div>
         </div>
-        <div>
-          <button class="btn-primary" id="showResultsBtn">📊 عرض النتائج</button>
-          <button class="btn-secondary" id="exportExcelBtn">📥 تصدير بسيط</button>
-          <button class="btn-advanced" id="exportAdvancedBtn">📊 تصدير متقدم (8 أوراق)</button>
+
+        <div id="metricsGrid" class="stats-grid" style="display:none;"></div>
+
+        <div id="chartsArea" style="display:none;">
+          <div class="charts-row">
+            <div class="chart-card">
+              <div class="chart-title">📦 إجمالي الأوزان حسب نوع البحص</div>
+              <div class="chart-wrap"><canvas id="materialChart"></canvas></div>
+            </div>
+            <div class="chart-card">
+              <div class="chart-title">🏆 أعلى 10 سائقين بعدد الرحلات</div>
+              <div class="chart-wrap"><canvas id="topDriversChart"></canvas></div>
+            </div>
+          </div>
+          <div class="driver-table">
+            <div class="chart-title">🚛 إجمالي رحلات الشهر لكل سائق (رحلاتنا فقط)</div>
+            <table id="driverTable">
+              <thead><tr><th>اسم السائق</th><th>عدد الرحلات</th><th>مجموع الوزن (كجم)</th></tr></thead>
+              <tbody></tbody>
+            </table>
+          </div>
         </div>
       </div>
+    </div>
 
-      <div id="statusMsg" class="status">✅ انتظار رفع ملف Excel...</div>
-
-      <div id="metricsGrid" class="stats-grid" style="display:none;"></div>
-
-      <div id="chartsArea" style="display:none;">
-        <div class="charts-row">
-          <div class="chart-card">
-            <div class="chart-title">📦 إجمالي الأوزان حسب نوع البحص</div>
-            <div class="chart-wrap"><canvas id="materialChart"></canvas></div>
-          </div>
-          <div class="chart-card">
-            <div class="chart-title">🏆 أعلى 10 سائقين بعدد الرحلات</div>
-            <div class="chart-wrap"><canvas id="topDriversChart"></canvas></div>
-          </div>
+    <!-- تبويب التقارير المحفوظة -->
+    <div class="tab-content" id="tab-saved">
+      <div class="card" style="border-radius: 0 0 28px 28px; border-top: 2px solid rgba(102,126,234,0.3);">
+        <h2>💾 التقارير المحفوظة في قاعدة البيانات</h2>
+        <div style="margin-bottom: 15px;">
+          <button class="btn-secondary" onclick="loadSavedReports()">🔄 تحديث القائمة</button>
         </div>
-        <div class="driver-table">
-          <div class="chart-title">🚛 إجمالي رحلات الشهر لكل سائق (رحلاتنا فقط)</div>
-          <table id="driverTable">
-            <thead><tr><th>اسم السائق</th><th>عدد الرحلات</th><th>مجموع الوزن (كجم)</th></tr></thead>
-            <tbody></tbody>
-          </table>
+        <div id="savedReportsContainer">
+          <div class="no-reports">⏳ جاري تحميل التقارير...</div>
         </div>
       </div>
     </div>
   </div>
 
   <script>
+    const API_BASE = '/api';
+
     // -------------------- الثوابت --------------------
     const VALID_TRUCK_NUMBERS = new Set([
       "1091","2757","2758","2759","2760","2762","2818","2927","2928","2929",
@@ -299,7 +509,7 @@
     }
 
     let materialChart = null, topDriversChart = null;
-    let currentResult = null; // تخزين النتيجة لعرضها وتصديرها
+    let currentResult = null;
 
     function normalizeText(v){ return String(v??"").trim().normalize("NFKC").replace(/\s+/g," ").toLowerCase(); }
     function keepDigitsOnly(v){
@@ -372,6 +582,9 @@
       const ctxDrv = document.getElementById("topDriversChart").getContext("2d");
       topDriversChart = new Chart(ctxDrv, { type:"bar", data:{ labels:res.top10Drivers.map(d=>d.name), datasets:[{ label:"عدد الرحلات", data:res.top10Drivers.map(d=>d.trips), backgroundColor:"#4facfe", borderRadius:8 }] }, options:{ responsive:true, maintainAspectRatio:false, indexAxis:'y' } });
       document.getElementById("chartsArea").style.display = "block";
+
+      // إظهار قسم الحفظ
+      document.getElementById("saveSection").classList.add("active");
     }
 
     async function processExcelFile(file){
@@ -384,7 +597,217 @@
       return processData(rows);
     }
 
-    // وظيفة تصدير Excel بسيطة (كما كانت)
+    // ===================== حفظ التقرير في قاعدة البيانات =====================
+    async function saveReportToDB() {
+      if (!currentResult) {
+        showToast('⚠️ لا توجد بيانات للحفظ. حلل ملف أولاً', 'error');
+        return;
+      }
+
+      const reportName = document.getElementById('reportName').value.trim();
+      const reportDate = document.getElementById('reportDate').value;
+
+      if (!reportName) {
+        showToast('⚠️ أدخل اسم التقرير', 'error');
+        document.getElementById('reportName').focus();
+        return;
+      }
+
+      showLoading(true);
+      try {
+        const response = await fetch(`${API_BASE}/scale-reports`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          credentials: 'include',
+          body: JSON.stringify({
+            reportName: reportName,
+            reportDate: reportDate || new Date().toISOString().split('T')[0],
+            data: currentResult
+          })
+        });
+
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        if (!response.ok) {
+          const errText = await response.text();
+          throw new Error(errText);
+        }
+
+        const result = await response.json();
+        showToast('✅ تم حفظ التقرير في قاعدة البيانات بنجاح!', 'success');
+        document.getElementById('statusMsg').innerHTML = `✅ تم حفظ التقرير "${reportName}" بنجاح (ID: ${result.id})`;
+
+        // تحديث قائمة التقارير المحفوظة
+        await loadSavedReports();
+
+      } catch(e) {
+        console.error('خطأ في حفظ التقرير:', e);
+        showToast('❌ خطأ في حفظ التقرير: ' + e.message, 'error');
+      }
+      showLoading(false);
+    }
+
+    // ===================== تحميل التقارير المحفوظة =====================
+    async function loadSavedReports() {
+      const container = document.getElementById('savedReportsContainer');
+      container.innerHTML = '<div class="no-reports">⏳ جاري تحميل التقارير...</div>';
+
+      try {
+        const response = await fetch(`${API_BASE}/scale-reports`, {
+          credentials: 'include'
+        });
+
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        if (!response.ok) throw new Error(await response.text());
+
+        const reports = await response.json();
+
+        if (!reports.length) {
+          container.innerHTML = '<div class="no-reports">📭 لا توجد تقارير محفوظة بعد.<br>حلل ملف Excel واحفظه لتظهر هنا.</div>';
+          return;
+        }
+
+        let html = `
+          <table class="saved-reports-table">
+            <thead>
+              <tr>
+                <th>#</th>
+                <th>📝 اسم التقرير</th>
+                <th>📅 تاريخ التقرير</th>
+                <th>🕐 تاريخ الإنشاء</th>
+                <th>👤 بواسطة</th>
+                <th>🚚 الرحلات</th>
+                <th>⚖️ الوزن</th>
+                <th>🚛 السائقين</th>
+                <th>⚙️ إجراءات</th>
+              </tr>
+            </thead>
+            <tbody>
+        `;
+
+        reports.forEach((r, i) => {
+          const weightTons = (r.totalWeight / 1000).toFixed(1);
+          const createdDate = new Date(r.createdAt).toLocaleDateString('ar-SA');
+          const createdTime = new Date(r.createdAt).toLocaleTimeString('ar-SA', { hour: '2-digit', minute: '2-digit' });
+
+          html += `
+            <tr>
+              <td>${i + 1}</td>
+              <td><strong>${r.reportName}</strong></td>
+              <td>${r.reportDate || '—'}</td>
+              <td>${createdDate}<br><small>${createdTime}</small></td>
+              <td>${r.createdBy || '—'}</td>
+              <td><span class="report-badge badge-trips">${r.matchedCount} رحلة</span></td>
+              <td><span class="report-badge badge-weight">${weightTons} طن</span></td>
+              <td><span class="report-badge badge-drivers">${r.driversCount} سائق</span></td>
+              <td>
+                <div class="actions">
+                  <button class="btn-load" onclick="loadSavedReport('${r.id}')">📊 عرض</button>
+                  <button class="btn-danger" onclick="deleteSavedReport('${r.id}', '${r.reportName.replace(/'/g, "\\'")}')">🗑️ حذف</button>
+                </div>
+              </td>
+            </tr>
+          `;
+        });
+
+        html += '</tbody></table>';
+        container.innerHTML = html;
+
+      } catch(e) {
+        console.error('خطأ في تحميل التقارير:', e);
+        container.innerHTML = `<div class="no-reports">❌ خطأ في تحميل التقارير: ${e.message}</div>`;
+      }
+    }
+
+    // ===================== عرض تقرير محفوظ =====================
+    async function loadSavedReport(id) {
+      showLoading(true);
+      try {
+        const response = await fetch(`${API_BASE}/scale-reports/${id}`, {
+          credentials: 'include'
+        });
+
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        if (!response.ok) throw new Error(await response.text());
+
+        const report = await response.json();
+        currentResult = report.data;
+
+        // التبديل لتبويب التحليل
+        switchTab('upload');
+
+        // عرض البيانات
+        displayUI(currentResult);
+
+        // تعبئة حقول الحفظ ببيانات التقرير
+        document.getElementById('reportName').value = report.reportName || '';
+        document.getElementById('reportDate').value = report.reportDate || '';
+
+        document.getElementById('statusMsg').innerHTML = `✅ تم تحميل التقرير: "${report.reportName}" (تاريخ: ${report.reportDate || '—'})`;
+        showToast(`✅ تم تحميل التقرير: ${report.reportName}`, 'success');
+
+      } catch(e) {
+        console.error('خطأ في تحميل التقرير:', e);
+        showToast('❌ خطأ في تحميل التقرير: ' + e.message, 'error');
+      }
+      showLoading(false);
+    }
+
+    // ===================== حذف تقرير محفوظ =====================
+    async function deleteSavedReport(id, name) {
+      if (!confirm(`هل تريد حذف التقرير "${name}"؟\nلا يمكن التراجع عن هذا الإجراء.`)) return;
+
+      showLoading(true);
+      try {
+        const response = await fetch(`${API_BASE}/scale-reports/${id}`, {
+          method: 'DELETE',
+          credentials: 'include'
+        });
+
+        if (response.status === 401) {
+          window.location.href = '/login.html';
+          return;
+        }
+
+        if (!response.ok) throw new Error(await response.text());
+
+        showToast(`✅ تم حذف التقرير "${name}" بنجاح`, 'success');
+        await loadSavedReports();
+
+      } catch(e) {
+        console.error('خطأ في حذف التقرير:', e);
+        showToast('❌ خطأ في الحذف: ' + e.message, 'error');
+      }
+      showLoading(false);
+    }
+
+    // ===================== التبويبات =====================
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+      document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+
+      if (tabName === 'upload') {
+        document.querySelectorAll('.tab')[0].classList.add('active');
+        document.getElementById('tab-upload').classList.add('active');
+      } else {
+        document.querySelectorAll('.tab')[1].classList.add('active');
+        document.getElementById('tab-saved').classList.add('active');
+        loadSavedReports();
+      }
+    }
+
+    // ===================== تصدير Excel بسيط =====================
     async function exportToExcel(res, filename){
       const workbook = new ExcelJS.Workbook();
       const ws = workbook.addWorksheet("Trips Dashboard", { views: [{ rightToLeft: true }] });
@@ -465,7 +888,7 @@
       URL.revokeObjectURL(a.href);
     }
 
-    // ===================== دالة التصدير المتقدمة (8 أوراق) =====================
+    // ===================== تصدير متقدم (8 أوراق) =====================
     async function exportAdvancedExcel(res, filename) {
       if (!res) {
         showToast("⚠️ لا توجد بيانات للتصدير", "error");
@@ -478,7 +901,6 @@
         workbook.creator = 'نظام إدارة طلبات البحص - الميزان';
         workbook.created = new Date();
 
-        // تعريف التنسيقات
         const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF4472C4' } };
         const headerFont = { bold: true, color: { argb: 'FFFFFFFF' }, size: 12 };
         const titleFont = { bold: true, color: { argb: 'FF1F4E79' }, size: 16 };
@@ -487,7 +909,7 @@
         const rightAlign = { horizontal: 'right', vertical: 'middle' };
         const thinBorder = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } };
 
-        // 1. ورقة ملخص التقرير
+        // 1. ملخص التقرير
         const ws1 = workbook.addWorksheet('ملخص التقرير', { views: [{ rightToLeft: true }] });
         ws1.columns = [{ width: 35 }, { width: 25 }];
         ws1.mergeCells('A1:B1');
@@ -499,7 +921,6 @@
         ws1.getCell('A2').value = `تاريخ التقرير: ${new Date().toLocaleDateString('ar-SA')}`;
         ws1.getCell('A2').font = { bold: true, size: 13, color: { argb: 'FF2E75B6' } };
         ws1.getCell('A2').alignment = centerAlign;
-
         const totalWeightTons = (res.totalWeightAll / 1000).toFixed(2);
         const completionRate = res.totalRows ? ((res.matchedCount / res.totalRows) * 100).toFixed(2) : 0;
         const summ = [
@@ -525,21 +946,19 @@
           });
         });
 
-        // 2. ورقة السائقين
+        // 2. السائقين
         const ws2 = workbook.addWorksheet('تقرير السائقين', { views: [{ rightToLeft: true }] });
         ws2.columns = [{ width: 8 }, { width: 28 }, { width: 18 }, { width: 18 }];
         ws2.mergeCells('A1:D1');
-        ws2.getCell('A1').value = '🚛 تقرير السائقين - عدد الرحلات والأوزان';
+        ws2.getCell('A1').value = '🚛 تقرير السائقين';
         ws2.getCell('A1').font = { ...titleFont, size: 18 };
         ws2.getCell('A1').alignment = centerAlign;
         ws2.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } };
         ws2.getRow(1).height = 40;
-        const driverHeaders = ['#', 'اسم السائق', 'عدد الرحلات', 'الوزن الإجمالي (كجم)'];
         let hrow = ws2.getRow(2);
-        hrow.values = driverHeaders;
+        hrow.values = ['#', 'اسم السائق', 'عدد الرحلات', 'الوزن الإجمالي (كجم)'];
         hrow.height = 30;
         hrow.eachCell(cell => { cell.font = headerFont; cell.fill = headerFill; cell.alignment = centerAlign; cell.border = thinBorder; });
-
         for (let i = 0; i < res.driversStats.length; i++) {
           let d = res.driversStats[i];
           let row = ws2.getRow(3 + i);
@@ -549,7 +968,7 @@
           row.eachCell(cell => { cell.font = dataFont; cell.alignment = centerAlign; cell.border = thinBorder; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }; });
         }
 
-        // 3. ورقة المواد (البحص)
+        // 3. المواد
         const ws3 = workbook.addWorksheet('تقرير المواد', { views: [{ rightToLeft: true }] });
         ws3.columns = [{ width: 8 }, { width: 20 }, { width: 22 }, { width: 22 }];
         ws3.mergeCells('A1:D1');
@@ -558,12 +977,10 @@
         ws3.getCell('A1').alignment = centerAlign;
         ws3.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFCE4D6' } };
         ws3.getRow(1).height = 40;
-        const materialHeaders = ['#', 'نوع البحص', 'الوزن الإجمالي (كجم)', 'الوزن (طن)'];
         let mrow = ws3.getRow(2);
-        mrow.values = materialHeaders;
+        mrow.values = ['#', 'نوع البحص', 'الوزن الإجمالي (كجم)', 'الوزن (طن)'];
         mrow.height = 30;
         mrow.eachCell(cell => { cell.font = headerFont; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFED7D31' } }; cell.alignment = centerAlign; cell.border = thinBorder; });
-
         for (let i = 0; i < res.materialsStats.length; i++) {
           let m = res.materialsStats[i];
           let row = ws3.getRow(3 + i);
@@ -573,18 +990,17 @@
           row.eachCell(cell => { cell.font = dataFont; cell.alignment = centerAlign; cell.border = thinBorder; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }; });
         }
 
-        // 4. ورقة أفضل السائقين (رسم بياني نصي)
+        // 4. أفضل السائقين
         const ws4 = workbook.addWorksheet('أفضل السائقين', { views: [{ rightToLeft: true }] });
         ws4.columns = [{ width: 25 }, { width: 12 }, { width: 60 }];
         ws4.mergeCells('A1:C1');
-        ws4.getCell('A1').value = '🏆 ترتيب السائقين حسب عدد الرحلات (أفضل 20)';
+        ws4.getCell('A1').value = '🏆 ترتيب السائقين (أفضل 20)';
         ws4.getCell('A1').font = { ...titleFont, size: 16 };
         ws4.getCell('A1').alignment = centerAlign;
         ws4.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD6E4F0' } };
         ws4.getRow(1).height = 38;
-        let ch = ['السائق', 'عدد الرحلات', 'رسم بياني'];
         let chRow = ws4.getRow(2);
-        chRow.values = ch;
+        chRow.values = ['السائق', 'عدد الرحلات', 'رسم بياني'];
         chRow.height = 28;
         chRow.eachCell(cell => { cell.font = headerFont; cell.fill = headerFill; cell.alignment = centerAlign; cell.border = thinBorder; });
         let top20 = res.driversStats.slice(0, 20);
@@ -603,7 +1019,7 @@
           });
         });
 
-        // 5. ورقة ترتيب المواد (رسم بياني نصي)
+        // 5. ترتيب المواد
         const ws5 = workbook.addWorksheet('ترتيب المواد', { views: [{ rightToLeft: true }] });
         ws5.columns = [{ width: 20 }, { width: 18 }, { width: 18 }, { width: 55 }];
         ws5.mergeCells('A1:D1');
@@ -612,9 +1028,8 @@
         ws5.getCell('A1').alignment = centerAlign;
         ws5.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } };
         ws5.getRow(1).height = 38;
-        let mh = ['نوع البحص', 'الوزن (كجم)', 'الوزن (طن)', 'رسم بياني'];
         let mhRow = ws5.getRow(2);
-        mhRow.values = mh;
+        mhRow.values = ['نوع البحص', 'الوزن (كجم)', 'الوزن (طن)', 'رسم بياني'];
         mhRow.height = 28;
         mhRow.eachCell(cell => { cell.font = headerFont; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF548235' } }; cell.alignment = centerAlign; cell.border = thinBorder; });
         let maxWeight = res.materialsStats.length ? res.materialsStats[0].weight : 1;
@@ -631,7 +1046,7 @@
           });
         });
 
-        // 6. ورقة إحصائيات سريعة (بطاقات)
+        // 6. إحصائيات سريعة
         const ws6 = workbook.addWorksheet('إحصائيات سريعة', { views: [{ rightToLeft: true }] });
         ws6.columns = [{ width: 30 }, { width: 20 }];
         ws6.mergeCells('A1:B1');
@@ -660,7 +1075,7 @@
           });
         });
 
-        // 7. ورقة قائمة السائقين الكاملة
+        // 7. قائمة السائقين الكاملة
         const ws7 = workbook.addWorksheet('قائمة السائقين', { views: [{ rightToLeft: true }] });
         ws7.columns = [{ width: 8 }, { width: 28 }, { width: 18 }, { width: 18 }];
         ws7.mergeCells('A1:D1');
@@ -669,9 +1084,8 @@
         ws7.getCell('A1').alignment = centerAlign;
         ws7.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF2CC' } };
         ws7.getRow(1).height = 38;
-        let th = ['#', 'اسم السائق', 'عدد الرحلات', 'الوزن (كجم)'];
         let thRow = ws7.getRow(2);
-        thRow.values = th;
+        thRow.values = ['#', 'اسم السائق', 'عدد الرحلات', 'الوزن (كجم)'];
         thRow.height = 28;
         thRow.eachCell(cell => { cell.font = headerFont; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFBF8F00' } }; cell.alignment = centerAlign; cell.border = thinBorder; });
         res.driversStats.forEach((d, i) => {
@@ -682,7 +1096,7 @@
           row.eachCell(cell => { cell.font = dataFont; cell.alignment = centerAlign; cell.border = thinBorder; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: bg } }; });
         });
 
-        // 8. ورقة تفاصيل المواد (مع النسب)
+        // 8. تفاصيل المواد
         const ws8 = workbook.addWorksheet('تفاصيل المواد', { views: [{ rightToLeft: true }] });
         ws8.columns = [{ width: 8 }, { width: 20 }, { width: 22 }, { width: 22 }, { width: 16 }];
         ws8.mergeCells('A1:E1');
@@ -691,9 +1105,8 @@
         ws8.getCell('A1').alignment = centerAlign;
         ws8.getCell('A1').fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE2EFDA' } };
         ws8.getRow(1).height = 38;
-        let mh2 = ['#', 'نوع البحص', 'الوزن (كجم)', 'الوزن (طن)', 'النسبة من الإجمالي'];
         let mhRow2 = ws8.getRow(2);
-        mhRow2.values = mh2;
+        mhRow2.values = ['#', 'نوع البحص', 'الوزن (كجم)', 'الوزن (طن)', 'النسبة من الإجمالي'];
         mhRow2.height = 28;
         mhRow2.eachCell(cell => { cell.font = headerFont; cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF548235' } }; cell.alignment = centerAlign; cell.border = thinBorder; });
         res.materialsStats.forEach((m, i) => {
@@ -720,7 +1133,7 @@
       showLoading(false);
     }
 
-    // ربط الأزرار
+    // ===================== ربط الأزرار =====================
     document.getElementById("showResultsBtn").onclick = async () => {
       const fileInput = document.getElementById("fileInput");
       if (!fileInput.files.length) {
@@ -728,20 +1141,28 @@
         return;
       }
       document.getElementById("statusMsg").innerHTML = "⏳ جاري المعالجة...";
+      showLoading(true);
       try {
         const result = await processExcelFile(fileInput.files[0]);
         currentResult = result;
         displayUI(result);
-        document.getElementById("statusMsg").innerHTML = "✅ تمت المعالجة وعرض النتائج. يمكنك الآن تصدير التقرير.";
+
+        // تعبئة اسم التقرير تلقائياً من اسم الملف
+        const fileName = fileInput.files[0].name.replace(/\.[^/.]+$/, "");
+        document.getElementById('reportName').value = fileName;
+        document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
+
+        document.getElementById("statusMsg").innerHTML = "✅ تمت المعالجة وعرض النتائج. يمكنك الآن حفظ التقرير أو تصديره.";
       } catch (e) {
         console.error(e);
         document.getElementById("statusMsg").innerHTML = "❌ خطأ: " + e.message;
       }
+      showLoading(false);
     };
 
     document.getElementById("exportExcelBtn").onclick = async () => {
       if (!currentResult) {
-        document.getElementById("statusMsg").innerHTML = "⚠️ يرجى عرض النتائج أولاً (اضغط على 'عرض النتائج').";
+        document.getElementById("statusMsg").innerHTML = "⚠️ يرجى عرض النتائج أولاً.";
         return;
       }
       const outName = document.getElementById("outputName").value.trim() || "Monthly_Report.xlsx";
@@ -756,25 +1177,72 @@
 
     document.getElementById("exportAdvancedBtn").onclick = async () => {
       if (!currentResult) {
-        document.getElementById("statusMsg").innerHTML = "⚠️ يرجى عرض النتائج أولاً (اضغط على 'عرض النتائج').";
+        document.getElementById("statusMsg").innerHTML = "⚠️ يرجى عرض النتائج أولاً.";
         return;
       }
       const outName = document.getElementById("outputName").value.trim() || "Monthly_Report.xlsx";
       await exportAdvancedExcel(currentResult, outName);
     };
 
+    // ===================== دوال مساعدة =====================
     function showToast(msg, type) {
       const container = document.getElementById('toastContainer');
       const toast = document.createElement('div');
       toast.className = `toast toast-${type}`;
       toast.textContent = msg;
       container.appendChild(toast);
-      setTimeout(() => toast.remove(), 3000);
+      setTimeout(() => toast.remove(), 4000);
     }
+
     function showLoading(show) {
       document.getElementById('loading').classList.toggle('active', show);
     }
+
+    function logout() {
+      if(confirm('تسجيل الخروج؟'))
+        fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html');
+    }
+
+    function loadNav() {
+      fetch('/api/me', { credentials: 'include' })
+        .then(r => r.json())
+        .then(data => {
+          if (data.user) {
+            const role = data.user.role;
+            let navHtml = '';
+            if (role === 'admin' || role === 'user') {
+              navHtml = `
+                <a href="index.html" class="nav-link">📊 الرئيسية</a>
+                <a href="orders.html" class="nav-link">📝 الطلبات</a>
+                <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+                <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+                <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+                <a href="factories.html" class="nav-link">🏭 المصانع</a>
+                <a href="reports.html" class="nav-link">📊 التقارير</a>
+                <a href="scale_report.html" class="nav-link active">⚖️ تقارير الميزان</a>
+                <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
+                <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
+                <a href="users.html" class="nav-link">👥 المستخدمين</a>
+                <a href="logs.html" class="nav-link">📜 السجلات</a>
+              `;
+            } else if (role === 'client') {
+              window.location.href = '/orders.html';
+              return;
+            }
+            document.getElementById('navLinks').innerHTML = navHtml;
+          } else {
+            window.location.href = '/login.html';
+          }
+        })
+        .catch(() => window.location.href = '/login.html');
+    }
+
+    // ===================== تحميل الصفحة =====================
+    document.addEventListener('DOMContentLoaded', () => {
+      loadNav();
+      // تعيين تاريخ اليوم كافتراضي
+      document.getElementById('reportDate').value = new Date().toISOString().split('T')[0];
+    });
   </script>
-  <script src="navbar.js"></script>
 </body>
 </html>
