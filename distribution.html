@@ -79,7 +79,7 @@
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
         <div class="header"><h1>🚚 التوزيع الجغرافي المتوازن</h1><p>توزيع الطلبات بين الرياض والدمام مع تجنب تكرار نفس الموقع للسائق</p>
-            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"><button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button></div>
+            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"></div>
         </div>
         <div class="nav-links" id="navLinks"></div>
         <div class="date-section">
@@ -131,8 +131,6 @@
         const API_BASE = '/api';
         let trucks = [], orders = [], distribution = [], currentDate = '';
         let currentOrderToDistribute = null;
-        
-        // خريطة مواقع المصانع (يتم تعبئتها من الإعدادات)
         let factoryLocations = {};
 
         async function apiCall(endpoint, method = 'GET', data = null) {
@@ -151,7 +149,6 @@
                 const data = await apiCall('/settings'); 
                 trucks = data.trucks || []; 
                 document.getElementById('statTrucks').textContent = trucks.length;
-                // بناء خريطة مواقع المصانع
                 factoryLocations = {};
                 (data.factories || []).forEach(f => {
                     if (f.name && f.location) factoryLocations[f.name] = f.location;
@@ -205,7 +202,7 @@
 
         function renderDistribution() {
             const tbody = document.getElementById('distributionBody');
-            if (!distribution.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا يوجد توزيع<\/td><\/tr>'; return; }
+            if (!distribution.length) { tbody.innerHTML = '<td><td colspan="7" style="text-align:center;">لا يوجد توزيع<\/td><\/tr>'; return; }
             const uniqueMap = new Map();
             distribution.forEach(d => { if (!uniqueMap.has(d.orderId)) uniqueMap.set(d.orderId, d); });
             const uniqueDistributions = Array.from(uniqueMap.values());
@@ -263,7 +260,6 @@
             showLoading(false);
         }
 
-        // ========== التوزيع التلقائي مع مراعاة الموقع الجغرافي ==========
         async function autoDistribute() {
             const distributedOrderIds = new Set(distribution.map(d => d.orderId));
             const undistributed = orders.filter(o => !distributedOrderIds.has(o.id));
@@ -271,25 +267,17 @@
             if (!trucks.length) { showToast('لا توجد سيارات', 'error'); return; }
             showLoading(true);
             
-            // حساب عدد الرحلات لكل سيارة وموقع آخر رود
             const truckTrips = {};
             const truckLastLocation = {};
-            trucks.forEach(t => { 
-                truckTrips[t.number] = 0; 
-                truckLastLocation[t.number] = null;
-            });
-            
-            // تجميع البيانات من التوزيعات السابقة
+            trucks.forEach(t => { truckTrips[t.number] = 0; truckLastLocation[t.number] = null; });
             distribution.forEach(d => { 
                 if (d.truck) {
                     truckTrips[d.truck.number]++;
-                    // تحديث آخر موقع بناءً على المصنع
                     const location = factoryLocations[d.factory] || 'أخرى';
                     truckLastLocation[d.truck.number] = location;
                 }
             });
             
-            // نسخة من السيارات مرتبة حسب أقل عدد رحلات
             let sortedTrucks = [...trucks].sort((a, b) => truckTrips[a.number] - truckTrips[b.number]);
             let truckIndex = 0;
             let newDistributions = [];
@@ -297,39 +285,26 @@
             for (let i = 0; i < undistributed.length; i++) {
                 const order = undistributed[i];
                 const orderLocation = factoryLocations[order.factory] || 'أخرى';
-                
-                // البحث عن سيارة مناسبة (تفضيل عدم تكرار نفس الموقع)
                 let selectedTruck = null;
                 let attempts = 0;
                 const maxAttempts = sortedTrucks.length * 3;
-                
                 while (!selectedTruck && attempts < maxAttempts) {
                     const candidate = sortedTrucks[truckIndex % sortedTrucks.length];
                     const lastLocation = truckLastLocation[candidate.number];
-                    
-                    // القاعدة: إذا كان آخر موقع للسائق هو نفس موقع الطلب، نحاول تجنبه
-                    // لكن إذا كان آخر موقع مختلف أو لا يوجد آخر موقع، نختاره
                     if (lastLocation !== orderLocation || lastLocation === null) {
                         selectedTruck = candidate;
                     }
                     truckIndex++;
                     attempts++;
                 }
-                
-                // إذا لم نجد سيارة مناسبة، نختار أي سيارة (حتى لو تكرر الموقع)
                 if (!selectedTruck) {
                     selectedTruck = sortedTrucks[0];
                     showToast(`⚠️ اضطراري: تكرار موقع ${orderLocation} للسيارة ${selectedTruck.number}`, 'warning');
                 }
-                
-                // تحديث الإحصائيات
                 truckTrips[selectedTruck.number]++;
                 truckLastLocation[selectedTruck.number] = orderLocation;
-                
-                // إعادة ترتيب السيارات حسب أقل عدد رحلات
                 sortedTrucks = [...trucks].sort((a, b) => truckTrips[a.number] - truckTrips[b.number]);
                 truckIndex = 0;
-                
                 const currentRoad = Math.floor((distribution.length + newDistributions.length) / trucks.length) + 1;
                 newDistributions.push({
                     orderId: order.id,
@@ -346,8 +321,6 @@
                 distribution.push(...newDistributions);
                 await saveData();
                 await loadData();
-                
-                // إحصائيات التوزيع
                 const finalTrips = {};
                 const finalLocations = {};
                 trucks.forEach(t => { finalTrips[t.number] = 0; finalLocations[t.number] = []; });
@@ -387,7 +360,8 @@
                         <a href="trucks.html" class="nav-link">🚛 السيارات</a>
                         <a href="products.html" class="nav-link">📦 أنواع البحص</a>
                         <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                        <a href="reports.html" class="nav-link">📊 التقارير</a>
+                        <a href="reports.html" class="nav-link">📊 تقارير الكسارة</a>
+                        <a href="scale_report.html" class="nav-link">⚖️ تقارير الميزان الشهرية</a>
                         <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
                         <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
                         <a href="users.html" class="nav-link">👥 المستخدمين</a>
@@ -408,44 +382,6 @@
             showLoading(false);
         });
     </script>
-    // nav.js - شريط التنقل الموحد لكامل الموقع
-function loadNavigation(currentPage) {
-    const navLinks = [
-        { name: "📊 الرئيسية", href: "index.html" },
-        { name: "📝 الطلبات", href: "orders.html" },
-        { name: "🚚 التوزيع", href: "distribution.html" },
-        { name: "🚛 السيارات", href: "vehicles.html" },
-        { name: "📦 أنواع البحص", href: "aggregate_types.html" },
-        { name: "🏭 المصانع", href: "factories.html" },
-        { name: "📊 تقارير الطلبات اليومية", href: "daily_orders_report.html" },
-        { name: "📅 تقارير الميزان الشهرية", href: "reports_monthly.html" },
-        { name: "⚖️ تقرير الميزان", href: "scale_report.html" },      // الرابط الجديد
-        { name: "⚙️ الإعدادات", href: "settings.html" },
-        { name: "⛔ الحظر", href: "blocking.html" },
-        { name: "👥 المستخدمين", href: "users.html" },
-        { name: "📜 السجلات", href: "logs.html" }
-    ];
-
-    const navbar = document.querySelector('.navbar .nav-links');
-    if (!navbar) return;
-    
-    navbar.innerHTML = '';
-    navLinks.forEach(link => {
-        const a = document.createElement('a');
-        a.href = link.href;
-        a.textContent = link.name;
-        if (currentPage && link.href.includes(currentPage)) {
-            a.classList.add('active');
-        }
-        navbar.appendChild(a);
-    });
-}
-
-// تنفيذ التحميل عند اكتمال الصفحة
-document.addEventListener('DOMContentLoaded', () => {
-    // استخراج اسم الملف الحالي من المسار
-    const currentFile = window.location.pathname.split('/').pop();
-    loadNavigation(currentFile);
-});
+    <script src="navbar.js"></script>
 </body>
 </html>
