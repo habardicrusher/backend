@@ -51,6 +51,8 @@
         .spinner { width:50px; height:50px; border:4px solid rgba(255,255,255,0.3); border-top-color:#667eea; border-radius:50%; animation: spin 1s linear infinite; }
         @keyframes spin { to { transform: rotate(360deg); } }
         .fixed-factory { background: rgba(102,126,234,0.3); padding: 12px 15px; border-radius: 10px; font-weight: bold; }
+        .client-notice { background: rgba(102,126,234,0.2); border: 1px solid rgba(102,126,234,0.4); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; font-size: 1.1em; }
+        .client-notice .factory-name { color: #38ef7d; font-weight: bold; font-size: 1.2em; }
         @media (max-width:768px){ .header h1 { font-size:1.5em; } }
     </style>
 </head>
@@ -64,9 +66,18 @@
             </div>
         </div>
         <div class="nav-links" id="navLinks"></div>
+
+        <!-- إشعار للعميل بالمصنع المحدد -->
+        <div id="clientNotice" class="client-notice" style="display:none;">
+            🏭 أنت تعرض طلبات مصنع: <span class="factory-name" id="clientFactoryName"></span> فقط
+        </div>
+
         <div class="date-section">
             <div><label>📅 تاريخ العمل: </label><input type="date" id="orderDate" onchange="loadDayData()"></div>
-            <div><button class="btn btn-info" onclick="exportOrdersToExcel()">📥 تصدير Excel</button><button class="btn btn-primary" onclick="manualDistribute()">🔄 توزيع يدوي</button></div>
+            <div id="adminButtons">
+                <button class="btn btn-info" onclick="exportOrdersToExcel()">📥 تصدير Excel</button>
+                <button class="btn btn-primary" onclick="manualDistribute()">🔄 توزيع يدوي</button>
+            </div>
         </div>
 
         <h2>➕ إضافة طلب جديد</h2>
@@ -82,11 +93,11 @@
         <button class="btn btn-success" onclick="addOrder()">✅ إضافة الطلب</button>
 
         <div class="quick-add-section">
-            <h4>⚡ إضافة سريعة (اختر المصنع أولاً)</h4>
+            <h4>⚡ إضافة سريعة <span id="quickAddNote">(اختر المصنع أولاً)</span></h4>
             <div class="quick-add-grid" id="quickAddButtons"></div>
         </div>
 
-        <h3 style="margin-top: 30px;">📋 طلبات اليوم (<span id="ordersCount">0</span> طلب)</h3>
+        <h3 style="margin-top: 30px;">📋 <span id="ordersTitle">طلبات اليوم</span> (<span id="ordersCount">0</span> طلب)</h3>
         <div id="todayOrders"></div>
     </div>
 
@@ -94,7 +105,7 @@
 
     <script>
         const API_BASE = '/api';
-        let factories = [], materials = [], orders = [], currentDate = '';
+        let factories = [], materials = [], orders = [], allOrders = [], currentDate = '';
         let currentDistribution = [];
         let currentUser = null;
         let currentUserFactory = null;
@@ -117,6 +128,22 @@
                 currentUser = me.user;
                 currentUserRole = me.user.role;
                 currentUserFactory = me.user.factory;
+                
+                // إعداد واجهة العميل
+                if (currentUserRole === 'client') {
+                    // إظهار إشعار المصنع
+                    document.getElementById('clientNotice').style.display = 'block';
+                    document.getElementById('clientFactoryName').textContent = currentUserFactory || 'غير محدد';
+                    
+                    // تغيير عنوان الطلبات
+                    document.getElementById('ordersTitle').textContent = `طلباتي - ${currentUserFactory}`;
+                    
+                    // إخفاء أزرار التوزيع والتصدير للعميل
+                    document.getElementById('adminButtons').style.display = 'none';
+                    
+                    // تحديث ملاحظة الإضافة السريعة
+                    document.getElementById('quickAddNote').textContent = `(مصنع: ${currentUserFactory})`;
+                }
             } catch(e) {}
         }
 
@@ -135,8 +162,8 @@
             const editFactoryContainer = document.getElementById('editFactoryContainer');
             
             if (currentUserRole === 'client' && currentUserFactory) {
-                factoryContainer.innerHTML = `<div class="fixed-factory">${currentUserFactory}</div>`;
-                editFactoryContainer.innerHTML = `<div class="fixed-factory">${currentUserFactory}</div>`;
+                factoryContainer.innerHTML = `<div class="fixed-factory">🏭 ${currentUserFactory}</div>`;
+                editFactoryContainer.innerHTML = `<div class="fixed-factory">🏭 ${currentUserFactory}</div>`;
             } else {
                 const validFactories = factories.filter(f => f && f.trim());
                 const factoryOptions = '<option value="">-- اختر --</option>' + validFactories.map(f => `<option value="${f}">${f}</option>`).join('');
@@ -171,26 +198,75 @@
             container.innerHTML = valid.map(m => `<button class="quick-btn" onclick="quickAdd('${m}',1)">${m} ×1</button><button class="quick-btn" onclick="quickAdd('${m}',5)">${m} ×5</button><button class="quick-btn" onclick="quickAdd('${m}',10)">${m} ×10</button>`).join('');
         }
 
+        // =============================================
+        // الدالة الرئيسية: تحميل بيانات اليوم مع الفلترة
+        // =============================================
         async function loadDayData() {
             currentDate = document.getElementById('orderDate').value;
             try {
                 const data = await apiCall(`/day/${currentDate}`);
-                orders = data.orders || [];
+                
+                // حفظ كل الطلبات (للحفظ لاحقاً بدون فقدان طلبات الآخرين)
+                allOrders = data.orders || [];
                 currentDistribution = data.distribution || [];
+                
+                // ★★★ الفلترة الأساسية: العميل يرى فقط طلبات مصنعه ★★★
+                if (currentUserRole === 'client' && currentUserFactory) {
+                    orders = allOrders.filter(o => o.factory === currentUserFactory);
+                } else {
+                    orders = [...allOrders];
+                }
+                
                 renderOrders();
-            } catch(e) { orders = []; renderOrders(); showToast('خطأ في تحميل الطلبات', 'error'); }
+            } catch(e) { 
+                orders = []; 
+                allOrders = [];
+                renderOrders(); 
+                showToast('خطأ في تحميل الطلبات', 'error'); 
+            }
         }
 
+        // =============================================
+        // حفظ البيانات - العميل يحفظ كل الطلبات (لا يمسح طلبات الآخرين)
+        // =============================================
         async function saveData() {
             try {
-                const cleaned = orders.map(o => ({ id: o.id, factory: o.factory, material: o.material, time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '', timestamp: o.timestamp }));
+                let ordersToSave;
+                
+                if (currentUserRole === 'client' && currentUserFactory) {
+                    // ★★★ مهم جداً: نحتفظ بطلبات المصانع الأخرى ونضيف طلبات هذا العميل ★★★
+                    const otherFactoryOrders = allOrders.filter(o => o.factory !== currentUserFactory);
+                    const myOrders = orders.filter(o => o.factory === currentUserFactory);
+                    ordersToSave = [...otherFactoryOrders, ...myOrders];
+                    // تحديث allOrders
+                    allOrders = ordersToSave;
+                } else {
+                    ordersToSave = orders;
+                    allOrders = [...orders];
+                }
+                
+                const cleaned = ordersToSave.map(o => ({
+                    id: o.id,
+                    factory: o.factory,
+                    material: o.material,
+                    time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '',
+                    timestamp: o.timestamp
+                }));
+                
                 await apiCall(`/day/${currentDate}`, 'PUT', { orders: cleaned, distribution: currentDistribution });
                 return true;
-            } catch(e) { showToast('خطأ في حفظ البيانات: '+e.message, 'error'); return false; }
+            } catch(e) { 
+                showToast('خطأ في حفظ البيانات: ' + e.message, 'error'); 
+                return false; 
+            }
         }
 
-        // دالة التوزيع اليدوي (للمدير والمستخدم)
+        // دالة التوزيع اليدوي (للمدير والمستخدم فقط)
         async function manualDistribute() {
+            if (currentUserRole === 'client') {
+                showToast('❌ ليس لديك صلاحية للتوزيع', 'error');
+                return;
+            }
             showLoading(true);
             try {
                 const today = new Date().toISOString().split('T')[0];
@@ -198,15 +274,15 @@
                 const trucks = settings.trucks || [];
                 if (trucks.length === 0) { showToast('لا توجد سيارات للتوزيع', 'error'); showLoading(false); return; }
                 const dayData = await apiCall(`/day/${today}`);
-                let orders = dayData.orders || [];
-                if (orders.length === 0) { showToast('لا توجد طلبات لتوزيعها', 'error'); showLoading(false); return; }
+                let allDayOrders = dayData.orders || [];
+                if (allDayOrders.length === 0) { showToast('لا توجد طلبات لتوزيعها', 'error'); showLoading(false); return; }
                 
                 let lastFactoryForTruck = {};
                 trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
                 let availableTrucks = [...trucks];
                 let newDistribution = [];
-                for (let i = 0; i < orders.length; i++) {
-                    const order = orders[i];
+                for (let i = 0; i < allDayOrders.length; i++) {
+                    const order = allDayOrders[i];
                     const requiredFactory = order.factory;
                     let selectedTruck = null, candidateIndex = -1;
                     for (let j = 0; j < availableTrucks.length; j++) {
@@ -233,27 +309,37 @@
                     if (availableTrucks.length === 0) availableTrucks = [...trucks];
                 }
                 if (newDistribution.length) {
-                    await apiCall(`/day/${today}`, 'PUT', { orders, distribution: newDistribution });
+                    await apiCall(`/day/${today}`, 'PUT', { orders: allDayOrders, distribution: newDistribution });
                     const trucksUsed = new Set(newDistribution.map(d => d.truck?.number)).size;
                     const lastRoad = newDistribution.length ? Math.max(...newDistribution.map(d => d.road)) : 1;
-                    showToast(`✅ تم توزيع ${orders.length} طلب على ${trucksUsed} سيارة (آخر رود: ${lastRoad})`, 'success');
+                    showToast(`✅ تم توزيع ${allDayOrders.length} طلب على ${trucksUsed} سيارة (آخر رود: ${lastRoad})`, 'success');
                     await loadDayData();
                 } else { showToast('فشل في توزيع الطلبات', 'error'); }
             } catch(e) { showToast('خطأ في التوزيع: ' + e.message, 'error'); }
             showLoading(false);
         }
 
-        // دوال إضافة الطلبات (بدون توزيع تلقائي)
+        // =============================================
+        // إضافة طلب - مع التحقق للعميل
+        // =============================================
         async function addOrder() {
             const factory = getSelectedFactory();
             const material = document.getElementById('materialType').value;
             const count = parseInt(document.getElementById('orderCount').value);
             let time = document.getElementById('orderTime').value.trim();
             if (time === 'undefined' || time === 'null') time = '';
+            
             if (!factory || !material || !count) {
                 showToast('املأ جميع الحقول المطلوبة', 'error');
                 return;
             }
+            
+            // ★ تحقق إضافي: العميل لا يمكنه إضافة طلب لمصنع آخر
+            if (currentUserRole === 'client' && factory !== currentUserFactory) {
+                showToast('❌ لا يمكنك إضافة طلبات لمصنع آخر', 'error');
+                return;
+            }
+            
             showLoading(true);
             for (let i = 0; i < count; i++) {
                 orders.push({
@@ -279,6 +365,13 @@
             let time = document.getElementById('orderTime').value.trim();
             if (time === 'undefined' || time === 'null') time = '';
             if (!factory) { showToast('اختر المصنع أولاً', 'error'); return; }
+            
+            // ★ تحقق إضافي للعميل
+            if (currentUserRole === 'client' && factory !== currentUserFactory) {
+                showToast('❌ لا يمكنك إضافة طلبات لمصنع آخر', 'error');
+                return;
+            }
+            
             showLoading(true);
             for (let i = 0; i < count; i++) {
                 orders.push({
@@ -297,33 +390,62 @@
             showLoading(false);
         }
 
+        // =============================================
+        // حذف طلب - مع التحقق أن العميل يحذف طلباته فقط
+        // =============================================
         async function deleteOrder(id) {
+            // ★ التحقق أن العميل يحذف طلبات مصنعه فقط
+            if (currentUserRole === 'client') {
+                const orderToDelete = orders.find(o => o.id === id);
+                if (orderToDelete && orderToDelete.factory !== currentUserFactory) {
+                    showToast('❌ لا يمكنك حذف طلبات مصنع آخر', 'error');
+                    return;
+                }
+            }
+            
             if (confirm('حذف الطلب؟')) {
                 orders = orders.filter(o => o.id !== id);
                 if (await saveData()) renderOrders();
             }
         }
 
+        // =============================================
+        // تعديل طلب - مع التحقق للعميل
+        // =============================================
         function openEditOrderModal(id) {
             let o = orders.find(o => o.id === id);
-            if (o) {
-                document.getElementById('editOrderId').value = id;
-                if (currentUserRole !== 'client') {
-                    const editSelect = document.getElementById('editOrderFactory');
-                    if (editSelect) editSelect.value = o.factory;
-                }
-                const editMaterial = document.getElementById('editOrderMaterial');
-                if (editMaterial) editMaterial.value = o.material;
-                document.getElementById('editOrderTime').value = (o.time && o.time !== 'undefined') ? o.time : '';
-                openModal('editOrderModal');
+            if (!o) return;
+            
+            // ★ التحقق أن العميل يعدل طلبات مصنعه فقط
+            if (currentUserRole === 'client' && o.factory !== currentUserFactory) {
+                showToast('❌ لا يمكنك تعديل طلبات مصنع آخر', 'error');
+                return;
             }
+            
+            document.getElementById('editOrderId').value = id;
+            if (currentUserRole !== 'client') {
+                const editSelect = document.getElementById('editOrderFactory');
+                if (editSelect) editSelect.value = o.factory;
+            }
+            const editMaterial = document.getElementById('editOrderMaterial');
+            if (editMaterial) editMaterial.value = o.material;
+            document.getElementById('editOrderTime').value = (o.time && o.time !== 'undefined') ? o.time : '';
+            openModal('editOrderModal');
         }
 
         async function saveOrderEdit() {
             let id = document.getElementById('editOrderId').value;
             let idx = orders.findIndex(o => o.id === id);
             if (idx !== -1) {
-                orders[idx].factory = getSelectedEditFactory();
+                const newFactory = getSelectedEditFactory();
+                
+                // ★ منع العميل من تغيير المصنع لمصنع آخر
+                if (currentUserRole === 'client' && newFactory !== currentUserFactory) {
+                    showToast('❌ لا يمكنك تغيير المصنع', 'error');
+                    return;
+                }
+                
+                orders[idx].factory = newFactory;
                 orders[idx].material = document.getElementById('editOrderMaterial').value;
                 let newTime = document.getElementById('editOrderTime').value.trim();
                 if (newTime === 'undefined' || newTime === 'null') newTime = '';
@@ -336,23 +458,43 @@
             }
         }
 
+        // =============================================
+        // عرض الطلبات - العميل يرى فقط طلبات مصنعه
+        // =============================================
         function renderOrders() {
             const container = document.getElementById('todayOrders');
-            document.getElementById('ordersCount').textContent = orders.length;
-            if (!orders.length) {
-                container.innerHTML = '<p style="text-align:center;padding:30px;">لا توجد طلبات</p>';
+            
+            // الطلبات المعروضة (مفلترة بالفعل في loadDayData)
+            const displayOrders = orders;
+            
+            document.getElementById('ordersCount').textContent = displayOrders.length;
+            
+            if (!displayOrders.length) {
+                if (currentUserRole === 'client') {
+                    container.innerHTML = `<p style="text-align:center;padding:30px;">📭 لا توجد طلبات لمصنع "${currentUserFactory}" في هذا اليوم</p>`;
+                } else {
+                    container.innerHTML = '<p style="text-align:center;padding:30px;">لا توجد طلبات</p>';
+                }
                 return;
             }
-            container.innerHTML = orders.map((o, i) => {
+            
+            // ★ ترقيم الطلبات بناءً على المعروض للعميل
+            let orderNumber = 0;
+            container.innerHTML = displayOrders.map((o, i) => {
+                orderNumber++;
                 let timeDisplay = '';
                 if (o.time && o.time !== 'undefined' && o.time !== 'null' && o.time.trim() !== '') {
                     timeDisplay = `<span>⏰ ${o.time}</span>`;
                 }
+                
+                // ★ إظهار اسم المصنع فقط للمدير/المستخدم (العميل يعرف مصنعه)
+                const factoryDisplay = (currentUserRole === 'client') ? '' : `<span>🏭 ${o.factory}</span>`;
+                
                 return `
                     <div class="order-item">
                         <div class="order-info">
-                            <span><strong>#${i+1}</strong></span>
-                            <span>🏭 ${o.factory}</span>
+                            <span><strong>#${orderNumber}</strong></span>
+                            ${factoryDisplay}
                             <span>📦 ${o.material}</span>
                             ${timeDisplay}
                             <span>🕐 ${o.timestamp || '—'}</span>
@@ -366,17 +508,44 @@
             }).join('');
         }
 
+        // =============================================
+        // تصدير Excel - العميل يصدر طلباته فقط
+        // =============================================
         function exportOrdersToExcel() {
-            if (!orders.length) { showToast('لا توجد طلبات للتصدير', 'error'); return; }
-            const data = orders.map((o, i) => ({ '#': i+1, 'المصنع': o.factory, 'نوع البحص': o.material, 'التوقيت': (o.time && o.time !== 'undefined') ? o.time : '', 'وقت الإضافة': o.timestamp || '—' }));
+            const exportOrders = orders; // مفلترة بالفعل
+            if (!exportOrders.length) { showToast('لا توجد طلبات للتصدير', 'error'); return; }
+            
+            const data = exportOrders.map((o, i) => ({
+                '#': i + 1,
+                'المصنع': o.factory,
+                'نوع البحص': o.material,
+                'التوقيت': (o.time && o.time !== 'undefined') ? o.time : '',
+                'وقت الإضافة': o.timestamp || '—'
+            }));
+            
             const ws = XLSX.utils.json_to_sheet(data);
             const wb = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(wb, ws, 'الطلبات');
-            XLSX.writeFile(wb, `طلبات_${currentDate}.xlsx`);
+            
+            const sheetName = currentUserRole === 'client' ? `طلبات ${currentUserFactory}` : 'الطلبات';
+            XLSX.utils.book_append_sheet(wb, ws, sheetName);
+            
+            const fileName = currentUserRole === 'client' 
+                ? `طلبات_${currentUserFactory}_${currentDate}.xlsx`
+                : `طلبات_${currentDate}.xlsx`;
+            
+xlsx.writeFile(wb, fileName);
             showToast('✅ تم التصدير', 'success');
         }
 
-        function showToast(msg,type) { const c=document.getElementById('toastContainer'); const t=document.createElement('div'); t.className=`toast toast-${type}`; t.innerText=msg; c.appendChild(t); setTimeout(()=>t.remove(),3000); }
+        function showToast(msg, type) { 
+            const c = document.getElementById('toastContainer'); 
+            const t = document.createElement('div'); 
+            t.className = `toast toast-${type}`; 
+            t.innerText = msg; 
+            c.appendChild(t); 
+            setTimeout(() => t.remove(), 3000); 
+        }
+        
         function showLoading(s) { document.getElementById('loading').classList.toggle('active', s); }
         function openModal(id) { document.getElementById(id).classList.add('active'); }
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
@@ -403,7 +572,7 @@
                             <a href="logs.html" class="nav-link">📜 السجلات</a>
                         `;
                     } else if (role === 'client') {
-                        navHtml = `<a href="orders.html" class="nav-link active">📝 الطلبات</a>`;
+                        navHtml = `<a href="orders.html" class="nav-link active">📝 طلباتي</a>`;
                     }
                     document.getElementById('navLinks').innerHTML = navHtml;
                 } else window.location.href='/login.html'; 
