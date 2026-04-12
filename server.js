@@ -35,6 +35,35 @@ async function logAction(req, action, details, location) {
     await addLog(username, action, details || null, location || null);
 }
 
+// ==================== إنشاء جدول تقارير الميزان ====================
+async function createScaleReportsTable() {
+    try {
+        await pool.query(`
+            CREATE TABLE IF NOT EXISTS scale_reports (
+                id SERIAL PRIMARY KEY,
+                report_id VARCHAR(100) UNIQUE NOT NULL,
+                report_name VARCHAR(500) NOT NULL DEFAULT 'تقرير بدون اسم',
+                report_date DATE,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                created_by VARCHAR(100) DEFAULT 'unknown',
+                total_rows INTEGER DEFAULT 0,
+                matched_count INTEGER DEFAULT 0,
+                not_matched_count INTEGER DEFAULT 0,
+                total_weight_all NUMERIC DEFAULT 0,
+                drivers_stats JSONB DEFAULT '[]'::jsonb,
+                materials_stats JSONB DEFAULT '[]'::jsonb,
+                top10_drivers JSONB DEFAULT '[]'::jsonb
+            )
+        `);
+        console.log('✅ جدول scale_reports جاهز');
+    } catch (e) {
+        console.error('❌ خطأ في إنشاء جدول scale_reports:', e.message);
+    }
+}
+
+// إنشاء الجدول عند بدء التشغيل
+createScaleReportsTable();
+
 // ==================== دوال قاعدة البيانات الأساسية ====================
 async function getDayData(date) {
     const res = await pool.query('SELECT orders, distribution FROM daily_data WHERE date = $1', [date]);
@@ -366,6 +395,143 @@ app.get('/api/reports/:id', requireAuth, async (req, res) => {
     }
 });
 
+// ==================== تقارير الميزان الشهرية (Scale Reports) ====================
+
+// حفظ تقرير ميزان جديد
+app.post('/api/scale-reports', requireAuth, async (req, res) => {
+    try {
+        const { reportName, reportDate, data } = req.body;
+        if (!data) {
+            return res.status(400).json({ error: 'لا توجد بيانات للحفظ' });
+        }
+
+        const reportId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+
+        await pool.query(
+            `INSERT INTO scale_reports 
+             (report_id, report_name, report_date, created_by, total_rows, matched_count, not_matched_count, total_weight_all, drivers_stats, materials_stats, top10_drivers)
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+            [
+                reportId,
+                reportName || 'تقرير بدون اسم',
+                reportDate || new Date().toISOString().split('T')[0],
+                req.session.user.username,
+                data.totalRows || 0,
+                data.matchedCount || 0,
+                data.notMatchedCount || 0,
+                data.totalWeightAll || 0,
+                JSON.stringify(data.driversStats || []),
+                JSON.stringify(data.materialsStats || []),
+                JSON.stringify(data.top10Drivers || [])
+            ]
+        );
+
+        await logAction(req, 'حفظ تقرير ميزان', `تم حفظ تقرير: ${reportName || 'بدون اسم'}`, null);
+
+        res.json({ success: true, id: reportId, message: 'تم حفظ التقرير بنجاح' });
+    } catch (e) {
+        console.error('❌ خطأ في حفظ تقرير الميزان:', e);
+        res.status(500).json({ error: 'خطأ في حفظ التقرير: ' + e.message });
+    }
+});
+
+// جلب جميع تقارير الميزان (ملخص بدون البيانات الكاملة)
+app.get('/api/scale-reports', requireAuth, async (req, res) => {
+    try {
+        const result = await pool.query(
+            `SELECT id, report_id, report_name, report_date, created_at, created_by, 
+                    total_rows, matched_count, not_matched_count, total_weight_all,
+                    jsonb_array_length(COALESCE(drivers_stats, '[]'::jsonb)) as drivers_count
+             FROM scale_reports 
+             ORDER BY created_at DESC`
+        );
+
+        const summaries = result.rows.map(r => ({
+            id: r.report_id,
+            dbId: r.id,
+            reportName: r.report_name,
+            reportDate: r.report_date,
+            createdAt: r.created_at,
+            createdBy: r.created_by,
+            totalRows: r.total_rows,
+            matchedCount: r.matched_count,
+            notMatchedCount: r.not_matched_count,
+            totalWeight: r.total_weight_all,
+            driversCount: r.drivers_count || 0
+        }));
+
+        res.json(summaries);
+    } catch (e) {
+        console.error('❌ خطأ في جلب تقارير الميزان:', e);
+        res.status(500).json({ error: 'خطأ في جلب التقارير: ' + e.message });
+    }
+});
+
+// جلب تقرير ميزان محدد بالكامل
+app.get('/api/scale-reports/:id', requireAuth, async (req, res) => {
+    try {
+        const reportId = req.params.id;
+        const result = await pool.query(
+            'SELECT * FROM scale_reports WHERE report_id = $1',
+            [reportId]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'التقرير غير موجود' });
+        }
+
+        const r = result.rows[0];
+        res.json({
+            id: r.report_id,
+            dbId: r.id,
+            reportName: r.report_name,
+            reportDate: r.report_date,
+            createdAt: r.created_at,
+            createdBy: r.created_by,
+            data: {
+                totalRows: r.total_rows,
+                matchedCount: r.matched_count,
+                notMatchedCount: r.not_matched_count,
+                totalWeightAll: parseFloat(r.total_weight_all) || 0,
+                driversStats: r.drivers_stats || [],
+                materialsStats: r.materials_stats || [],
+                top10Drivers: r.top10_drivers || []
+            }
+        });
+    } catch (e) {
+        console.error('❌ خطأ في جلب تقرير الميزان:', e);
+        res.status(500).json({ error: 'خطأ في جلب التقرير: ' + e.message });
+    }
+});
+
+// حذف تقرير ميزان
+app.delete('/api/scale-reports/:id', requireAuth, async (req, res) => {
+    try {
+        const reportId = req.params.id;
+
+        // جلب اسم التقرير قبل الحذف للسجل
+        const findResult = await pool.query(
+            'SELECT report_name FROM scale_reports WHERE report_id = $1',
+            [reportId]
+        );
+
+        if (findResult.rows.length === 0) {
+            return res.status(404).json({ error: 'التقرير غير موجود' });
+        }
+
+        const reportName = findResult.rows[0].report_name;
+
+        await pool.query('DELETE FROM scale_reports WHERE report_id = $1', [reportId]);
+
+        await logAction(req, 'حذف تقرير ميزان', `تم حذف تقرير: ${reportName}`, null);
+
+        res.json({ success: true, message: 'تم حذف التقرير بنجاح' });
+    } catch (e) {
+        console.error('❌ خطأ في حذف تقرير الميزان:', e);
+        res.status(500).json({ error: 'خطأ في حذف التقرير: ' + e.message });
+    }
+});
+
 // ==================== صفحات HTML ====================
 app.get('/login.html', (req, res) => {
     res.sendFile(path.join(__dirname, 'login.html'));
@@ -379,7 +545,7 @@ app.get('/', (req, res) => {
     }
 });
 
-const allProtectedPages = ['index.html', 'orders.html', 'distribution.html', 'trucks.html', 'products.html', 'factories.html', 'reports.html', 'settings.html', 'restrictions.html', 'users.html', 'logs.html', 'upload-report.html'];
+const allProtectedPages = ['index.html', 'orders.html', 'distribution.html', 'trucks.html', 'products.html', 'factories.html', 'reports.html', 'settings.html', 'restrictions.html', 'users.html', 'logs.html', 'upload-report.html', 'scale_report.html'];
 allProtectedPages.forEach(page => {
     app.get(`/${page}`, (req, res) => {
         if (!req.session || !req.session.user) return res.redirect('/login.html');
