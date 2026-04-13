@@ -93,10 +93,11 @@
             border: none;
             color: white;
             cursor: pointer;
-            font-size: 1.2rem;
+            font-size: 1rem;
             padding: 8px 12px;
             border-radius: 8px;
             transition: 0.2s;
+            white-space: nowrap;
         }
         .toggle-password:hover {
             background: #667eea;
@@ -267,10 +268,7 @@
         </div>
         <div class="form-group">
             <label>كلمة مرور جديدة (اختياري)</label>
-            <div class="password-wrapper">
-                <input type="password" id="editPassword">
-                <button type="button" class="toggle-password" id="toggleEditPassword" onclick="togglePasswordVisibility('editPassword', this)">👁️ إظهار</button>
-            </div>
+            <input type="password" id="editPassword">
         </div>
         <div id="editPermissionsGrid"></div>
         <div style="margin-top:20px;">
@@ -284,9 +282,8 @@
     const API_BASE = '/api';
     let users = [], currentUserRole = '', currentUserPermissions = {};
 
-    // دالة إظهار/إخفاء كلمة المرور بشرط أن المستخدم الحالي هو مدير
+    // دالة إظهار/إخفاء كلمة المرور (للمدير فقط)
     function togglePasswordVisibility(inputId, btnElement) {
-        // التحقق من صلاحية المدير
         if (currentUserRole !== 'admin') {
             showToast("❌ غير مسموح لك بعرض كلمة المرور. هذه الخاصية للمدير فقط.", "error");
             return;
@@ -466,13 +463,6 @@
         document.getElementById('editUserId').value = user.id;
         document.getElementById('editRole').value = user.role;
         document.getElementById('editPassword').value = '';
-        // إعادة زر الإظهار في المودال
-        const editPassInput = document.getElementById('editPassword');
-        const toggleBtn = document.getElementById('toggleEditPassword');
-        if (editPassInput.type !== 'password') {
-            editPassInput.type = 'password';
-            if (toggleBtn) toggleBtn.textContent = '👁️ إظهار';
-        }
         const container = document.getElementById('editPermissionsGrid');
         const perms = user.permissions || {};
         const allPerms = ['viewOrders','addOrders','editOrders','deleteOrders','viewDistribution','manageDistribution','viewTrucks','manageTrucks','viewReports','exportReports','viewSettings','manageSettings','viewBackup','manageBackup','manageUsers','manageRestrictions'];
@@ -507,18 +497,29 @@
     function renderUsersTable() {
         const tbody = document.getElementById('usersBody');
         if(!users.length) { tbody.innerHTML = '<tr><td colspan="5">لا يوجد مستخدمين</td></tr>'; return; }
-        tbody.innerHTML = users.map((u,i) => `
+        tbody.innerHTML = users.map((u,i) => {
+            // معالجة التاريخ بشكل آمن
+            let formattedDate = 'غير محدد';
+            if (u.created_at) {
+                try {
+                    const date = new Date(u.created_at);
+                    if (!isNaN(date.getTime())) {
+                        formattedDate = date.toLocaleDateString('ar-SA');
+                    }
+                } catch(e) { console.warn(e); }
+            }
+            return `
             <tr>
                 <td>${i+1}</td>
                 <td>${escapeHtml(u.username)}</td>
                 <td>${u.role === 'admin' ? 'مدير' : 'مستخدم'}</td>
-                <td>${new Date(u.createdAt).toLocaleDateString('ar-SA')}</td>
+                <td>${formattedDate}</td>
                 <td>
                     <button class="btn btn-warning btn-sm" onclick="openEditModal(${JSON.stringify(u).replace(/"/g, '&quot;')})">✏️ تعديل</button>
                     <button class="btn btn-danger btn-sm" onclick="deleteUser(${u.id}, '${escapeHtml(u.username)}')">🗑️ حذف</button>
                  </td>
-            </tr>
-        `).join('');
+            </table>
+        `}).join('');
     }
 
     function escapeHtml(str) {
