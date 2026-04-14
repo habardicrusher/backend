@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>تقارير الميزان - كسارة الحبردي (نسبة إنجاز كل سائق حسب الرحلات)</title>
+  <title>تقارير الميزان - كسارة الحبردي (نسبة إنجاز كل سائق)</title>
   <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -294,7 +294,7 @@
         <div class="expected-field"><label>🗓️ عدد أيام الإجازات</label><input type="number" id="holidaysCount" value="0" min="0" step="1" style="direction: ltr;"></div>
         <div><button class="btn-primary" id="calcExpectedBtn" style="background:#f7971e;">🧮 حساب أيام العمل</button></div>
       </div>
-      <div id="expectedInfo" class="status" style="background: rgba(247,151,30,0.2);">📊 أدخل عدد أيام الإجازات واضغط على الزر لحساب أيام العمل والرحلات المتوقعة لكل سائق.</div>
+      <div id="expectedInfo" class="status" style="background: rgba(247,151,30,0.2);">📊 أدخل عدد أيام الإجازات واضغط على الزر لحساب أيام العمل والحد الأقصى لرحلات السائق.</div>
 
       <div id="statusMsg" class="status">✅ انتظار رفع ملف Excel...</div>
       <div class="save-section" id="saveSection"><h3>💾 حفظ التقرير في قاعدة البيانات</h3>
@@ -332,10 +332,9 @@
       <div class="merged-chart-card"><div class="chart-title">🥧 نسب البحص</div><div class="chart-wrap"><canvas id="mergedMaterialDoughnut"></canvas></div></div></div>
       <div class="charts-row"><div class="merged-chart-card"><div class="chart-title">🏆 أعلى 10 سائقين بالرحلات</div><div class="chart-wrap"><canvas id="mergedTopDriversBar"></canvas></div></div>
       <div class="merged-chart-card"><div class="chart-title">📅 الرحلات والوزن لكل تقرير</div><div class="chart-wrap"><canvas id="mergedReportsLine"></canvas></div></div></div>
-      <div class="charts-row"><div class="merged-chart-card"><div class="chart-title">⚖️ أعلى 10 سائقين بالوزن</div><div class="chart-wrap"><canvas id="mergedDriversWeightBar"></canvas></div></div>
-      <div class="merged-chart-card"><div class="chart-title">📊 نسبة الإنجاز المتوقعة لكل تقرير</div><div class="chart-wrap"><canvas id="mergedAchievementBar"></canvas></div></div></div>
+      <div class="charts-row"><div class="merged-chart-card"><div class="chart-title">⚖️ أعلى 10 سائقين بالوزن</div><div class="chart-wrap"><canvas id="mergedDriversWeightBar"></canvas></div></div></div>
       <div class="merged-card"><h3>🚛 جدول السائقين المجمّع (مع نسبة إنجاز كل سائق)</h3><div class="merged-table"><table id="mergedDriverTable"><thead><tr><th>#</th><th>اسم السائق</th><th>إجمالي الرحلات</th><th>الوزن (كجم)</th><th>الوزن (طن)</th><th>نسبة الإنجاز %</th></tr></thead><tbody></tbody></table></div></div>
-      <div class="merged-card"><h3>📦 جدول المواد المجمّع</h3><div class="merged-table"><table id="mergedMaterialTable"><thead><tr><th>#</th><th>نوع البحص</th><th>الوزن (كجم)</th><th>الوزن (طن)</th><th>النسبة</th></tr></thead><tbody></tbody></table></div></div>
+      <div class="merged-card"><h3>📦 جدول المواد المجمّع</h3><div class="merged-table"><table id="mergedMaterialTable"><thead><tr><th>#</th><th>نوع البحص</th><th>الوزن (كجم)</th><th>الوزن (طن)</th><th>النسبة</th></tr></thead><tbody></tbody></td></div></div>
     </div>
   </div>
 </div>
@@ -416,7 +415,6 @@ function processData(rows){
 }
 
 function displayUI(res){
-  // عرض الإحصائيات الأساسية فقط (بدون نسبة الإنجاز الكلية الخاطئة)
   document.getElementById("metricsGrid").style.display="grid";
   document.getElementById("metricsGrid").innerHTML = `
     <div class="stat-card"><div class="stat-label">إجمالي الصفوف</div><div class="stat-value">${res.totalRows}</div></div>
@@ -425,7 +423,6 @@ function displayUI(res){
     <div class="stat-card"><div class="stat-label">عدد السائقين</div><div class="stat-value">${res.driversStats.length}</div></div>
     <div class="stat-card"><div class="stat-label">إجمالي الوزن (طن)</div><div class="stat-value">${(res.totalWeightAll/1000).toFixed(1)} طن</div></div>
   `;
-  // جدول السائقين مع نسبة الإنجاز بناءً على الحد الأقصى لكل سائق (2 رحلة × أيام العمل)
   const tbody = document.querySelector("#driverTable tbody");
   tbody.innerHTML = "";
   for(let d of res.driversStats){
@@ -550,7 +547,7 @@ async function deleteSavedReport(id, name) {
   showLoading(false);
 }
 
-// تجميع التقارير مع عرض نسبة الإنجاز لكل سائق (تعتمد على أيام العمل الخاصة بكل تقرير)
+// تجميع التقارير
 async function mergeAllReports() {
   showLoading(true);
   try {
@@ -562,7 +559,7 @@ async function mergeAllReports() {
       const full = await fetch(`${API_BASE}/scale-reports/${r.id}`, { credentials:'include' }).then(res=>res.json());
       reportsData.push({ meta: r, data: full.data, workingDays: full.workingDays, maxTripsPerDriver: full.maxTripsPerDriver });
     }
-    const mergedDriverMap = new Map(); // {name: {trips, weight}}
+    const mergedDriverMap = new Map();
     const mergedMaterialMap = new Map();
     let totalRows=0, totalMatched=0, totalWeightAll=0;
     for(let {data} of reportsData){
@@ -592,19 +589,26 @@ function renderMergedUI(m, reportsMeta){
     <div class="stat-card"><div class="stat-label">الوزن (طن)</div><div class="stat-value">${(m.totalWeightAll/1000).toFixed(1)}</div></div>
     <div class="stat-card"><div class="stat-label">عدد السائقين</div><div class="stat-value">${m.mergedDrivers.length}</div></div>
   `;
-  // رسم نسبة الإنجاز لكل تقرير (اختياري)
-  const ctxAch = document.getElementById('mergedAchievementBar').getContext('2d');
-  if(window.achChart) window.achChart.destroy();
-  const achLabels = m.reportsData.map(r=>r.meta.reportName);
-  const achData = m.reportsData.map(r=>{
-    if(r.workingDays && r.data?.matchedCount) return (r.data.matchedCount / (r.workingDays * 2) * 100).toFixed(1);
-    return 0;
+  // رسم بياني للرحلات والوزن لكل تقرير (بدون نسبة إنجاز)
+  const ctxLine = document.getElementById('mergedReportsLine').getContext('2d');
+  if(window.lineChart) window.lineChart.destroy();
+  const rLabels = m.reportsData.map(r => r.meta.reportName || r.meta.reportDate);
+  window.lineChart = new Chart(ctxLine, {
+    type: 'bar',
+    data: {
+      labels: rLabels,
+      datasets: [
+        { label:'الرحلات', data: m.reportsData.map(r=>r.data.matchedCount||0), backgroundColor:'rgba(79,172,254,0.7)', borderRadius:6, yAxisID:'y' },
+        { label:'الوزن (طن)', data: m.reportsData.map(r=>((r.data.totalWeightAll||0)/1000).toFixed(1)), backgroundColor:'rgba(56,239,125,0.5)', borderRadius:6, yAxisID:'y1', type:'line', tension:0.4 }
+      ]
+    },
+    options: { responsive:true, maintainAspectRatio:false, plugins:{ legend:{ labels:{ color:'#a8b2d1' } } }, scales:{ y:{ ticks:{color:'#4facfe'}, title:{display:true,text:'الرحلات',color:'#4facfe'} }, y1:{ position:'left', ticks:{color:'#38ef7d'}, title:{display:true,text:'الوزن (طن)',color:'#38ef7d'}, grid:{drawOnChartArea:false} }, x:{ ticks:{color:'#a8b2d1', maxRotation:30} } } }
   });
-  window.achChart = new Chart(ctxAch, { type:'bar', data:{ labels:achLabels, datasets:[{ label:'نسبة الإنجاز الكلية % (حسب الرحلات المتوقعة للكل)', data:achData, backgroundColor:'#ffd200', borderRadius:8 }] }, options:{ responsive:true, maintainAspectRatio:false, scales:{ y:{ max:100, ticks:{ callback: v=>v+'%' } } } } });
-  // جدول السائقين المجمع (نعرض نسبة الإنجاز بناءً على مجموع رحلات السائق مقارنة بمجموع الرحلات المتوقعة للكل - غير دقيق، لذا نعرض "—")
+  // جداول
   const dtbody = document.querySelector('#mergedDriverTable tbody');
   dtbody.innerHTML = '';
   m.mergedDrivers.slice(0,50).forEach((d,i)=>{
+    // لا يمكن حساب نسبة إنجاز دقيقة في التجميع لأن كل تقرير له أيام عمل مختلفة، نعرض "—"
     let tr = dtbody.insertRow();
     tr.innerHTML = `<td>${i+1}</td><td>${d.name}</td><td>${d.trips}</td><td>${d.totalWeight}</td><td>${(d.totalWeight/1000).toFixed(2)}</td><td>—</td>`;
   });
@@ -613,13 +617,14 @@ function renderMergedUI(m, reportsMeta){
   m.mergedMaterials.forEach((mat,i)=>{ mtbody.insertRow().innerHTML = `<td>${i+1}</td><td>${mat.name}</td><td>${mat.weight}</td><td>${(mat.weight/1000).toFixed(2)}</td><td>${((mat.weight/m.totalWeightAll)*100).toFixed(1)}%</td>`; });
 }
 
+// تصدير Excel متقدم (بدون نسبة إنجاز كلي)
 async function exportAdvancedExcel(res, filename) {
   if(!res) return;
   showLoading(true);
   try {
     const wb = new ExcelJS.Workbook();
     const ws = wb.addWorksheet('ملخص التقرير', { views:[{ rightToLeft:true }] });
-    ws.mergeCells('A1:B1'); ws.getCell('A1').value='📊 تقرير الميزان مع نسبة إنجاز كل سائق'; ws.getCell('A1').font={ bold:true, size:18 };
+    ws.mergeCells('A1:B1'); ws.getCell('A1').value='📊 تقرير الميزان'; ws.getCell('A1').font={ bold:true, size:18 };
     ws.getRow(2).values = ['إجمالي الرحلات المحققة', res.matchedCount];
     ws.getRow(3).values = ['أيام العمل في الشهر', currentWorkingDays];
     ws.getRow(4).values = ['الحد الأقصى لرحلات السائق الواحد', currentMaxTripsPerDriver];
