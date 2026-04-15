@@ -135,17 +135,17 @@
 <div class="container">
   <div class="header">
     <h1>⚖️ تقارير الميزان الشهرية</h1>
-    <p>تحليل ملفات Excel وحفظها على الخادم - دمج تقارير متعددة</p>
+    <p>تحليل ملفات Excel وحفظها على الخادم - دمج تقارير متعددة مع جمع أيام العمل</p>
     <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"></div>
   </div>
   <div class="nav-links" id="navLinks"></div>
   <div class="card">
-    <!-- إعدادات أيام الشهر والإجازات -->
+    <!-- إعدادات أيام الشهر والإجازات (تستخدم فقط للعرض اليدوي وليس للدمج) -->
     <div class="settings-row">
       <div class="vacation-control">
-        <div class="upload-field"><label>📅 عدد أيام الشهر</label><input type="number" id="monthDays" min="28" max="31" value="30" step="1"></div>
+        <div class="upload-field"><label>📅 عدد أيام الشهر (للتقرير الحالي)</label><input type="number" id="monthDays" min="28" max="31" value="30" step="1"></div>
         <div class="upload-field"><label>📅 أيام الإجازات الرسمية</label><input type="number" id="officialVacations" min="0" max="31" value="4" step="1"></div>
-        <button class="btn-warning" id="applyRodaCalc">🔄 احسب الرودات</button>
+        <button class="btn-warning" id="applyRodaCalc">🔄 احسب الرودات للتقرير الحالي</button>
       </div>
     </div>
 
@@ -168,7 +168,7 @@
     <div id="metricsGrid" class="stats-grid" style="display:none;"></div>
     <div id="chartsArea" style="display:none;">
       <div class="charts-row"><div class="chart-card"><div class="chart-title">📦 الأوزان حسب نوع البحص</div><div class="chart-wrap"><canvas id="materialChart"></canvas></div></div><div class="chart-card"><div class="chart-title">🏆 أعلى 10 سائقين بالرحلات</div><div class="chart-wrap"><canvas id="topDriversChart"></canvas></div></div></div>
-      <div class="driver-table"><div class="chart-title">🚛 تفاصيل السائقين + الرودات والنسبة</div><table id="driverTable"><thead><tr><th>السائق</th><th>عدد الرحلات</th><th>الوزن (كجم)</th><th>أيام إجازة إضافية (إجمالي)</th><th>الرودات المطلوبة (إجمالي)</th><th>النسبة %</th></tr></thead><tbody></tbody></table></div>
+      <div class="driver-table"><div class="chart-title">🚛 تفاصيل السائقين + إجمالي الرودات والنسبة (بعد الدمج)</div><table id="driverTable"><thead><tr><th>السائق</th><th>عدد الرحلات</th><th>الوزن (كجم)</th><th>إجمالي أيام العمل الفعلية</th><th>الرودات المطلوبة</th><th>النسبة %</th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>
 </div>
@@ -209,7 +209,7 @@
 
   let materialChart=null, topDriversChart=null;
   let currentResult=null;               // البيانات الأساسية (من ملف أو دمج)
-  let currentDriversWithVacation=[];    // السائقين مع إجازاتهم الإضافية والرودات المحسوبة
+  let currentDriversWithDetails=[];    // كل سائق مع إجمالي أيام العمل والرودات والنسبة
   let currentMonthDays=30, currentOfficialVacations=4;
 
   // ---------- API الاتصال بالخادم ----------
@@ -240,27 +240,30 @@
     return await res.json();
   }
 
-  // حساب الرودات والنسبة بناءً على (أيام الشهر - الإجازات الرسمية - الإجازات الإضافية) لكل سائق
-  function computeRodaAndPercentage(driversList, monthDays, officialVac, extraVacMap){
+  // حساب الرودات والنسبة لتقرير واحد (بناءً على أيام الشهر الحالية)
+  function computeRodaAndPercentageSingle(driversList, monthDays, officialVac, extraVacMap){
     const workDaysBase=Math.max(0, monthDays - officialVac);
     return driversList.map(d=>{
       const extra=extraVacMap.get(d.name)||0;
       const effective=Math.max(0, workDaysBase - extra);
       const required=effective*2;
       const percent=required>0 ? (d.trips/required)*100 : 0;
-      return {...d, extraVacationDays:extra, requiredRoda:required, percentage:Math.min(100,percent).toFixed(2)};
+      return { name:d.name, trips:d.trips, totalWeight:d.totalWeight, workDays:effective, requiredRoda:required, percentage:Math.min(100,percent).toFixed(2) };
     });
   }
 
-  // دالة التحديث بعد تغيير الإجازات اليدوية
-  function updateCurrentDisplay(){
+  // دالة التحديث للتقرير الحالي (بعد رفع ملف)
+  function updateCurrentDisplaySingle(){
     if(!currentResult) return;
     const monthDays=parseInt(document.getElementById("monthDays").value)||30;
     const officialVac=parseInt(document.getElementById("officialVacations").value)||0;
     currentMonthDays=monthDays; currentOfficialVacations=officialVac;
-    const extraMap=new Map(); currentDriversWithVacation.forEach(d=>extraMap.set(d.name,d.extraVacationDays));
-    const updated=computeRodaAndPercentage(currentResult.driversStats, monthDays, officialVac, extraMap);
-    currentDriversWithVacation=updated;
+    const extraMap=new Map(); 
+    if(currentDriversWithDetails.length){
+      currentDriversWithDetails.forEach(d=>extraMap.set(d.name,0)); // لا توجد إجازات إضافية محفوظة
+    }
+    const updated=computeRodaAndPercentageSingle(currentResult.driversStats, monthDays, officialVac, extraMap);
+    currentDriversWithDetails=updated;
     renderDriverTable(updated);
     // تحديث الإحصائيات العلوية
     document.getElementById("metricsGrid").innerHTML=`
@@ -276,7 +279,7 @@
     const topMats=currentResult.materialsStats.slice(0,10);
     materialChart=new Chart(document.getElementById("materialChart"),{type:"bar",data:{labels:topMats.map(m=>m.name),datasets:[{label:"الوزن (طن)",data:topMats.map(m=>m.weight/1000),backgroundColor:"#38ef7d"}]},options:{responsive:true,maintainAspectRatio:false}});
     if(topDriversChart) topDriversChart.destroy();
-    const top10=currentDriversWithVacation.slice(0,10);
+    const top10=currentDriversWithDetails.slice(0,10);
     topDriversChart=new Chart(document.getElementById("topDriversChart"),{type:"bar",data:{labels:top10.map(d=>d.name),datasets:[{label:"عدد الرحلات",data:top10.map(d=>d.trips),backgroundColor:"#4facfe"}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y'}});
   }
 
@@ -288,11 +291,7 @@
       tr.insertCell(0).textContent=d.name;
       tr.insertCell(1).textContent=d.trips;
       tr.insertCell(2).textContent=d.totalWeight.toLocaleString();
-      let vacCell=tr.insertCell(3);
-      let inp=document.createElement("input");
-      inp.type="number"; inp.value=d.extraVacationDays; inp.min=0; inp.max=100;
-      inp.addEventListener("change",()=>{ d.extraVacationDays=parseInt(inp.value)||0; updateCurrentDisplay(); });
-      vacCell.appendChild(inp);
+      tr.insertCell(3).textContent=d.workDays || 0;
       tr.insertCell(4).textContent=d.requiredRoda;
       let perc=parseFloat(d.percentage);
       let color=perc>=100?"#38ef7d":(perc>=70?"#ffd966":"#ff9999");
@@ -310,13 +309,13 @@
     return processData(rows);
   }
 
-  // دمج عدة تقارير مع جمع أيام العمل الفعلية لكل سائق
+  // دمج عدة تقارير مع جمع أيام العمل الفعلية لكل سائق عبر الأشهر
   async function mergeReports(reportIds){
     showLoading(true);
     try{
-      // هيكل لتجميع البيانات لكل سائق: { totalTrips, totalWeight, totalWorkDays (أيام العمل الفعلية) }
-      let driversAgg=new Map(); // name -> { trips, weight, workDays }
-      let materialsAgg=new Map(); // name -> weight
+      // هيكل التجميع: لكل سائق -> { totalTrips, totalWeight, totalWorkDays }
+      let driversAgg=new Map(); // key: driver name
+      let materialsAgg=new Map();
       let totalRows=0, matchedCount=0, notMatchedCount=0, totalWeightAll=0;
 
       for(let id of reportIds){
@@ -326,20 +325,26 @@
         matchedCount+=data.matchedCount||0;
         notMatchedCount+=data.notMatchedCount||0;
         totalWeightAll+=data.totalWeightAll||0;
+        
         const monthDays=data.monthDays||30;
         const officialVac=data.officialVacations||4;
         const workDaysBase=Math.max(0, monthDays - officialVac);
-        // معالجة السائقين
+        
+        // معالجة السائقين من هذا التقرير
         for(let d of (data.driversStats||[])){
-          let extra=d.extraVacationDays||0;
-          let effectiveWorkDays=Math.max(0, workDaysBase - extra);
+          const extraVac=d.extraVacationDays||0;
+          const effectiveWorkDays=Math.max(0, workDaysBase - extraVac);
           let existing=driversAgg.get(d.name);
           if(existing){
             existing.trips+=d.trips;
             existing.weight+=d.totalWeight;
             existing.workDays+=effectiveWorkDays;
           } else {
-            driversAgg.set(d.name,{trips:d.trips, weight:d.totalWeight, workDays:effectiveWorkDays});
+            driversAgg.set(d.name,{
+              trips:d.trips,
+              weight:d.totalWeight,
+              workDays:effectiveWorkDays
+            });
           }
         }
         // معالجة المواد
@@ -349,14 +354,15 @@
           else materialsAgg.set(m.name,{name:m.name, weight:m.weight});
         }
       }
-      // تحويل aggregated data إلى قوائم
+      
+      // تحويل إلى قوائم
       const driversList=Array.from(driversAgg.entries()).map(([name,agg])=>({
         name, trips:agg.trips, totalWeight:agg.weight, workDays:agg.workDays
       })).sort((a,b)=>b.trips-a.trips);
       
       const materialsList=Array.from(materialsAgg.values()).sort((a,b)=>b.weight-a.weight);
       
-      // حساب الرودات المطلوبة والنسبة لكل سائق بناءً على إجمالي أيام العمل الفعلية
+      // حساب الرودات المطلوبة والنسبة لكل سائق
       const driversWithRoda=driversList.map(d=>{
         const requiredRoda=d.workDays * 2;
         const percent=requiredRoda>0 ? (d.trips/requiredRoda)*100 : 0;
@@ -364,7 +370,7 @@
           name:d.name,
           trips:d.trips,
           totalWeight:d.totalWeight,
-          extraVacationDays:0, // في الدمج لا نحتفظ بالإجازات الفردية لأنها دخلت في workDays
+          workDays:d.workDays,
           requiredRoda:requiredRoda,
           percentage:Math.min(100,percent).toFixed(2)
         };
@@ -377,18 +383,13 @@
         materialsStats:materialsList,
         top10Drivers:driversList.slice(0,10).map(d=>({name:d.name, trips:d.trips}))
       };
-      currentDriversWithVacation=driversWithRoda;
-      // لا نحتاج لقيم أيام الشهر والإجازات لأن الرودات حسبت من العمل الفعلي لكل سائق
-      // ولكن نضع قيماً افتراضية للواجهة
-      currentMonthDays=30; currentOfficialVacations=0;
-      document.getElementById("monthDays").value=30;
-      document.getElementById("officialVacations").value=0;
+      currentDriversWithDetails=driversWithRoda;
+      
+      // عرض البيانات
       document.getElementById("metricsGrid").style.display="grid";
       document.getElementById("chartsArea").style.display="block";
-      updateCurrentDisplay(); // سيعيد حساب الرودات بناءً على القيم الافتراضية لكننا نريد استخدام المحسوبة مسبقاً، لذلك نعدل قليلاً
-      // نستبدل الجدول بالبيانات المحسوبة مباشرة
-      renderDriverTable(currentDriversWithVacation);
-      // تحديث الإحصائيات العلوية يدوياً
+      
+      // تحديث الإحصائيات العلوية
       document.getElementById("metricsGrid").innerHTML=`
         <div class="stat-card"><div class="stat-label">إجمالي الصفوف</div><div class="stat-value">${currentResult.totalRows}</div></div>
         <div class="stat-card"><div class="stat-label">رحلاتنا</div><div class="stat-value">${currentResult.matchedCount}</div></div>
@@ -397,21 +398,27 @@
         <div class="stat-card"><div class="stat-label">عدد السائقين</div><div class="stat-value">${currentResult.driversStats.length}</div></div>
         <div class="stat-card"><div class="stat-label">إجمالي الوزن (طن)</div><div class="stat-value">${(currentResult.totalWeightAll/1000).toFixed(1)} طن</div></div>
       `;
+      
       // تحديث الرسوم البيانية
       if(materialChart) materialChart.destroy();
       const topMats=currentResult.materialsStats.slice(0,10);
       materialChart=new Chart(document.getElementById("materialChart"),{type:"bar",data:{labels:topMats.map(m=>m.name),datasets:[{label:"الوزن (طن)",data:topMats.map(m=>m.weight/1000),backgroundColor:"#38ef7d"}]},options:{responsive:true,maintainAspectRatio:false}});
       if(topDriversChart) topDriversChart.destroy();
-      const top10=currentDriversWithVacation.slice(0,10);
+      const top10=currentDriversWithDetails.slice(0,10);
       topDriversChart=new Chart(document.getElementById("topDriversChart"),{type:"bar",data:{labels:top10.map(d=>d.name),datasets:[{label:"عدد الرحلات",data:top10.map(d=>d.trips),backgroundColor:"#4facfe"}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y'}});
+      
+      renderDriverTable(currentDriversWithDetails);
       
       document.getElementById("statusMsg").innerHTML=`✅ تم دمج ${reportIds.length} تقرير بنجاح (تم جمع أيام العمل الفعلية).`;
       showToast(`تم دمج ${reportIds.length} تقارير`, "success");
-    } catch(e){ showToast("خطأ في الدمج: "+e.message,"error"); } finally{ showLoading(false); }
+    } catch(e){ 
+      console.error(e);
+      showToast("خطأ في الدمج: "+e.message,"error"); 
+    } finally{ showLoading(false); }
   }
 
-  // تصدير متقدم 8 أوراق (مختصر لكنه كافٍ)
-  async function exportAdvancedExcel(res, drivers, monthDays, officialVac, filename){
+  // تصدير متقدم 8 أوراق
+  async function exportAdvancedExcel(res, drivers, filename){
     if(!res){ showToast("لا توجد بيانات","error"); return; }
     showLoading(true);
     try{
@@ -421,13 +428,13 @@
       ws1.columns=[{width:35},{width:25}];
       ws1.mergeCells('A1:B1'); ws1.getCell('A1').value='📊 تقرير الميزان الشهري'; ws1.getCell('A1').font={bold:true,size:20};
       ws1.getCell('A1').alignment={horizontal:'center'};
-      const metrics=[['إجمالي الصفوف',res.totalRows],['رحلاتنا',res.matchedCount],['غير تابعة',res.notMatchedCount],['نسبة الإنجاز',((res.matchedCount/res.totalRows)*100).toFixed(2)+'%'],['عدد السائقين',drivers.length],['الوزن الكلي (طن)',(res.totalWeightAll/1000).toFixed(2)],['أيام الشهر (متوسط)',monthDays],['إجازات رسمية (متوسط)',officialVac]];
+      const metrics=[['إجمالي الصفوف',res.totalRows],['رحلاتنا',res.matchedCount],['غير تابعة',res.notMatchedCount],['نسبة الإنجاز',((res.matchedCount/res.totalRows)*100).toFixed(2)+'%'],['عدد السائقين',drivers.length],['الوزن الكلي (طن)',(res.totalWeightAll/1000).toFixed(2)]];
       metrics.forEach((m,i)=>{ let r=ws1.getRow(4+i); r.values=m; });
       const ws2=wb.addWorksheet('تقرير السائقين',{views:[{rightToLeft:true}]});
       ws2.columns=[{width:8},{width:28},{width:18},{width:18},{width:18},{width:18},{width:18}];
       ws2.getCell('A1').value='🚛 السائقين والرودات'; ws2.mergeCells('A1:G1');
-      ws2.getRow(2).values=['#','السائق','الرحلات','الوزن','أيام إجازة إضافية','الرودات المطلوبة','النسبة%'];
-      drivers.forEach((d,i)=>{ ws2.getRow(3+i).values=[i+1,d.name,d.trips,d.totalWeight,d.extraVacationDays,d.requiredRoda,d.percentage+'%']; });
+      ws2.getRow(2).values=['#','السائق','الرحلات','الوزن','أيام العمل الفعلية','الرودات المطلوبة','النسبة%'];
+      drivers.forEach((d,i)=>{ ws2.getRow(3+i).values=[i+1,d.name,d.trips,d.totalWeight,d.workDays||0,d.requiredRoda,d.percentage+'%']; });
       const ws3=wb.addWorksheet('تقرير المواد',{views:[{rightToLeft:true}]});
       ws3.columns=[{width:8},{width:20},{width:22},{width:22}];
       ws3.getCell('A1').value='📦 المواد'; ws3.mergeCells('A1:D1');
@@ -445,6 +452,7 @@
       showToast("✅ تم تصدير 8 أوراق","success");
     } catch(e){ showToast("خطأ تصدير: "+e.message,"error"); } finally{ showLoading(false); }
   }
+  
   async function exportSimpleExcel(res,filename){
     const wb=new ExcelJS.Workbook();
     const ws=wb.addWorksheet("Report");
@@ -466,16 +474,16 @@
       const result=await processExcelFile(file);
       currentResult=result;
       const extraMap=new Map();
-      currentDriversWithVacation=computeRodaAndPercentage(result.driversStats, currentMonthDays, currentOfficialVacations, extraMap);
+      currentDriversWithDetails=computeRodaAndPercentageSingle(result.driversStats, currentMonthDays, currentOfficialVacations, extraMap);
       document.getElementById("metricsGrid").style.display="grid";
       document.getElementById("chartsArea").style.display="block";
-      updateCurrentDisplay();
+      updateCurrentDisplaySingle();
       document.getElementById("statusMsg").innerHTML="✅ تم تحليل الملف وعرضه.";
     } catch(e){ showToast(e.message,"error"); } finally{ showLoading(false); }
   };
-  document.getElementById("applyRodaCalc").onclick=()=>{ updateCurrentDisplay(); showToast("تم تحديث الرودات","success"); };
+  document.getElementById("applyRodaCalc").onclick=()=>{ updateCurrentDisplaySingle(); showToast("تم تحديث الرودات للتقرير الحالي","success"); };
   document.getElementById("exportExcelBtn").onclick=async()=>{ if(currentResult) await exportSimpleExcel(currentResult, document.getElementById("outputName").value.trim()||"Monthly_Report.xlsx"); else showToast("لا توجد بيانات","error"); };
-  document.getElementById("exportAdvancedBtn").onclick=async()=>{ if(currentResult) await exportAdvancedExcel(currentResult, currentDriversWithVacation, currentMonthDays, currentOfficialVacations, document.getElementById("outputName").value.trim()||"Monthly_Report.xlsx"); else showToast("لا توجد بيانات","error"); };
+  document.getElementById("exportAdvancedBtn").onclick=async()=>{ if(currentResult) await exportAdvancedExcel(currentResult, currentDriversWithDetails, document.getElementById("outputName").value.trim()||"Monthly_Report.xlsx"); else showToast("لا توجد بيانات","error"); };
   document.getElementById("saveCurrentReportBtn").onclick=async()=>{
     if(!currentResult){ showToast("لا توجد بيانات للحفظ","error"); return; }
     let name=prompt("أدخل اسم التقرير (مثال: شهر فبراير):","");
@@ -484,8 +492,8 @@
     try{
       const reportData={
         totalRows:currentResult.totalRows, matchedCount:currentResult.matchedCount, notMatchedCount:currentResult.notMatchedCount, totalWeightAll:currentResult.totalWeightAll,
-        driversStats:currentDriversWithVacation.map(d=>({name:d.name, trips:d.trips, totalWeight:d.totalWeight, extraVacationDays:d.extraVacationDays, requiredRoda:d.requiredRoda, percentage:d.percentage})),
-        materialsStats:currentResult.materialsStats, top10Drivers:currentDriversWithVacation.slice(0,10).map(d=>({name:d.name, trips:d.trips})),
+        driversStats:currentDriversWithDetails.map(d=>({name:d.name, trips:d.trips, totalWeight:d.totalWeight, extraVacationDays:0, requiredRoda:d.requiredRoda, percentage:d.percentage})),
+        materialsStats:currentResult.materialsStats, top10Drivers:currentDriversWithDetails.slice(0,10).map(d=>({name:d.name, trips:d.trips})),
         monthDays:currentMonthDays, officialVacations:currentOfficialVacations
       };
       await saveReportToServer(name, reportData);
@@ -531,13 +539,12 @@
 
   function showToast(msg,type){ let t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg; document.getElementById('toastContainer').appendChild(t); setTimeout(()=>t.remove(),3000); }
   function showLoading(show){ document.getElementById('loading').classList.toggle('active',show); }
+  
   window.onload=async()=>{
     await loadReportsList();
-    // إعادة الناف بار
+    // إضافة الناف بار
     const navContainer=document.getElementById('navLinks');
-    if(navContainer && typeof window.loadNavbar === 'function') window.loadNavbar();
-    else if(document.getElementById('logout-btn-container')){
-      // محاكاة بسيطة
+    if(navContainer){
       navContainer.innerHTML=`<a class="nav-link" href="index.html">🏠 الرئيسية</a><a class="nav-link" href="orders.html">📦 الطلبات</a><a class="nav-link" href="distribution.html">🚛 التوزيع</a><a class="nav-link" href="reports.html">📊 التقارير</a><a class="nav-link active" href="scale_report.html">⚖️ الميزان</a>`;
     }
   };
