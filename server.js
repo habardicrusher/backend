@@ -436,5 +436,71 @@ app.get('/', (req, res) => {
     } else res.redirect('/login.html');
 });
 app.use(express.static(__dirname));
+// ==================== جدول أسباب السيارات المخالفة ====================
+async function createTruckViolationsTable() {
+    await pool.query(`
+        CREATE TABLE IF NOT EXISTS truck_violations (
+            id SERIAL PRIMARY KEY,
+            report_date DATE NOT NULL,
+            truck_number VARCHAR(50) NOT NULL,
+            driver_name VARCHAR(100),
+            trips_count INTEGER DEFAULT 0,
+            reason TEXT,
+            details TEXT,
+            created_at TIMESTAMP DEFAULT NOW(),
+            created_by VARCHAR(100),
+            UNIQUE(report_date, truck_number)
+        )
+    `);
+    console.log('✅ جدول truck_violations جاهز');
+}
+createTruckViolationsTable();
 
+// حفظ أسباب السيارات المخالفة (لليوم كاملاً)
+app.post('/api/truck-violations/save', requireAuth, async (req, res) => {
+    try {
+        const { date, violations } = req.body; // violations: [{ truckNumber, driver, trips, reason, detail }]
+        if (!date || !Array.isArray(violations)) {
+            return res.status(400).json({ error: 'بيانات غير صالحة' });
+        }
+        const username = req.session.user.username;
+        
+        for (const v of violations) {
+            await pool.query(`
+                INSERT INTO truck_violations (report_date, truck_number, driver_name, trips_count, reason, details, created_by)
+                VALUES ($1, $2, $3, $4, $5, $6, $7)
+                ON CONFLICT (report_date, truck_number) 
+                DO UPDATE SET 
+                    driver_name = EXCLUDED.driver_name,
+                    trips_count = EXCLUDED.trips_count,
+                    reason = EXCLUDED.reason,
+                    details = EXCLUDED.details,
+                    created_by = EXCLUDED.created_by
+            `, [date, v.truckNumber, v.driver, v.trips, v.reason, v.detail, username]);
+        }
+        
+        await addLog(username, 'حفظ أسباب السيارات المخالفة', `التاريخ: ${date}, عدد السيارات: ${violations.length}`, null);
+        res.json({ success: true, message: 'تم حفظ الأسباب بنجاح' });
+    } catch (e) {
+        console.error(e);
+        res.status(500).json({ error: e.message });
+    }
+});
+
+// استرجاع أسباب السيارات المخالفة لتاريخ محدد
+app.get('/api/truck-violations/:date', requireAuth, async (req, res) => {
+    try {
+        const date = req.params.date;
+        const result = await pool.query(
+            `SELECT truck_number, driver_name, trips_count, reason, details 
+             FROM truck_violations 
+             WHERE report_date = $1 
+             ORDER BY truck_number`,
+            [date]
+        );
+        res.json(result.rows);
+    } catch (e) {
+        res.status(500).json({ error: e.message });
+    }
+});
 app.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
