@@ -1,12 +1,12 @@
-// navbar.js - شريط التنقل الموحد (معدل)
+// navbar.js - شريط التنقل الموحد (محدث)
 (function() {
-    // Keep-alive: كل 4 دقائق للحفاظ على الجلسة
+    // Keep-alive: كل 3 دقائق للحفاظ على الجلسة
     setInterval(async () => {
         try {
             await fetch('/api/me', { credentials: 'include' });
             console.log('navbar keep-alive');
         } catch(e) {}
-    }, 4 * 60 * 1000);
+    }, 3 * 60 * 1000);
 
     async function renderNavbar() {
         try {
@@ -35,7 +35,6 @@
                 }
             }
 
-            // ========== الروابط الكاملة (تمت إضافة صفحة السيارات المخالفة) ==========
             const allLinks = [
                 { href: 'index.html', text: '📊 الرئيسية' },
                 { href: 'orders.html', text: '📝 الطلبات' },
@@ -45,7 +44,8 @@
                 { href: 'factories.html', text: '🏭 المصانع' },
                 { href: 'reports.html', text: '📊 تقارير الكسارة' },
                 { href: 'scale_report.html', text: '⚖️ تقارير الميزان الشهرية' },
-                { href: 'trucks-failed.html', text: '⚠️ السيارات المخالفة' },   // ✅ الصفحة الجديدة
+                { href: 'trucks-failed.html', text: '⚠️ السيارات المخالفة' },
+                { href: 'trucks-failed-report.html', text: '📊 تقرير المخالفات' },
                 { href: 'settings.html', text: '⚙️ الإعدادات' },
                 { href: 'restrictions.html', text: '⛔ الحظر' },
                 { href: 'users.html', text: '👥 المستخدمين' },
@@ -54,10 +54,8 @@
 
             let linksToShow = [];
             if (isAdmin || isUser) {
-                // المدير والمستخدم العادي يريان كل الصفحات
                 linksToShow = allLinks;
             } else if (isClient) {
-                // العميل يرى فقط الطلبات
                 linksToShow = [{ href: 'orders.html', text: '📝 الطلبات' }];
             }
 
@@ -66,7 +64,7 @@
                 <a href="${link.href}" class="nav-link ${currentPage === link.href ? 'active' : ''}">${link.text}</a>
             `).join('');
 
-            // إضافة زر تسجيل الخروج (مرة واحدة فقط)
+            // إضافة زر تسجيل الخروج
             if (!document.getElementById('logout-btn-container')) {
                 const logoutDiv = document.createElement('div');
                 logoutDiv.id = 'logout-btn-container';
