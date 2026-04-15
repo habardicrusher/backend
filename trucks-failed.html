@@ -44,7 +44,6 @@
         .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
         .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
         .btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
-        .btn-warning { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: #fff; }
         .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; }
         
         table { width: 100%; border-collapse: collapse; margin-top: 20px; overflow-x: auto; display: block; }
@@ -116,7 +115,7 @@
                     </tr>
                 </thead>
                 <tbody id="violationsBody">
-                    <tr><td colspan="8" style="text-align:center;">اختر تاريخ ثم اضغط عرض</td></tr>
+                    <tr><td colspan="8" style="text-align:center;">اختر تاريخ ثم اضغط عرض<th></td>
                 </tbody>
             </table>
         </div>
@@ -129,6 +128,12 @@
         const API_BASE = '/api';
         let violationsData = [];
         let currentDate = '';
+
+        setInterval(async () => {
+            try {
+                await fetch('/api/me', { credentials: 'include' });
+            } catch(e) {}
+        }, 3 * 60 * 1000);
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -177,14 +182,13 @@
                     }
                 });
                 
-                // جلب الأسباب المحفوظة مسبقاً من الخادم
                 let savedReasonsMap = new Map();
                 try {
                     const saved = await apiCall(`/truck-violations/${currentDate}`);
                     saved.forEach(s => {
                         savedReasonsMap.set(s.truck_number, { reason: s.reason || '', detail: s.details || '' });
                     });
-                } catch(e) { /* لا يوجد أسباب محفوظة */ }
+                } catch(e) { }
                 
                 const violations = [];
                 trucks.forEach(truck => {
@@ -221,7 +225,6 @@
             showLoading(false);
         }
         
-        // قائمة الأسباب (محدثة)
         const reasonOptions = [
             "عطل مفاجئ في الطريق",
             "أمطار والطريق زلقة",
@@ -243,7 +246,7 @@
         function renderViolationsTable(violations) {
             const tbody = document.getElementById('violationsBody');
             if (!violations.length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">✅ لا توجد سيارات مخالفة اليوم، كل السيارات حققت الهدف</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">✅ لا توجد سيارات مخالفة اليوم، كل السيارات حققت الهدف<th></td>';
                 return;
             }
             
@@ -282,7 +285,6 @@
         function onReasonChange(index, value) {
             if (violationsData[index]) {
                 violationsData[index].reason = value;
-                // إعادة عرض الجدول لتحديث placeholder حقل التفاصيل
                 renderViolationsTable(violationsData);
             }
         }
@@ -298,7 +300,6 @@
                 showToast('لا توجد سيارات مخالفة لحفظ الأسباب', 'error');
                 return;
             }
-            // التحقق من أن جميع السيارات لها سبب
             const missing = violationsData.filter(v => !v.reason);
             if (missing.length) {
                 showToast(`⚠️ لا يمكن الحفظ: ${missing.length} سيارة بدون سبب. يرجى اختيار سبب لكل سيارة.`, 'error');
