@@ -918,11 +918,18 @@ async function exportAdvancedExcel(res, drivers, monthDays, officialVac, filenam
         const navContainer=document.getElementById('navLinks');
         if(navContainer){
             navContainer.innerHTML = `
-                <a class="nav-link" href="index.html">🏠 الرئيسية</a>
-                <a class="nav-link" href="orders.html">📦 الطلبات</a>
-                <a class="nav-link" href="distribution.html">🚛 التوزيع</a>
-                <a class="nav-link" href="reports.html">📊 التقارير</a>
-                <a class="nav-link active" href="scale_report.html">⚖️ الميزان</a>
+                        document.getElementById('navLinks').innerHTML = `
+                            <a href="index.html" class="nav-link">📊 الرئيسية</a>
+                            <a href="orders.html" class="nav-link">📝 الطلبات</a>
+                            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+                            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+                            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+                            <a href="factories.html" class="nav-link">🏭 المصانع</a>
+                            <a href="reports.html" class="nav-link">📊 التقارير</a>
+                            <a href="settings.html" class="nav-link active">⚙️ الإعدادات</a>
+                            <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
+                            <a href="users.html" class="nav-link">👥 المستخدمين</a>
+                            <a href="logs.html" class="nav-link">📜 السجلات</a>
             `;
         }
     };
