@@ -411,7 +411,7 @@
         showToast("تم إلغاء التحديد","success");
     };
 
-    // ========== دوال التقارير المحفوظة ==========
+    // ========== دوال التقارير المحفوظة (مع تصحيح جمع أيام العمل) ==========
     async function loadReportsList(){
         try{
             const res = await fetch(`${API_BASE}/scale-reports`);
@@ -508,12 +508,15 @@
             showToast(`تم عرض التقرير: ${full.reportName}`,"success");
         } catch(e){ showToast("خطأ: "+e.message,"error"); } finally{ showLoading(false); }
     }
+    
+    // ✅ الدالة المصححة لدمج التقارير (تجمع أيام العمل من كل شهر بشكل صحيح)
     async function mergeReports(reportIds){
         showLoading(true);
         try{
-            let driversAgg = new Map();
+            let driversAgg = new Map();  // name -> { trips, weight, workDays }
             let materialsAgg = new Map();
             let totalRows = 0, matchedCount = 0, notMatchedCount = 0, totalWeightAll = 0;
+
             for(let id of reportIds){
                 const res = await fetch(`${API_BASE}/scale-reports/${id}`);
                 const full = await res.json();
@@ -522,34 +525,59 @@
                 matchedCount += data.matchedCount || 0;
                 notMatchedCount += data.notMatchedCount || 0;
                 totalWeightAll += data.totalWeightAll || 0;
+                
+                // استخراج أيام العمل الأساسية لهذا التقرير (أيام الشهر - الإجازات الرسمية)
                 const monthDays = data.monthDays || 30;
                 const officialVac = data.officialVacations || 4;
                 const workDaysBase = Math.max(0, monthDays - officialVac);
+                
+                // معالجة السائقين في هذا التقرير
                 for(let d of (data.driversStats || [])){
                     const extraVac = d.extraVacationDays || 0;
-                    const effective = Math.max(0, workDaysBase - extraVac);
+                    const effectiveWorkDays = Math.max(0, workDaysBase - extraVac);
+                    
                     let existing = driversAgg.get(d.name);
                     if(existing){
                         existing.trips += d.trips;
                         existing.weight += d.totalWeight;
-                        existing.workDays += effective;
+                        existing.workDays += effectiveWorkDays;  // جمع أيام العمل من هذا الشهر
                     } else {
-                        driversAgg.set(d.name, { trips: d.trips, weight: d.totalWeight, workDays: effective });
+                        driversAgg.set(d.name, {
+                            trips: d.trips,
+                            weight: d.totalWeight,
+                            workDays: effectiveWorkDays
+                        });
                     }
                 }
+                // معالجة المواد
                 for(let m of (data.materialsStats || [])){
                     let existing = materialsAgg.get(m.name);
                     if(existing) existing.weight += m.weight;
                     else materialsAgg.set(m.name, { name: m.name, weight: m.weight });
                 }
             }
-            const driversList = Array.from(driversAgg.entries()).map(([name,agg]) => ({ name, trips: agg.trips, totalWeight: agg.weight, workDays: agg.workDays })).sort((a,b)=>b.trips-a.trips);
-            const materialsList = Array.from(materialsAgg.values()).sort((a,b)=>b.weight-a.weight);
+            
+            // تحويل الخريطة إلى قائمة وترتيبها حسب عدد الرحلات
+            const driversList = Array.from(driversAgg.entries()).map(([name, agg]) => ({
+                name,
+                trips: agg.trips,
+                totalWeight: agg.weight,
+                workDays: agg.workDays
+            })).sort((a,b) => b.trips - a.trips);
+            
+            const materialsList = Array.from(materialsAgg.values()).sort((a,b) => b.weight - a.weight);
+            
+            // حساب الرودات المطلوبة والنسبة المئوية بناءً على إجمالي أيام العمل المجمعة
             const driversWithRoda = driversList.map(d => {
-                const required = d.workDays * 2;
-                const percent = required>0 ? (d.trips/required)*100 : 0;
-                return { ...d, requiredRoda: required, percentage: Math.min(100,percent).toFixed(2) };
+                const requiredRoda = d.workDays * 2;
+                const percent = requiredRoda > 0 ? (d.trips / requiredRoda) * 100 : 0;
+                return {
+                    ...d,
+                    requiredRoda: requiredRoda,
+                    percentage: Math.min(100, percent).toFixed(2)
+                };
             });
+            
             currentResult = {
                 totalRows, matchedCount, notMatchedCount, totalWeightAll,
                 driversStats: driversList.map(d => ({ name: d.name, trips: d.trips, totalWeight: d.totalWeight })),
@@ -557,16 +585,26 @@
                 top10Drivers: driversList.slice(0,10).map(d => ({ name: d.name, trips: d.trips }))
             };
             currentDriversWithDetails = driversWithRoda;
+            
+            // عرض النتائج
             document.getElementById("metricsGrid").style.display = "grid";
             document.getElementById("chartsArea").style.display = "block";
             renderDriverTable(currentDriversWithDetails);
             updateCharts();
-            document.getElementById("statusMsg").innerHTML = `✅ تم دمج ${reportIds.length} تقرير`;
-            showToast(`تم دمج ${reportIds.length} تقارير`,"success");
-        } catch(e){ showToast("خطأ في الدمج: "+e.message,"error"); } finally{ showLoading(false); }
+            
+            // إظهار رسالة توضيحية تحتوي على إجمالي أيام العمل لأول سائق (كمثال)
+            const totalWorkDaysSample = driversList.length ? driversList[0].workDays : 0;
+            document.getElementById("statusMsg").innerHTML = `✅ تم دمج ${reportIds.length} تقرير (إجمالي أيام العمل: ${totalWorkDaysSample} يوم - الرودات المطلوبة: ${totalWorkDaysSample * 2})`;
+            showToast(`تم دمج ${reportIds.length} تقارير بنجاح`, "success");
+        } catch(e){ 
+            console.error(e);
+            showToast("خطأ في الدمج: "+e.message, "error"); 
+        } finally{ 
+            showLoading(false); 
+        }
     }
 
-    // ========== دوال تصدير Excel ==========
+    // ========== دوال تصدير Excel (8 أوراق) - كما هي دون تغيير ==========
     async function exportAdvancedExcel(res, drivers, monthDays, officialVac, filename){
         if(!res){ showToast("لا توجد بيانات","error"); return; }
         showLoading(true);
@@ -724,8 +762,7 @@
             <a class="nav-link" href="orders.html">📦 الطلبات</a>
             <a class="nav-link" href="distribution.html">🚛 التوزيع</a>
             <a class="nav-link" href="reports.html">📊 التقارير</a>
-            <a class="nav-link active" href="scale_report.html">⚖️ تقارير الميزان الشهرية</a>
-            <a class="nav-link" href="distribution.html">📊 التوزيع</a>
+            <a class="nav-link active" href="scale_report.html">⚖️ الميزان</a>
         `;
     };
 </script>
