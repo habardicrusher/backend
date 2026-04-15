@@ -756,6 +756,4 @@ app.use(express.static(__dirname));
 // ========== تشغيل السيرفر ==========
 app.listen(PORT, () => {
     console.log(`🚀 السيرفر يعمل على http://localhost:${PORT}`);
-    console.log(`👤 المدير: Admin`);
-    console.log(`🔐 كلمة المرور: admin123`);
 });
