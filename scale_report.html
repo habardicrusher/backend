@@ -106,17 +106,95 @@
     table { width: 100%; border-collapse: collapse; }
     th, td { border: 1px solid rgba(255,255,255,0.1); padding: 10px; text-align: center; vertical-align: middle; }
     th { background: rgba(102,126,234,0.3); }
-    .driver-table input { width: 70px; padding: 6px; border-radius: 8px; background: #2a2a4a; color: white; border: none; text-align: center; }
     .reports-section { margin-top: 20px; background: rgba(0,0,0,0.3); border-radius: 24px; padding: 20px; }
-    .reports-list { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 15px; max-height: 180px; overflow-y: auto; }
-    .report-card { background: rgba(102,126,234,0.3); border-radius: 20px; padding: 8px 12px; display: inline-flex; align-items: center; gap: 8px; cursor: pointer; transition: 0.2s; }
-    .report-card.selected { background: #667eea; box-shadow: 0 0 0 2px #38ef7d; }
-    .report-card:hover { background: #667eea; }
-    .report-name { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-    .report-actions { display: flex; gap: 5px; }
-    .report-actions button { background: none; border: none; color: white; cursor: pointer; font-size: 14px; padding: 2px 5px; border-radius: 12px; }
-    .report-actions button:hover { background: rgba(0,0,0,0.3); }
-    .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+    .reports-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 16px;
+      margin-top: 20px;
+      max-height: 260px;
+      overflow-y: auto;
+      padding: 8px;
+    }
+    .report-card {
+      background: linear-gradient(145deg, rgba(102,126,234,0.25), rgba(118,75,162,0.25));
+      backdrop-filter: blur(4px);
+      border-radius: 20px;
+      padding: 14px 16px;
+      min-width: 200px;
+      flex: 1 0 auto;
+      max-width: 260px;
+      transition: all 0.3s ease;
+      border: 1px solid rgba(255,255,255,0.2);
+      cursor: pointer;
+      position: relative;
+    }
+    .report-card:hover {
+      transform: translateY(-5px);
+      background: linear-gradient(145deg, rgba(102,126,234,0.4), rgba(118,75,162,0.4));
+      border-color: rgba(255,255,255,0.5);
+      box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+    }
+    .report-card.selected {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      border: 2px solid #38ef7d;
+      box-shadow: 0 0 0 2px rgba(56,239,125,0.3);
+    }
+    .report-name {
+      font-weight: bold;
+      font-size: 1.1rem;
+      display: block;
+      margin-bottom: 8px;
+      word-break: break-word;
+    }
+    .report-date {
+      font-size: 0.75rem;
+      color: #a8b2d1;
+      display: block;
+      margin-bottom: 12px;
+    }
+    .report-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-start;
+      margin-top: 8px;
+    }
+    .report-actions button {
+      background: rgba(0,0,0,0.4);
+      border: none;
+      color: white;
+      cursor: pointer;
+      font-size: 14px;
+      padding: 5px 10px;
+      border-radius: 20px;
+      transition: 0.2s;
+    }
+    .report-actions button:hover {
+      background: rgba(0,0,0,0.7);
+      transform: scale(1.05);
+    }
+    .view-report-btn {
+      background: #4facfe;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 20px;
+      font-size: 0.8rem;
+      cursor: pointer;
+      margin-top: 8px;
+      width: 100%;
+      transition: 0.2s;
+    }
+    .view-report-btn:hover {
+      background: #11998e;
+    }
+    .flex-between {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
     .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; }
     .toast { padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; animation: slideIn 0.3s ease; }
     .toast-success { background: #11998e; }
@@ -126,7 +204,7 @@
     .loading.active { display: flex; }
     .spinner { width: 50px; height: 50px; border: 4px solid rgba(255,255,255,0.3); border-top-color: #667eea; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
-    @media (max-width: 700px) { .vacation-control { flex-wrap: wrap; } }
+    @media (max-width: 700px) { .vacation-control { flex-wrap: wrap; } .report-card { min-width: 160px; } }
   </style>
 </head>
 <body>
@@ -157,18 +235,27 @@
     </div>
     <div id="statusMsg" class="status">✅ انتظار رفع ملف Excel أو اختيار تقارير للدمج...</div>
 
-    <!-- قسم التقارير المحفوظة والدمج -->
+    <!-- قسم التقارير المحفوظة -->
     <div class="reports-section">
-      <div class="flex-between"><div class="chart-title">📚 التقارير المحفوظة (اختر للدمج)</div><div><button class="btn-primary" id="mergeReportsBtn" style="background: linear-gradient(135deg,#f093fb,#4facfe);">🔗 دمج التقارير المحددة</button><button class="btn-secondary" id="clearSelectionBtn" style="margin-right:10px;">🗑️ إلغاء التحديد</button></div></div>
-      <div id="savedReportsList" class="reports-list">جاري تحميل التقارير...</div>
-      <div class="flex-between" style="margin-top:15px;"><div></div><div><button class="btn-primary" id="saveCurrentReportBtn" style="background: linear-gradient(135deg,#f093fb,#4facfe);">💾 حفظ التقرير الحالي</button></div></div>
+      <div class="flex-between">
+        <div class="chart-title">📚 التقارير المحفوظة (اختر للدمج أو اضغط "عرض التقرير")</div>
+        <div style="display: flex; gap: 10px;">
+          <button class="btn-primary" id="mergeReportsBtn" style="background: linear-gradient(135deg,#f093fb,#4facfe);">🔗 دمج المحددة</button>
+          <button class="btn-secondary" id="clearSelectionBtn">🗑️ إلغاء التحديد</button>
+        </div>
+      </div>
+      <div id="savedReportsList" class="reports-grid">جاري تحميل التقارير...</div>
+      <div class="flex-between" style="margin-top:15px;">
+        <div></div>
+        <button class="btn-primary" id="saveCurrentReportBtn" style="background: linear-gradient(135deg,#f093fb,#4facfe);">💾 حفظ التقرير الحالي</button>
+      </div>
     </div>
 
     <!-- إحصائيات وجداول ورسوم بيانية -->
     <div id="metricsGrid" class="stats-grid" style="display:none;"></div>
     <div id="chartsArea" style="display:none;">
       <div class="charts-row"><div class="chart-card"><div class="chart-title">📦 الأوزان حسب نوع البحص</div><div class="chart-wrap"><canvas id="materialChart"></canvas></div></div><div class="chart-card"><div class="chart-title">🏆 أعلى 10 سائقين بالرحلات</div><div class="chart-wrap"><canvas id="topDriversChart"></canvas></div></div></div>
-      <div class="driver-table"><div class="chart-title">🚛 تفاصيل السائقين + إجمالي الرودات والنسبة (بعد الدمج)</div><table id="driverTable"><thead><tr><th>السائق</th><th>عدد الرحلات</th><th>الوزن (كجم)</th><th>إجمالي أيام العمل الفعلية</th><th>الرودات المطلوبة</th><th>النسبة %</th></tr></thead><tbody></tbody></table></div>
+      <div class="driver-table"><div class="chart-title">🚛 تفاصيل السائقين + إجمالي الرودات والنسبة (بعد الدمج أو العرض)</div><table id="driverTable"><thead><tr><th>السائق</th><th>عدد الرحلات</th><th>الوزن (كجم)</th><th>إجمالي أيام العمل الفعلية</th><th>الرودات المطلوبة</th><th>النسبة %</th></tr></thead><tbody></tbody></table></div>
     </div>
   </div>
 </div>
@@ -241,46 +328,14 @@
   }
 
   // حساب الرودات والنسبة لتقرير واحد (بناءً على أيام الشهر الحالية)
-  function computeRodaAndPercentageSingle(driversList, monthDays, officialVac, extraVacMap){
+  function computeRodaAndPercentageSingle(driversList, monthDays, officialVac){
     const workDaysBase=Math.max(0, monthDays - officialVac);
     return driversList.map(d=>{
-      const extra=extraVacMap.get(d.name)||0;
-      const effective=Math.max(0, workDaysBase - extra);
+      const effective=workDaysBase;
       const required=effective*2;
       const percent=required>0 ? (d.trips/required)*100 : 0;
       return { name:d.name, trips:d.trips, totalWeight:d.totalWeight, workDays:effective, requiredRoda:required, percentage:Math.min(100,percent).toFixed(2) };
     });
-  }
-
-  // دالة التحديث للتقرير الحالي (بعد رفع ملف)
-  function updateCurrentDisplaySingle(){
-    if(!currentResult) return;
-    const monthDays=parseInt(document.getElementById("monthDays").value)||30;
-    const officialVac=parseInt(document.getElementById("officialVacations").value)||0;
-    currentMonthDays=monthDays; currentOfficialVacations=officialVac;
-    const extraMap=new Map(); 
-    if(currentDriversWithDetails.length){
-      currentDriversWithDetails.forEach(d=>extraMap.set(d.name,0)); // لا توجد إجازات إضافية محفوظة
-    }
-    const updated=computeRodaAndPercentageSingle(currentResult.driversStats, monthDays, officialVac, extraMap);
-    currentDriversWithDetails=updated;
-    renderDriverTable(updated);
-    // تحديث الإحصائيات العلوية
-    document.getElementById("metricsGrid").innerHTML=`
-      <div class="stat-card"><div class="stat-label">إجمالي الصفوف</div><div class="stat-value">${currentResult.totalRows}</div></div>
-      <div class="stat-card"><div class="stat-label">رحلاتنا</div><div class="stat-value">${currentResult.matchedCount}</div></div>
-      <div class="stat-card"><div class="stat-label">غير تابعة</div><div class="stat-value">${currentResult.notMatchedCount}</div></div>
-      <div class="stat-card"><div class="stat-label">نسبة الإنجاز</div><div class="stat-value">${currentResult.totalRows?((currentResult.matchedCount/currentResult.totalRows)*100).toFixed(2):0}%</div></div>
-      <div class="stat-card"><div class="stat-label">عدد السائقين</div><div class="stat-value">${currentResult.driversStats.length}</div></div>
-      <div class="stat-card"><div class="stat-label">إجمالي الوزن (طن)</div><div class="stat-value">${(currentResult.totalWeightAll/1000).toFixed(1)} طن</div></div>
-    `;
-    // تحديث الرسوم البيانية
-    if(materialChart) materialChart.destroy();
-    const topMats=currentResult.materialsStats.slice(0,10);
-    materialChart=new Chart(document.getElementById("materialChart"),{type:"bar",data:{labels:topMats.map(m=>m.name),datasets:[{label:"الوزن (طن)",data:topMats.map(m=>m.weight/1000),backgroundColor:"#38ef7d"}]},options:{responsive:true,maintainAspectRatio:false}});
-    if(topDriversChart) topDriversChart.destroy();
-    const top10=currentDriversWithDetails.slice(0,10);
-    topDriversChart=new Chart(document.getElementById("topDriversChart"),{type:"bar",data:{labels:top10.map(d=>d.name),datasets:[{label:"عدد الرحلات",data:top10.map(d=>d.trips),backgroundColor:"#4facfe"}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y'}});
   }
 
   function renderDriverTable(drivers){
@@ -299,6 +354,24 @@
     }
   }
 
+  function updateChartsAndStats(){
+    if(!currentResult) return;
+    document.getElementById("metricsGrid").innerHTML=`
+      <div class="stat-card"><div class="stat-label">إجمالي الصفوف</div><div class="stat-value">${currentResult.totalRows}</div></div>
+      <div class="stat-card"><div class="stat-label">رحلاتنا</div><div class="stat-value">${currentResult.matchedCount}</div></div>
+      <div class="stat-card"><div class="stat-label">غير تابعة</div><div class="stat-value">${currentResult.notMatchedCount}</div></div>
+      <div class="stat-card"><div class="stat-label">نسبة الإنجاز</div><div class="stat-value">${currentResult.totalRows?((currentResult.matchedCount/currentResult.totalRows)*100).toFixed(2):0}%</div></div>
+      <div class="stat-card"><div class="stat-label">عدد السائقين</div><div class="stat-value">${currentResult.driversStats.length}</div></div>
+      <div class="stat-card"><div class="stat-label">إجمالي الوزن (طن)</div><div class="stat-value">${(currentResult.totalWeightAll/1000).toFixed(1)} طن</div></div>
+    `;
+    if(materialChart) materialChart.destroy();
+    const topMats=currentResult.materialsStats.slice(0,10);
+    materialChart=new Chart(document.getElementById("materialChart"),{type:"bar",data:{labels:topMats.map(m=>m.name),datasets:[{label:"الوزن (طن)",data:topMats.map(m=>m.weight/1000),backgroundColor:"#38ef7d"}]},options:{responsive:true,maintainAspectRatio:false}});
+    if(topDriversChart) topDriversChart.destroy();
+    const top10=currentDriversWithDetails.slice(0,10);
+    topDriversChart=new Chart(document.getElementById("topDriversChart"),{type:"bar",data:{labels:top10.map(d=>d.name),datasets:[{label:"عدد الرحلات",data:top10.map(d=>d.trips),backgroundColor:"#4facfe"}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y'}});
+  }
+
   async function processExcelFile(file){
     let buf=await file.arrayBuffer();
     let wb=new ExcelJS.Workbook();
@@ -309,12 +382,38 @@
     return processData(rows);
   }
 
+  // عرض تقرير واحد محفوظ (دون دمج)
+  async function displaySingleReport(reportId){
+    showLoading(true);
+    try{
+      const full=await loadReportFromServer(reportId);
+      const data=full.data;
+      const monthDays=data.monthDays||30;
+      const officialVac=data.officialVacations||4;
+      const driversStats=data.driversStats.map(d=>({name:d.name, trips:d.trips, totalWeight:d.totalWeight}));
+      const driversWithRoda=computeRodaAndPercentageSingle(driversStats, monthDays, officialVac);
+      currentResult={
+        totalRows:data.totalRows, matchedCount:data.matchedCount, notMatchedCount:data.notMatchedCount, totalWeightAll:data.totalWeightAll,
+        driversStats:driversStats, materialsStats:data.materialsStats, top10Drivers:driversStats.slice(0,10)
+      };
+      currentDriversWithDetails=driversWithRoda;
+      currentMonthDays=monthDays; currentOfficialVacations=officialVac;
+      document.getElementById("monthDays").value=monthDays;
+      document.getElementById("officialVacations").value=officialVac;
+      document.getElementById("metricsGrid").style.display="grid";
+      document.getElementById("chartsArea").style.display="block";
+      renderDriverTable(currentDriversWithDetails);
+      updateChartsAndStats();
+      document.getElementById("statusMsg").innerHTML=`✅ تم عرض التقرير: ${full.reportName}`;
+      showToast(`تم عرض التقرير: ${full.reportName}`,"success");
+    } catch(e){ showToast("خطأ في عرض التقرير: "+e.message,"error"); } finally{ showLoading(false); }
+  }
+
   // دمج عدة تقارير مع جمع أيام العمل الفعلية لكل سائق عبر الأشهر
   async function mergeReports(reportIds){
     showLoading(true);
     try{
-      // هيكل التجميع: لكل سائق -> { totalTrips, totalWeight, totalWorkDays }
-      let driversAgg=new Map(); // key: driver name
+      let driversAgg=new Map();
       let materialsAgg=new Map();
       let totalRows=0, matchedCount=0, notMatchedCount=0, totalWeightAll=0;
 
@@ -330,7 +429,6 @@
         const officialVac=data.officialVacations||4;
         const workDaysBase=Math.max(0, monthDays - officialVac);
         
-        // معالجة السائقين من هذا التقرير
         for(let d of (data.driversStats||[])){
           const extraVac=d.extraVacationDays||0;
           const effectiveWorkDays=Math.max(0, workDaysBase - extraVac);
@@ -340,14 +438,9 @@
             existing.weight+=d.totalWeight;
             existing.workDays+=effectiveWorkDays;
           } else {
-            driversAgg.set(d.name,{
-              trips:d.trips,
-              weight:d.totalWeight,
-              workDays:effectiveWorkDays
-            });
+            driversAgg.set(d.name,{trips:d.trips, weight:d.totalWeight, workDays:effectiveWorkDays});
           }
         }
-        // معالجة المواد
         for(let m of (data.materialsStats||[])){
           let existing=materialsAgg.get(m.name);
           if(existing) existing.weight+=m.weight;
@@ -355,28 +448,15 @@
         }
       }
       
-      // تحويل إلى قوائم
-      const driversList=Array.from(driversAgg.entries()).map(([name,agg])=>({
-        name, trips:agg.trips, totalWeight:agg.weight, workDays:agg.workDays
-      })).sort((a,b)=>b.trips-a.trips);
-      
+      const driversList=Array.from(driversAgg.entries()).map(([name,agg])=>({name, trips:agg.trips, totalWeight:agg.weight, workDays:agg.workDays})).sort((a,b)=>b.trips-a.trips);
       const materialsList=Array.from(materialsAgg.values()).sort((a,b)=>b.weight-a.weight);
       
-      // حساب الرودات المطلوبة والنسبة لكل سائق
       const driversWithRoda=driversList.map(d=>{
         const requiredRoda=d.workDays * 2;
         const percent=requiredRoda>0 ? (d.trips/requiredRoda)*100 : 0;
-        return {
-          name:d.name,
-          trips:d.trips,
-          totalWeight:d.totalWeight,
-          workDays:d.workDays,
-          requiredRoda:requiredRoda,
-          percentage:Math.min(100,percent).toFixed(2)
-        };
+        return { name:d.name, trips:d.trips, totalWeight:d.totalWeight, workDays:d.workDays, requiredRoda, percentage:Math.min(100,percent).toFixed(2) };
       });
       
-      // بناء النتيجة النهائية
       currentResult={
         totalRows, matchedCount, notMatchedCount, totalWeightAll,
         driversStats:driversList.map(d=>({name:d.name, trips:d.trips, totalWeight:d.totalWeight})),
@@ -385,36 +465,13 @@
       };
       currentDriversWithDetails=driversWithRoda;
       
-      // عرض البيانات
       document.getElementById("metricsGrid").style.display="grid";
       document.getElementById("chartsArea").style.display="block";
-      
-      // تحديث الإحصائيات العلوية
-      document.getElementById("metricsGrid").innerHTML=`
-        <div class="stat-card"><div class="stat-label">إجمالي الصفوف</div><div class="stat-value">${currentResult.totalRows}</div></div>
-        <div class="stat-card"><div class="stat-label">رحلاتنا</div><div class="stat-value">${currentResult.matchedCount}</div></div>
-        <div class="stat-card"><div class="stat-label">غير تابعة</div><div class="stat-value">${currentResult.notMatchedCount}</div></div>
-        <div class="stat-card"><div class="stat-label">نسبة الإنجاز</div><div class="stat-value">${currentResult.totalRows?((currentResult.matchedCount/currentResult.totalRows)*100).toFixed(2):0}%</div></div>
-        <div class="stat-card"><div class="stat-label">عدد السائقين</div><div class="stat-value">${currentResult.driversStats.length}</div></div>
-        <div class="stat-card"><div class="stat-label">إجمالي الوزن (طن)</div><div class="stat-value">${(currentResult.totalWeightAll/1000).toFixed(1)} طن</div></div>
-      `;
-      
-      // تحديث الرسوم البيانية
-      if(materialChart) materialChart.destroy();
-      const topMats=currentResult.materialsStats.slice(0,10);
-      materialChart=new Chart(document.getElementById("materialChart"),{type:"bar",data:{labels:topMats.map(m=>m.name),datasets:[{label:"الوزن (طن)",data:topMats.map(m=>m.weight/1000),backgroundColor:"#38ef7d"}]},options:{responsive:true,maintainAspectRatio:false}});
-      if(topDriversChart) topDriversChart.destroy();
-      const top10=currentDriversWithDetails.slice(0,10);
-      topDriversChart=new Chart(document.getElementById("topDriversChart"),{type:"bar",data:{labels:top10.map(d=>d.name),datasets:[{label:"عدد الرحلات",data:top10.map(d=>d.trips),backgroundColor:"#4facfe"}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y'}});
-      
       renderDriverTable(currentDriversWithDetails);
-      
+      updateChartsAndStats();
       document.getElementById("statusMsg").innerHTML=`✅ تم دمج ${reportIds.length} تقرير بنجاح (تم جمع أيام العمل الفعلية).`;
       showToast(`تم دمج ${reportIds.length} تقارير`, "success");
-    } catch(e){ 
-      console.error(e);
-      showToast("خطأ في الدمج: "+e.message,"error"); 
-    } finally{ showLoading(false); }
+    } catch(e){ showToast("خطأ في الدمج: "+e.message,"error"); } finally{ showLoading(false); }
   }
 
   // تصدير متقدم 8 أوراق
@@ -440,7 +497,6 @@
       ws3.getCell('A1').value='📦 المواد'; ws3.mergeCells('A1:D1');
       ws3.getRow(2).values=['#','نوع البحص','الوزن (كجم)','الوزن (طن)'];
       res.materialsStats.forEach((m,i)=>{ ws3.getRow(3+i).values=[i+1,m.name,m.weight,(m.weight/1000).toFixed(2)]; });
-      // أوراق إضافية بسيطة
       const ws4=wb.addWorksheet('أفضل السائقين'); ws4.getCell('A1').value='🏆 أفضل 20 سائقاً'; ws4.getRow(2).values=['السائق','الرحلات']; drivers.slice(0,20).forEach((d,i)=>ws4.getRow(3+i).values=[d.name,d.trips]);
       const ws5=wb.addWorksheet('ترتيب المواد'); ws5.getCell('A1').value='📊 ترتيب المواد بالوزن'; ws5.getRow(2).values=['المادة','الوزن(طن)']; res.materialsStats.forEach((m,i)=>ws5.getRow(3+i).values=[m.name,(m.weight/1000).toFixed(2)]);
       const ws6=wb.addWorksheet('إحصائيات سريعة'); ws6.getCell('A1').value='📌 إحصائيات'; ws6.getRow(2).values=['المؤشر','القيمة']; const avgPer=(drivers.reduce((s,d)=>s+parseFloat(d.percentage),0)/(drivers.length||1)).toFixed(2); ws6.getRow(3).values=['متوسط النسبة',avgPer+'%']; ws6.getRow(4).values=['إجمالي الرودات',drivers.reduce((s,d)=>s+d.requiredRoda,0)];
@@ -473,15 +529,26 @@
     try{
       const result=await processExcelFile(file);
       currentResult=result;
-      const extraMap=new Map();
-      currentDriversWithDetails=computeRodaAndPercentageSingle(result.driversStats, currentMonthDays, currentOfficialVacations, extraMap);
+      const monthDays=parseInt(document.getElementById("monthDays").value)||30;
+      const officialVac=parseInt(document.getElementById("officialVacations").value)||0;
+      currentDriversWithDetails=computeRodaAndPercentageSingle(result.driversStats, monthDays, officialVac);
+      currentMonthDays=monthDays; currentOfficialVacations=officialVac;
       document.getElementById("metricsGrid").style.display="grid";
       document.getElementById("chartsArea").style.display="block";
-      updateCurrentDisplaySingle();
+      renderDriverTable(currentDriversWithDetails);
+      updateChartsAndStats();
       document.getElementById("statusMsg").innerHTML="✅ تم تحليل الملف وعرضه.";
     } catch(e){ showToast(e.message,"error"); } finally{ showLoading(false); }
   };
-  document.getElementById("applyRodaCalc").onclick=()=>{ updateCurrentDisplaySingle(); showToast("تم تحديث الرودات للتقرير الحالي","success"); };
+  document.getElementById("applyRodaCalc").onclick=()=>{
+    if(currentResult){
+      const monthDays=parseInt(document.getElementById("monthDays").value)||30;
+      const officialVac=parseInt(document.getElementById("officialVacations").value)||0;
+      currentDriversWithDetails=computeRodaAndPercentageSingle(currentResult.driversStats, monthDays, officialVac);
+      renderDriverTable(currentDriversWithDetails);
+      showToast("تم تحديث الرودات للتقرير الحالي","success");
+    } else showToast("لا توجد بيانات","error");
+  };
   document.getElementById("exportExcelBtn").onclick=async()=>{ if(currentResult) await exportSimpleExcel(currentResult, document.getElementById("outputName").value.trim()||"Monthly_Report.xlsx"); else showToast("لا توجد بيانات","error"); };
   document.getElementById("exportAdvancedBtn").onclick=async()=>{ if(currentResult) await exportAdvancedExcel(currentResult, currentDriversWithDetails, document.getElementById("outputName").value.trim()||"Monthly_Report.xlsx"); else showToast("لا توجد بيانات","error"); };
   document.getElementById("saveCurrentReportBtn").onclick=async()=>{
@@ -513,28 +580,44 @@
       const reports=await getReportsFromServer();
       const container=document.getElementById("savedReportsList");
       container.innerHTML="";
-      if(!reports.length){ container.innerHTML="<span style='color:#aaa'>لا توجد تقارير محفوظة</span>"; return; }
+      if(!reports.length){ container.innerHTML="<div style='color:#aaa; text-align:center; width:100%;'>لا توجد تقارير محفوظة</div>"; return; }
       reports.forEach(r=>{
         const card=document.createElement("div");
         card.className="report-card";
         card.dataset.id=r.id;
-        card.onclick=(e)=>{ if(e.target.tagName!='BUTTON') card.classList.toggle('selected'); };
+        card.onclick=(e)=>{ if(e.target.tagName!='BUTTON' && !e.target.classList.contains('view-report-btn')) card.classList.toggle('selected'); };
+        
         const nameSpan=document.createElement("span");
         nameSpan.className="report-name";
         nameSpan.textContent=r.reportName;
-        const actions=document.createElement("div");
-        actions.className="report-actions";
+        
+        const dateSpan=document.createElement("span");
+        dateSpan.className="report-date";
+        dateSpan.textContent=new Date(r.createdAt).toLocaleDateString('ar-SA');
+        
+        const actionsDiv=document.createElement("div");
+        actionsDiv.className="report-actions";
         const editBtn=document.createElement("button");
-        editBtn.textContent="✏️";
+        editBtn.textContent="✏️ تعديل";
         editBtn.onclick=async(e)=>{ e.stopPropagation(); let newName=prompt("اسم جديد:",r.reportName); if(newName && newName!==r.reportName){ await renameReportOnServer(r.id,newName); loadReportsList(); showToast("تم التعديل","success"); } };
         const delBtn=document.createElement("button");
-        delBtn.textContent="🗑️";
+        delBtn.textContent="🗑️ حذف";
         delBtn.onclick=async(e)=>{ e.stopPropagation(); if(confirm("حذف التقرير؟")){ await deleteReportFromServer(r.id); loadReportsList(); showToast("تم الحذف","success"); } };
-        actions.appendChild(editBtn); actions.appendChild(delBtn);
-        card.appendChild(nameSpan); card.appendChild(actions);
+        actionsDiv.appendChild(editBtn);
+        actionsDiv.appendChild(delBtn);
+        
+        const viewBtn=document.createElement("button");
+        viewBtn.textContent="👁️ عرض التقرير";
+        viewBtn.className="view-report-btn";
+        viewBtn.onclick=async(e)=>{ e.stopPropagation(); await displaySingleReport(r.id); };
+        
+        card.appendChild(nameSpan);
+        card.appendChild(dateSpan);
+        card.appendChild(actionsDiv);
+        card.appendChild(viewBtn);
         container.appendChild(card);
       });
-    } catch(e){ document.getElementById("savedReportsList").innerHTML="<span style='color:#f00'>خطأ في تحميل التقارير</span>"; }
+    } catch(e){ document.getElementById("savedReportsList").innerHTML="<div style='color:#f00; text-align:center; width:100%;'>خطأ في تحميل التقارير</div>"; }
   }
 
   function showToast(msg,type){ let t=document.createElement('div'); t.className=`toast toast-${type}`; t.textContent=msg; document.getElementById('toastContainer').appendChild(t); setTimeout(()=>t.remove(),3000); }
@@ -542,7 +625,6 @@
   
   window.onload=async()=>{
     await loadReportsList();
-    // إضافة الناف بار
     const navContainer=document.getElementById('navLinks');
     if(navContainer){
       navContainer.innerHTML=`<a class="nav-link" href="index.html">🏠 الرئيسية</a><a class="nav-link" href="orders.html">📦 الطلبات</a><a class="nav-link" href="distribution.html">🚛 التوزيع</a><a class="nav-link" href="reports.html">📊 التقارير</a><a class="nav-link active" href="scale_report.html">⚖️ الميزان</a>`;
