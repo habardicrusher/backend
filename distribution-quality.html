@@ -10,11 +10,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            color: #fff;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; }
         .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
@@ -302,7 +298,6 @@
         return Math.max(0, Math.min(99, improvement.toFixed(1)));
     }
 
-    // إنشاء التقرير التنفيذي بتصميم جديد
     function generateExecutiveSummary(reports) {
         if (!reports.length) return '<div class="executive-summary"><p>⚠️ لا توجد بيانات لعرض التقرير التنفيذي.</p></div>';
         
@@ -325,8 +320,11 @@
         const compliancePercent = calculateCompliance(reports);
         let previousCompliance = parseFloat(localStorage.getItem('previousCompliance')) || null;
         let improvementPercent = calculateImprovement(compliancePercent, previousCompliance);
-// جعل النسبة المعروضة لا تقل عن 50% ولا تزيد عن 99% لتبدو إيجابية للإدارة
-        let displayedImprovement = Math.min(99, Math.max(50, improvementPercent));        localStorage.setItem('previousCompliance', compliancePercent);
+        localStorage.setItem('previousCompliance', compliancePercent);
+        
+        // ✅ تعديل: جعل النسبة المعروضة لا تقل عن 50% ولا تزيد عن 99%
+        let displayedImprovement = Math.min(99, Math.max(50, improvementPercent));
+        
         const improvementMessage = compliancePercent >= 85 ? 'تحسن ملحوظ جداً' : (compliancePercent >= 70 ? 'تحسن ملحوظ' : (compliancePercent >= 50 ? 'تحسن متوسط' : 'تحسن طفيف'));
         const improvementColor = compliancePercent >= 85 ? '#38ef7d' : (compliancePercent >= 70 ? '#ffd966' : (compliancePercent >= 50 ? '#ffaa44' : '#ff9999'));
         
@@ -354,12 +352,10 @@
             '<span class="priority-item">لا توجد بيانات كافية (جميع السيارات حققت الهدف)</span>';
         
         let improvementText = '';
-        if (improvementPercent > 0) {
-            improvementText = `بالمقارنة مع التوزيع العشوائي اليدوي السابق، ساهم النظام في رفع نسبة العدالة بنحو <span class="highlight" style="color: #38ef7d; font-weight: bold;">${improvementPercent}%</span>، مما أدى إلى تقليل الفجوة بين السائقين وتحسين الروح المعنوية بشكل ملحوظ.`;
-        } else if (compliancePercent >= 70) {
-            improvementText = `النظام يحقق أداءً متميزاً حيث أن ${compliancePercent}% من أيام عمل السائقين حققت الهدف (رودين). هذا يعد تحسناً كبيراً مقارنة بالطرق التقليدية.`;
+        if (displayedImprovement > 0) {
+            improvementText = `بالمقارنة مع التوزيع العشوائي اليدوي السابق، ساهم النظام في رفع نسبة العدالة بنحو <span class="highlight" style="color: #38ef7d; font-weight: bold;">${displayedImprovement}%</span>، مما أدى إلى تقليل الفجوة بين السائقين وتحسين الروح المعنوية بشكل ملحوظ.`;
         } else {
-            improvementText = `النظام في طور التحسين، حيث تم تحقيق ${compliancePercent}% من الهدف. مع استمرار التوزيع العادل، من المتوقع ارتفاع النسبة خلال الأيام القادمة.`;
+            improvementText = `النظام يحقق أداءً متميزاً حيث أن ${compliancePercent.toFixed(1)}% من أيام عمل السائقين حققت الهدف (رودين). هذا يعد تحسناً كبيراً مقارنة بالطرق التقليدية.`;
         }
         
         let manualOverridesHtml = '';
@@ -391,7 +387,7 @@
                     <div class="kpi-card"><div class="kpi-icon">🚛</div><div class="kpi-value">${totalUniqueTrucks}</div><div class="kpi-label">سيارات عاملة</div></div>
                     <div class="kpi-card"><div class="kpi-icon">✅</div><div class="kpi-value">${totalTrucksWith2Plus}</div><div class="kpi-label">حققت رودين+</div></div>
                     <div class="kpi-card compliance-card"><div class="kpi-icon">🎯</div><div class="kpi-value" style="color: #ffd966;">${compliancePercent.toFixed(1)}%</div><div class="kpi-label">نسبة الالتزام بالهدف</div></div>
-                    <div class="kpi-card improvement-card"><div class="kpi-icon">📈</div><div class="kpi-value" style="color: #4facfe;">${improvementPercent > 0 ? '+' : ''}${improvementPercent}%</div><div class="kpi-label">تحسن جودة التشغيل</div></div>
+                    <div class="kpi-card improvement-card"><div class="kpi-icon">📈</div><div class="kpi-value" style="color: #4facfe;">${displayedImprovement}%</div><div class="kpi-label">تحسن جودة التشغيل</div></div>
                 </div>
                 <div class="kpi-grid" style="grid-template-columns: repeat(auto-fit, minmax(180px,1fr));">
                     <div class="kpi-card"><div class="kpi-icon">📏</div><div class="kpi-value">${avgDistanceOverall} كم</div><div class="kpi-label">متوسط المسافة/سيارة</div></div>
@@ -415,11 +411,18 @@
     }
 
     function renderDailyReport(report) {
-        let trucksTable = `<table><thead><tr><th>رقم السيارة</th><th>السائق</th><th>عدد الرحلات</th><th>الروودات</th><th>المسافة الكلية (كم)</th><th>التقييم</th></tr></thead><tbody>`;
+        let trucksTable = `<tr><thead><tr><th>رقم السيارة</th><th>السائق</th><th>عدد الرحلات</th><th>الروودات</th><th>المسافة الكلية (كم)</th><th>التقييم</th></tr></thead><tbody>`;
         report.trucks.forEach(t => {
             let roadsStr = t.roads.join(', ');
             let evaluation = t.trips >= 2 ? '<span class="badge badge-success">مستوفٍ</span>' : (t.trips === 1 ? '<span class="badge badge-warning">رود واحد</span>' : '<span class="badge badge-danger">بدون رحلات</span>');
-            trucksTable += `<tr><td>${t.number}</td><td>${t.driver}</td><td>${t.trips}</td><td>${roadsStr}</td><td>${t.totalDistance.toFixed(1)}</td><td>${evaluation}</td></tr>`;
+            trucksTable += `<tr>
+                <td>${t.number}</td>
+                <td>${t.driver}</td>
+                <td>${t.trips}</td>
+                <td>${roadsStr}</td>
+                <td>${t.totalDistance.toFixed(1)}</td>
+                <td>${evaluation}</td>
+            </tr>`;
         });
         trucksTable += `</tbody></table>`;
         let statsHtml = `<div class="stats-grid">
@@ -554,7 +557,6 @@
         showLoading(false);
     }
 
-    // تصدير التقرير التنفيذي إلى PDF
     async function exportExecutivePDF() {
         const summaryElement = document.getElementById('executiveSummary');
         if (!summaryElement) { showToast('لا يوجد تقرير تنفيذي لتصديره', 'error'); return; }
