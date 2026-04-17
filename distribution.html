@@ -5,40 +5,17 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>التوزيع الجغرافي المتوازن بالمسافات - كسارة الحبردي</title>
     <style>
+        /* نفس الأنماط السابقة - اختصاراً */
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
-            min-height: 100vh;
-            color: #fff;
-        }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); min-height: 100vh; color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
         .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; position: relative; }
         .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
         .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; font-weight: 600; transition: all 0.3s; }
         .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transform: translateY(-2px); }
-        .date-section {
-            background: rgba(255,255,255,0.1);
-            padding: 15px 25px;
-            border-radius: 15px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            flex-wrap: wrap;
-            gap: 15px;
-        }
+        .date-section { background: rgba(255,255,255,0.1); padding: 15px 25px; border-radius: 15px; margin-bottom: 25px; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 15px; }
         .date-section input[type="date"] { padding: 12px 20px; border-radius: 10px; border: none; background: #fff; color: #333; cursor: pointer; }
-        .btn {
-            padding: 12px 25px;
-            border: none;
-            border-radius: 12px;
-            cursor: pointer;
-            font-size: 1em;
-            font-weight: 600;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-        }
+        .btn { padding: 12px 25px; border: none; border-radius: 12px; cursor: pointer; font-size: 1em; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
         .btn-danger { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); color: #fff; }
         .btn-info { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: #fff; }
@@ -79,14 +56,14 @@
     <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
-        <div class="header"><h1>🚚 التوزيع الجغرافي المتوازن (حسب المسافات والوقت)</h1><p>توزيع الطلبات بأولوية للسائقين الأكثر مسافة لضمان العدالة</p>
+        <div class="header"><h1>🚚 التوزيع الجغرافي المتوازن (حسب المسافات)</h1><p>توزيع عادل للطلبات مع أولوية للسائقين الأقل رحلات</p>
             <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"></div>
         </div>
         <div class="nav-links" id="navLinks"></div>
         <div class="date-section">
             <div><label>📅 تاريخ العمل: </label><input type="date" id="orderDate" onchange="loadData()"></div>
             <div>
-                <button class="btn btn-success" onclick="autoDistribute()">⚡ توزيع تلقائي (بالمسافات)</button>
+                <button class="btn btn-success" onclick="autoDistribute()">⚡ توزيع تلقائي (عادل)</button>
                 <button class="btn btn-danger" onclick="resetDistribution()">🔄 إعادة التعيين</button>
                 <button class="btn print-btn" onclick="window.print()">🖨️ طباعة</button>
             </div>
@@ -129,8 +106,7 @@
     </div>
 
     <script>
-        // ==================== بيانات المسافات والوقت (ذهاب وعودة) ====================
-        // تم استخراجها من الجدول المرفق: المسافة الكلية (كم) ووقت الرحلة الكلي
+        // بيانات المسافات (ذهاب وعودة)
         const FACTORY_DATA = {
             "مصنع الفهد": { distance: 337.99, time: "3 س و 30 د" },
             "مصنع قوة معمارية": { distance: 339.87, time: "3 س و 29 د" },
@@ -153,15 +129,8 @@
             "الشركة الصينية": { distance: 605.51, time: "7 س و 40 د" },
             "شركة اعمار": { distance: 662.14, time: "7 س و 38 د" }
         };
-        
-        function getFactoryDistance(factoryName) {
-            return FACTORY_DATA[factoryName] ? FACTORY_DATA[factoryName].distance : 150;
-        }
-        
-        function getFactoryTime(factoryName) {
-            return FACTORY_DATA[factoryName] ? FACTORY_DATA[factoryName].time : "—";
-        }
-        // ========================================================================
+        function getFactoryDistance(factoryName) { return FACTORY_DATA[factoryName] ? FACTORY_DATA[factoryName].distance : 150; }
+        function getFactoryTime(factoryName) { return FACTORY_DATA[factoryName] ? FACTORY_DATA[factoryName].time : "—"; }
 
         const API_BASE = '/api';
         let trucks = [], orders = [], distribution = [], currentDate = '';
@@ -296,12 +265,11 @@
                 await loadData();
                 closeManualModal();
                 showToast(`✅ تم توزيع الطلب على السيارة ${truckNumber} - ${truck.driver} (رود ${road})`, 'success');
-                localStorage.setItem('pendingOrdersCount', '0');
             } catch(e) { showToast('خطأ في التوزيع', 'error'); }
             showLoading(false);
         }
 
-        // =============== خوارزمية التوزيع التلقائي العادل (بالمسافات والوقت) ===============
+        // =============== خوارزمية التوزيع العادل الجديدة ===============
         async function autoDistribute() {
             const distributedOrderIds = new Set(distribution.map(d => d.orderId));
             const undistributed = orders.filter(o => !distributedOrderIds.has(o.id));
@@ -310,73 +278,54 @@
             showLoading(true);
 
             // إحصائيات اليوم لكل سيارة
-            let truckTrips = {};          // عدد الرحلات
-            let truckTotalDistance = {};   // مجموع المسافات المقطوعة (ذهاب وعودة)
-            let truckLastFactory = {};     // آخر مصنع تم التوزيع إليه (لتجنب التكرار)
-
+            let truckTrips = {};
+            let truckLastFactory = {};
             trucks.forEach(t => {
                 truckTrips[t.number] = 0;
-                truckTotalDistance[t.number] = 0;
                 truckLastFactory[t.number] = null;
             });
-
-            // تسجيل التوزيعات السابقة في نفس اليوم (إن وجدت)
             distribution.forEach(d => {
                 if (d.truck) {
                     truckTrips[d.truck.number]++;
-                    const dist = getFactoryDistance(d.factory);
-                    truckTotalDistance[d.truck.number] += dist;
                     truckLastFactory[d.truck.number] = d.factory;
                 }
             });
 
             let newDistributions = [];
-
-            // دالة لترتيب السيارات حسب الأولوية العادلة
-            // الأولوية القصوى للسيارات ذات عدد الرحلات الأقل (<2)
-            // ثم ضمن هذه الفئة: الأعلى مسافة مقطوعة أولاً (لتعويض من ذهب بعيداً)
-            // بعد اكتمال رحلتين: نعطي الأولوية للأقل مسافة مقطوعة (لتوازن الأحمال)
-            function getPrioritizedTrucks(currentOrderFactory) {
-                let candidates = [...trucks];
-                
-                // تقسيم إلى فئتين
-                let lowTrips = candidates.filter(t => truckTrips[t.number] < 2);
-                let highTrips = candidates.filter(t => truckTrips[t.number] >= 2);
-                
-                // ترتيب lowTrips تنازلياً حسب المسافة المقطوعة (الأعلى أولاً)
-                lowTrips.sort((a, b) => truckTotalDistance[b.number] - truckTotalDistance[a.number]);
-                // ترتيب highTrips تصاعدياً حسب المسافة المقطوعة (الأقل أولاً)
-                highTrips.sort((a, b) => truckTotalDistance[a.number] - truckTotalDistance[b.number]);
-                
-                let ordered = [...lowTrips, ...highTrips];
-                
-                // تجنب تكرار نفس المصنع قدر الإمكان (دون كسر الأولوية الكلية)
-                let finalOrder = [];
-                let sameFactoryTrucks = [];
-                for (let t of ordered) {
-                    if (truckLastFactory[t.number] === currentOrderFactory) {
-                        sameFactoryTrucks.push(t);
-                    } else {
-                        finalOrder.push(t);
-                    }
-                }
-                finalOrder.push(...sameFactoryTrucks);
-                return finalOrder;
+            
+            // قائمة انتظار السيارات مرتبة حسب عدد الرحلات (الأقل أولاً)، ثم عشوائياً لكسر التكرار
+            let availableTrucks = [...trucks];
+            
+            // دالة لإعادة ترتيب قائمة السيارات بحيث الأقل رحلات في المقدمة
+            function reorderTrucks() {
+                availableTrucks.sort((a, b) => {
+                    const diff = truckTrips[a.number] - truckTrips[b.number];
+                    if (diff !== 0) return diff;
+                    // إذا كان عدد الرحلات متساوياً، نفضل الذي لديه مسافة أقل (لكن ليس ضرورياً)
+                    return 0;
+                });
             }
-
-            // تنفيذ التوزيع على كل طلب غير موزع
+            
+            // المعالجة: توزيع الطلبات بشكل دوري (Round Robin) مع مراعاة الأولوية للأقل رحلات
             for (let i = 0; i < undistributed.length; i++) {
                 const order = undistributed[i];
-                const orderDistance = getFactoryDistance(order.factory);
-                const prioritizedTrucks = getPrioritizedTrucks(order.factory);
+                
+                // إعادة ترتيب السيارات قبل كل توزيع
+                reorderTrucks();
+                
+                // اختيار أول سيارة من القائمة (الأقل رحلات)
                 let selectedTruck = null;
-                
-                if (prioritizedTrucks.length > 0) {
-                    selectedTruck = prioritizedTrucks[0];
-                } else {
-                    selectedTruck = trucks[0];
+                // تجنب تكرار نفس المصنع إن أمكن (نبحث في أول 10 سيارات فقط للكفاءة)
+                for (let j = 0; j < Math.min(availableTrucks.length, 10); j++) {
+                    const candidate = availableTrucks[j];
+                    if (truckLastFactory[candidate.number] !== order.factory) {
+                        selectedTruck = candidate;
+                        break;
+                    }
                 }
-                
+                if (!selectedTruck && availableTrucks.length) {
+                    selectedTruck = availableTrucks[0];
+                }
                 if (!selectedTruck) {
                     showToast(`لا توجد سيارات متاحة للطلب رقم ${i+1}`, 'error');
                     continue;
@@ -384,10 +333,7 @@
                 
                 // تحديث الإحصائيات
                 truckTrips[selectedTruck.number]++;
-                truckTotalDistance[selectedTruck.number] += orderDistance;
                 truckLastFactory[selectedTruck.number] = order.factory;
-                
-                // الرود = عدد الرحلات بعد الإضافة (أول رحلة = رود 1، ثانية = رود 2، إلخ)
                 const currentRoad = truckTrips[selectedTruck.number];
                 
                 newDistributions.push({
@@ -406,10 +352,9 @@
                 await saveData();
                 await loadData();
                 
-                // إحصائيات نهائية
-                let summary = trucks.map(t => `${t.number}: ${truckTrips[t.number]} رحلة (${truckTotalDistance[t.number].toFixed(1)} كم)`).join(' | ');
-                showToast(`✅ تم توزيع ${newDistributions.length} طلب. التوزيع: ${summary}`, 'success');
-                localStorage.setItem('pendingOrdersCount', '0');
+                // عرض إحصائيات التوزيع
+                const tripsSummary = Object.entries(truckTrips).map(([num, trips]) => `${num}: ${trips}`).join(' | ');
+                showToast(`✅ تم توزيع ${newDistributions.length} طلب. التوزيع: ${tripsSummary}`, 'success');
             } else {
                 showToast('فشل التوزيع التلقائي', 'error');
             }
