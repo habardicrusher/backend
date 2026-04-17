@@ -19,9 +19,6 @@
         .btn { padding: 12px 25px; border: none; border-radius: 12px; cursor: pointer; font-size: 1em; font-weight: 600; display: inline-flex; align-items: center; gap: 8px; }
         .btn-primary { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: #fff; }
         .btn-success { background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: #fff; }
-        .quick-filters { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 15px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); }
-        .quick-filter-btn { padding: 8px 16px; border: 1px solid rgba(102,126,234,0.5); background: rgba(102,126,234,0.1); color: #a8b2d1; border-radius: 20px; cursor: pointer; font-size: 0.85em; font-weight: 600; transition: all 0.3s; }
-        .quick-filter-btn:hover, .quick-filter-btn.active { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; border-color: transparent; transform: translateY(-1px); }
         .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px; }
         .stat-card { background: rgba(255,255,255,0.05); border-radius: 15px; padding: 20px; text-align: center; }
         .stat-card .number { font-size: 2em; font-weight: bold; color: #38ef7d; }
@@ -49,7 +46,9 @@
             padding: 25px;
             margin-bottom: 35px;
             border-right: 5px solid #38ef7d;
+            transition: all 0.3s ease;
         }
+        .executive-summary.hidden { display: none; }
         .executive-summary h2 { color: #38ef7d; margin-bottom: 20px; display: flex; align-items: center; gap: 10px; }
         .executive-summary p { line-height: 1.8; margin-bottom: 15px; color: #e0e0e0; }
         .executive-summary .highlight { color: #38ef7d; font-weight: bold; }
@@ -58,7 +57,9 @@
         .priority-item { background: rgba(56,239,125,0.15); padding: 8px 16px; border-radius: 25px; font-size: 0.9em; border: 1px solid rgba(56,239,125,0.3); }
         .improvement-badge { font-size: 2em; font-weight: bold; display: inline-block; margin: 0 10px; }
         .toggle-summary-btn { margin-bottom: 20px; background: #4facfe; }
-        @media (max-width: 700px) { .vacation-control { flex-wrap: wrap; } .report-card { min-width: 160px; } }
+        .manual-overrides-table { width: 100%; margin-top: 20px; border-collapse: collapse; }
+        .manual-overrides-table th, .manual-overrides-table td { border: 1px solid rgba(255,255,255,0.2); padding: 10px; }
+        .manual-overrides-table th { background: rgba(245,87,108,0.3); }
     </style>
 </head>
 <body>
@@ -79,12 +80,6 @@
             <button class="btn btn-success" onclick="exportToExcel()">📥 تصدير Excel (تبويبات يومية)</button>
             <button class="btn btn-info toggle-summary-btn" id="toggleSummaryBtn">📋 إخفاء التقرير التنفيذي</button>
         </div>
-        <div class="quick-filters">
-            <button class="quick-filter-btn" onclick="setQuickFilter('today')">📅 اليوم</button>
-            <button class="quick-filter-btn" onclick="setQuickFilter('week')">📅 أسبوعي</button>
-            <button class="quick-filter-btn" onclick="setQuickFilter('month')">📅 شهري</button>
-            <button class="quick-filter-btn" onclick="setQuickFilter('custom')">📅 مخصص</button>
-        </div>
     </div>
 
     <div id="executiveSummaryContainer"></div>
@@ -95,7 +90,6 @@
     const API_BASE = '/api';
     let dailyDataStore = [];
 
-    // بيانات المسافات والوقت (ذهاب وعودة)
     const FACTORY_DATA = {
         "مصنع الفهد": { distance: 337.99, time: "3 س و 30 د" },
         "مصنع قوة معمارية": { distance: 339.87, time: "3 س و 29 د" },
@@ -148,6 +142,7 @@
     function analyzeDay(date, orders, distribution) {
         const dateStr = formatDateForSheet(date);
         const trucksMap = new Map();
+        const manualOverrides = []; // جمع التدخلات اليدوية المخالفة
         distribution.forEach(d => {
             if (!d.truck) return;
             const num = d.truck.number;
@@ -159,6 +154,18 @@
             const dist = getFactoryDistance(d.factory);
             rec.totalDistance += dist;
             rec.roads.push(d.road);
+            
+            if (d.manualOverride === true) {
+                manualOverrides.push({
+                    truckNumber: d.truck.number,
+                    driver: d.truck.driver,
+                    factory: d.factory,
+                    material: d.material,
+                    road: d.road,
+                    reason: d.overrideReason || 'تم اختيار سائق مخالف للتوصية العادلة',
+                    recommendedTruck: d.recommendedTruck || 'غير محدد'
+                });
+            }
         });
         const trucksArray = Array.from(trucksMap.values());
         const totalTrips = trucksArray.reduce((s, t) => s + t.trips, 0);
@@ -178,7 +185,8 @@
             trucksWith0: 0,
             avgDistance: avgDist,
             stdDevDistance: stdDev,
-            totalTrips
+            totalTrips,
+            manualOverrides
         };
     }
 
@@ -212,6 +220,7 @@
         let totalOrdersAll = 0, totalDistributedAll = 0, totalTrucksUnique = new Set();
         let totalTripsAll = 0, totalTrucksWith2Plus = 0, totalTrucksWith1 = 0;
         let totalDistanceSum = 0, totalDistanceCount = 0;
+        let allManualOverrides = [];
         
         reports.forEach(r => {
             totalOrdersAll += r.totalOrders;
@@ -222,6 +231,9 @@
             r.trucks.forEach(t => totalTrucksUnique.add(t.number));
             totalDistanceSum += r.avgDistance * (r.trucks.length || 1);
             totalDistanceCount += (r.trucks.length || 1);
+            if (r.manualOverrides && r.manualOverrides.length) {
+                allManualOverrides.push(...r.manualOverrides.map(m => ({ ...m, date: r.date })));
+            }
         });
         const totalUniqueTrucks = totalTrucksUnique.size;
         const avgDistanceOverall = totalDistanceCount ? (totalDistanceSum / totalDistanceCount).toFixed(1) : 0;
@@ -264,6 +276,35 @@
             improvementText = `النظام في طور التحسين، حيث تم تحقيق ${compliancePercent}% من الهدف. مع استمرار التوزيع العادل، من المتوقع ارتفاع النسبة خلال الأيام القادمة.`;
         }
         
+        let manualOverridesHtml = '';
+        if (allManualOverrides.length > 0) {
+            manualOverridesHtml = `
+                <div class="method-box" style="border-right-color: #f5576c;">
+                    <strong>⚠️ تدخلات يدوية مخالفة للعدالة:</strong>
+                    <p style="margin-top:10px;">تم رصد <strong>${allManualOverrides.length}</strong> عملية توزيع يدوي خالفت توصيات النظام العادل. يرجى مراجعة التفاصيل أدناه، ففي حال تكرارها قد تشير إلى محاباة أو تجاوز للقواعد.</p>
+                    <table class="manual-overrides-table">
+                        <thead>
+                            <tr><th>التاريخ</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>الرود</th><th>التفاصيل</th><th>السائق الموصى به</th></tr>
+                        </thead>
+                        <tbody>
+                            ${allManualOverrides.map(m => `
+                                <tr>
+                                    <td>${m.date}</td>
+                                    <td>${m.truckNumber}</td>
+                                    <td>${m.driver}</td>
+                                    <td>${m.factory}</td>
+                                    <td>${m.road}</td>
+                                    <td>${m.reason}</td>
+                                    <td>${m.recommendedTruck}</td>
+                                </tr>
+                            `).join('')}
+                        </tbody>
+                    </table>
+                    <p style="margin-top:10px; color:#f5576c;">🔔 تنبيه: يُرجى من الإدارة مراجعة هذه الحالات والتأكد من عدم وجود محاباة. في حال تكرارها، سيتم اتخاذ الإجراءات اللازمة.</p>
+                </div>
+            `;
+        }
+        
         return `
             <div class="executive-summary" id="executiveSummary">
                 <h2>📋 التقرير التنفيذي - ملخص الأداء</h2>
@@ -272,6 +313,7 @@
                 <p>🏆 <strong>نسبة الالتزام بالهدف (رودين لكل سائق يومياً):</strong> <span class="improvement-badge" style="color:${improvementColor};">${compliancePercent.toFixed(1)}%</span> ${improvementMessage}</p>
                 <p>📊 <strong>متوسط المسافة المقطوعة لكل سيارة:</strong> ${avgDistanceOverall} كم | <strong>الانحراف المعياري:</strong> ${(reports.reduce((s,r)=>s+parseFloat(r.stdDevDistance),0)/reports.length).toFixed(1)} كم (كلما قلَّ، دلَّ على تساوي الأحمال)</p>
                 ${methodology}
+                ${manualOverridesHtml}
                 <p>🎯 <strong>نتيجة التوزيع:</strong> تم توزيع الطلبات بنجاح مع تحقيق <strong>${totalTrucksWith2Plus}</strong> سيارة للهدف (رودين فأكثر)، بينما سجلت <strong>${totalTrucksWith1}</strong> سيارة روداً واحداً فقط، و <strong>${totalUniqueTrucks - (totalTrucksWith2Plus+totalTrucksWith1)}</strong> سيارة بدون رحلات (غير مستخدمة في هذه الفترة).</p>
                 <p>⚙️ <strong>كيف تم التوزيع؟</strong> اعتمد النظام على خوارزمية ذكية تراعي المسافة الفعلية لكل مصنع (ذهاباً وإياباً) وتوزع الرحلات بالتناوب مع إعطاء الأولوية للسائقين الأقل حظاً في الرحلات. هذا يضمن عدم هيمنة سائق واحد على العديد من الطلبات ويخلق بيئة عمل عادلة.</p>
                 <p>📈 <strong>تطور جودة التشغيل:</strong> ${improvementText}</p>
@@ -283,7 +325,7 @@
     }
 
     function renderDailyReport(report) {
-        let trucksTable = `</table><thead><tr><th>رقم السيارة</th><th>السائق</th><th>عدد الرحلات</th><th>الروودات</th><th>المسافة الكلية (كم)</th><th>التقييم</th></tr></thead><tbody>`;
+        let trucksTable = `<table><thead><tr><th>رقم السيارة</th><th>السائق</th><th>عدد الرحلات</th><th>الروودات</th><th>المسافة الكلية (كم)</th><th>التقييم</th></tr></thead><tbody>`;
         report.trucks.forEach(t => {
             let roadsStr = t.roads.join(', ');
             let evaluation = t.trips >= 2 ? '<span class="badge badge-success">مستوفٍ</span>' : (t.trips === 1 ? '<span class="badge badge-warning">رود واحد</span>' : '<span class="badge badge-danger">بدون رحلات</span>');
@@ -368,39 +410,6 @@
         showLoading(false);
     }
 
-    // دالة الفلاتر السريعة
-    function setQuickFilter(type) {
-        const today = new Date();
-        const startDateInput = document.getElementById('startDate');
-        const endDateInput = document.getElementById('endDate');
-        let start, end;
-        
-        switch(type) {
-            case 'today':
-                start = new Date(today);
-                end = new Date(today);
-                break;
-            case 'week':
-                start = new Date(today);
-                start.setDate(today.getDate() - today.getDay() + 1); // بداية الأسبوع (السبت)
-                end = new Date(today);
-                break;
-            case 'month':
-                start = new Date(today.getFullYear(), today.getMonth(), 1);
-                end = new Date(today);
-                break;
-            case 'custom':
-                // لا تغيير، يبقي على ما هو موجود
-                return;
-            default:
-                return;
-        }
-        
-        startDateInput.value = formatDateForSheet(start);
-        endDateInput.value = formatDateForSheet(end);
-        loadQualityReport();
-    }
-
     document.getElementById('toggleSummaryBtn').addEventListener('click', () => {
         const summaryDiv = document.getElementById('executiveSummary');
         const toggleBtn = document.getElementById('toggleSummaryBtn');
@@ -419,6 +428,7 @@
     });
 
     async function exportToExcel() {
+        // نفس الدالة السابقة مع إضافة ورقة للتدخلات اليدوية إذا وجدت
         if (!dailyDataStore.length) { showToast('لا توجد بيانات للتصدير', 'error'); return; }
         showLoading(true);
         try {
@@ -426,7 +436,7 @@
             const workbook = new ExcelJS.Workbook();
             workbook.creator = 'نظام كسارة الحبردي';
             
-            // ورقة الملخص التنفيذي
+            // ورقة الملخص التنفيذي (كما هي)
             const summarySheet = workbook.addWorksheet('ملخص تنفيذي', { views: [{ rightToLeft: true }] });
             summarySheet.mergeCells('A1:B1');
             summarySheet.getCell('A1').value = '📊 التقرير التنفيذي لجودة التوزيع';
@@ -436,6 +446,7 @@
             let totalOrdersAll = 0, totalTripsAll = 0, totalUniqueTrucks = new Set();
             let totalTrucksWith2Plus = 0, totalTrucksWith1 = 0;
             let totalDistanceSum = 0, totalDistanceCount = 0;
+            let allManualOverrides = [];
             dailyDataStore.forEach(r => {
                 totalOrdersAll += r.totalOrders;
                 totalTripsAll += r.totalTrips;
@@ -444,6 +455,9 @@
                 r.trucks.forEach(t => totalUniqueTrucks.add(t.number));
                 totalDistanceSum += r.avgDistance * (r.trucks.length || 1);
                 totalDistanceCount += (r.trucks.length || 1);
+                if (r.manualOverrides && r.manualOverrides.length) {
+                    allManualOverrides.push(...r.manualOverrides.map(m => ({ ...m, date: r.date })));
+                }
             });
             const avgDistanceOverall = totalDistanceCount ? (totalDistanceSum / totalDistanceCount).toFixed(1) : 0;
             const startDate = document.getElementById('startDate').value;
@@ -459,6 +473,7 @@
                 ['سيارات برود واحد', totalTrucksWith1],
                 ['نسبة الالتزام بالهدف (رودين/سائق/يوم)', `${compliancePercent.toFixed(1)}%`],
                 ['متوسط المسافة لكل سيارة (كم)', avgDistanceOverall],
+                ['عدد التدخلات اليدوية المخالفة', allManualOverrides.length],
                 ['منهجية التوزيع', 'الأولوية للأقل رحلات، ثم الأعلى مسافة، مع تجنب تكرار المصنع واستثناء الدرعية أوقات الإغلاق'],
                 ['تحسين جودة التشغيل', 'تم تقليل الفجوة بين السائقين بشكل كبير مقارنة بالتوزيع اليدوي العشوائي'],
                 ['أولوية الغد', 'السيارات الأقل رحلات والأعلى مسافة في آخر يوم']
@@ -469,7 +484,18 @@
                 r.getCell(1).font = { bold: true };
             });
             
-            // الأوراق اليومية
+            // ورقة التدخلات اليدوية (إن وجدت)
+            if (allManualOverrides.length) {
+                const manualSheet = workbook.addWorksheet('تدخلات يدوية', { views: [{ rightToLeft: true }] });
+                manualSheet.columns = [{ width: 12 }, { width: 15 }, { width: 25 }, { width: 30 }, { width: 12 }, { width: 50 }, { width: 15 }];
+                manualSheet.getRow(1).values = ['التاريخ', 'رقم السيارة', 'السائق', 'المصنع', 'الرود', 'التفاصيل', 'السائق الموصى به'];
+                manualSheet.getRow(1).font = { bold: true };
+                allManualOverrides.forEach((m, i) => {
+                    manualSheet.getRow(2 + i).values = [m.date, m.truckNumber, m.driver, m.factory, m.road, m.reason, m.recommendedTruck];
+                });
+            }
+            
+            // الأوراق اليومية (كما هي)
             for (let report of dailyDataStore) {
                 const sheetName = report.date;
                 const sheet = workbook.addWorksheet(sheetName, { views: [{ rightToLeft: true }] });
