@@ -7,7 +7,7 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
-// إعداد اتصال قاعدة البيانات مع إعادة محاولة الاتصال
+// إعداد اتصال قاعدة البيانات
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
@@ -16,7 +16,7 @@ const pool = new Pool({
     max: 10
 });
 
-// اختبار الاتصال بقاعدة البيانات عند بدء التشغيل
+// اختبار الاتصال بقاعدة البيانات
 pool.connect((err, client, release) => {
     if (err) {
         console.error('❌ فشل الاتصال بقاعدة البيانات:', err.message);
@@ -35,7 +35,7 @@ app.use(session({
     cookie: { maxAge: 24 * 60 * 60 * 1000 }
 }));
 
-// ==================== دوال مساعدة مع تحسين الأخطاء ====================
+// ==================== دوال مساعدة ====================
 async function query(text, params) {
     try {
         const start = Date.now();
@@ -51,17 +51,15 @@ async function query(text, params) {
     }
 }
 
-// ==================== إنشاء الجداول (مع التحقق من وجودها) ====================
+// ==================== إنشاء الجداول ====================
 async function initTables() {
     try {
-        // جدول الإعدادات
         await query(`
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value JSONB NOT NULL
             )
         `);
-        // جدول المنتجات
         await query(`
             CREATE TABLE IF NOT EXISTS products (
                 id SERIAL PRIMARY KEY,
@@ -69,7 +67,6 @@ async function initTables() {
                 created_at TIMESTAMP DEFAULT NOW()
             )
         `);
-        // جدول بيانات الميزان الشهرية
         await query(`
             CREATE TABLE IF NOT EXISTS scale_data (
                 id SERIAL PRIMARY KEY,
@@ -80,7 +77,6 @@ async function initTables() {
                 UNIQUE(year, month)
             )
         `);
-        // جدول التقارير المحفوظة
         await query(`
             CREATE TABLE IF NOT EXISTS scale_reports (
                 id SERIAL PRIMARY KEY,
@@ -90,7 +86,6 @@ async function initTables() {
                 created_at TIMESTAMP DEFAULT NOW()
             )
         `);
-        // جدول بيانات اليوم (الطلبات والتوزيع) - الأهم لصفحة الطلبات
         await query(`
             CREATE TABLE IF NOT EXISTS day_data (
                 date DATE PRIMARY KEY,
@@ -98,7 +93,6 @@ async function initTables() {
                 distribution JSONB NOT NULL
             )
         `);
-        // جدول المستخدمين
         await query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -110,7 +104,6 @@ async function initTables() {
             )
         `);
         
-        // إضافة المستخدمين الافتراضيين إذا لم يوجد أحد
         const userCount = await query('SELECT COUNT(*) FROM users');
         if (parseInt(userCount.rows[0].count) === 0) {
             await query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', bcrypt.hashSync('admin', 10), 'admin']);
@@ -124,10 +117,9 @@ async function initTables() {
     }
 }
 
-// تشغيل تهيئة الجداول
 initTables().catch(console.error);
 
-// ==================== Endpoints ====================
+// ==================== Endpoints العامة ====================
 app.get('/', (req, res) => {
     res.sendFile(__dirname + '/index.html');
 });
@@ -138,7 +130,7 @@ app.post('/api/login', async (req, res) => {
         if (!username || !password) return res.status(400).json({ error: 'مطلوب' });
         const result = await query('SELECT * FROM users WHERE username = $1', [username]);
         const user = result.rows[0];
-        if (!user || !bcrypt.compareSync(password, user.password)) 
+        if (!user || !bcrypt.compareSync(password, user.password))
             return res.status(401).json({ error: 'بيانات غير صحيحة' });
         req.session.userId = user.id;
         req.session.username = user.username;
@@ -220,24 +212,19 @@ app.delete('/api/products/:name', async (req, res) => {
     }
 });
 
-// ==================== بيانات اليوم (الطلبات والتوزيع) - نسخة آمنة ====================
+// ==================== بيانات اليوم (الطلبات والتوزيع) ====================
 app.get('/api/day/:date', async (req, res) => {
     const { date } = req.params;
     try {
-        // تحقق من صحة التاريخ
         if (!date || isNaN(new Date(date).getTime())) {
             return res.status(400).json({ error: 'تاريخ غير صالح' });
         }
-        
         const result = await query('SELECT orders, distribution FROM day_data WHERE date = $1', [date]);
-        
         if (result.rows.length > 0) {
-            // تأكد من أن البيانات هي كائنات صالحة
             const orders = result.rows[0].orders || [];
             const distribution = result.rows[0].distribution || [];
             res.json({ orders, distribution });
         } else {
-            // لا توجد بيانات لذلك اليوم
             res.json({ orders: [], distribution: [] });
         }
     } catch (err) {
@@ -249,38 +236,29 @@ app.get('/api/day/:date', async (req, res) => {
 app.put('/api/day/:date', async (req, res) => {
     const { date } = req.params;
     const { orders, distribution } = req.body;
-    
-    // التحقق من صحة التاريخ والبيانات
     if (!date || isNaN(new Date(date).getTime())) {
         return res.status(400).json({ error: 'تاريخ غير صالح' });
     }
-    
     if (!Array.isArray(orders) || !Array.isArray(distribution)) {
         return res.status(400).json({ error: 'بيانات غير صالحة: orders و distribution يجب أن تكون مصفوفات' });
     }
-    
     try {
-        // استخدام JSON.stringify للتأكد من أن البيانات بتنسيق JSON صحيح
         const ordersJson = JSON.stringify(orders);
         const distributionJson = JSON.stringify(distribution);
-        
-        // استعلام أكثر أماناً باستخدام CAST
         await query(`
             INSERT INTO day_data (date, orders, distribution) 
             VALUES ($1, $2::jsonb, $3::jsonb) 
             ON CONFLICT (date) 
             DO UPDATE SET orders = $2::jsonb, distribution = $3::jsonb
         `, [date, ordersJson, distributionJson]);
-        
         res.json({ success: true });
     } catch (err) {
         console.error(`❌ خطأ في PUT /api/day/${date}:`, err);
-        console.error('البيانات المرسلة:', { orders, distribution });
         res.status(500).json({ error: 'خطأ في حفظ البيانات: ' + err.message });
     }
 });
 
-// ==================== نطاق زمني (للتقارير) ====================
+// ==================== نطاق زمني ====================
 app.get('/api/range/:startDate/:endDate', async (req, res) => {
     const { startDate, endDate } = req.params;
     try {
@@ -326,7 +304,8 @@ app.put('/api/users/:id', async (req, res) => {
     try {
         const userId = parseInt(req.params.id);
         const { role, password, factory } = req.body;
-        const updates = [], values = [];
+        const updates = [];
+        const values = [];
         if (role) { updates.push(`role = $${updates.length+1}`); values.push(role); }
         if (password) { updates.push(`password = $${updates.length+1}`); values.push(bcrypt.hashSync(password, 10)); }
         if (role === 'client' && factory !== undefined) { updates.push(`factory = $${updates.length+1}`); values.push(factory); }
@@ -354,7 +333,7 @@ app.delete('/api/users/:id', async (req, res) => {
     }
 });
 
-// ==================== تقارير الميزان المحفوظة ====================
+// ==================== تقارير الميزان المحفوظة (مع إصلاح 500) ====================
 app.get('/api/scale-reports', async (req, res) => {
     try {
         const result = await query('SELECT id, report_name, report_date, created_at FROM scale_reports ORDER BY created_at DESC');
@@ -365,6 +344,7 @@ app.get('/api/scale-reports', async (req, res) => {
             createdAt: r.created_at
         })));
     } catch (err) {
+        console.error('❌ خطأ في GET /api/scale-reports:', err);
         res.status(500).json({ error: 'خطأ في جلب التقارير' });
     }
 });
@@ -372,17 +352,34 @@ app.get('/api/scale-reports', async (req, res) => {
 app.get('/api/scale-reports/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
+        if (isNaN(id)) {
+            return res.status(400).json({ error: 'معرّف التقرير غير صالح' });
+        }
         const result = await query('SELECT report_name, report_date, data, created_at FROM scale_reports WHERE id = $1', [id]);
-        if (result.rows.length === 0) return res.status(404).json({ error: 'التقرير غير موجود' });
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'التقرير غير موجود' });
+        }
+        const row = result.rows[0];
+        let reportData = row.data;
+        // تأكد من أن البيانات هي كائن JSON صالح
+        if (typeof reportData === 'string') {
+            try {
+                reportData = JSON.parse(reportData);
+            } catch (e) {
+                console.error('خطأ في تحويل البيانات إلى JSON:', e);
+                reportData = {};
+            }
+        }
         res.json({
             id: id,
-            reportName: result.rows[0].report_name,
-            reportDate: result.rows[0].report_date,
-            data: result.rows[0].data,
-            createdAt: result.rows[0].created_at
+            reportName: row.report_name,
+            reportDate: row.report_date,
+            data: reportData,
+            createdAt: row.created_at
         });
     } catch (err) {
-        res.status(500).json({ error: 'خطأ في جلب التقرير' });
+        console.error('❌ خطأ في GET /api/scale-reports/:id:', err);
+        res.status(500).json({ error: 'خطأ في جلب التقرير: ' + err.message });
     }
 });
 
@@ -391,10 +388,15 @@ app.post('/api/scale-reports', async (req, res) => {
     try {
         const { reportName, reportDate, data } = req.body;
         if (!reportName || !data) return res.status(400).json({ error: 'اسم التقرير والبيانات مطلوبة' });
-        await query('INSERT INTO scale_reports (report_name, report_date, data) VALUES ($1, $2, $3)', [reportName, reportDate || new Date().toISOString().split('T')[0], data]);
+        const dataJson = JSON.stringify(data);
+        await query(
+            'INSERT INTO scale_reports (report_name, report_date, data) VALUES ($1, $2, $3::jsonb)',
+            [reportName, reportDate || new Date().toISOString().split('T')[0], dataJson]
+        );
         res.status(201).json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: 'خطأ في حفظ التقرير' });
+        console.error('❌ خطأ في POST /api/scale-reports:', err);
+        res.status(500).json({ error: 'خطأ في حفظ التقرير: ' + err.message });
     }
 });
 
@@ -407,7 +409,8 @@ app.put('/api/scale-reports/:id', async (req, res) => {
         await query('UPDATE scale_reports SET report_name = $1 WHERE id = $2', [reportName, id]);
         res.json({ success: true });
     } catch (err) {
-        res.status(500).json({ error: 'خطأ في تعديل التقرير' });
+        console.error('❌ خطأ في PUT /api/scale-reports/:id:', err);
+        res.status(500).json({ error: 'خطأ في تعديل التقرير: ' + err.message });
     }
 });
 
@@ -418,6 +421,7 @@ app.delete('/api/scale-reports/:id', async (req, res) => {
         await query('DELETE FROM scale_reports WHERE id = $1', [id]);
         res.json({ success: true });
     } catch (err) {
+        console.error('❌ خطأ في DELETE /api/scale-reports/:id:', err);
         res.status(500).json({ error: 'خطأ في حذف التقرير' });
     }
 });
