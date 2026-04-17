@@ -8,7 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/file-saver@2.0.5/dist/FileSaver.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <style>
-        /* (نفس الأنماط السابقة - اختصاراً) */
+        /* نفس الأنماط السابقة - اختصاراً */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -42,18 +42,94 @@
         th { background: rgba(102,126,234,0.3); }
         .driver-table input { width: 70px; padding: 6px; border-radius: 8px; background: #2a2a4a; color: white; border: none; text-align: center; }
         .reports-section { margin-top: 20px; background: rgba(0,0,0,0.3); border-radius: 24px; padding: 20px; }
-        .reports-grid { display: flex; flex-wrap: wrap; gap: 16px; margin-top: 20px; max-height: 260px; overflow-y: auto; padding: 8px; }
-        .report-card { background: linear-gradient(145deg, rgba(102,126,234,0.25), rgba(118,75,162,0.25)); backdrop-filter: blur(4px); border-radius: 20px; padding: 14px 16px; min-width: 200px; flex: 1 0 auto; max-width: 260px; transition: all 0.3s ease; border: 1px solid rgba(255,255,255,0.2); cursor: pointer; position: relative; }
-        .report-card:hover { transform: translateY(-5px); background: linear-gradient(145deg, rgba(102,126,234,0.4), rgba(118,75,162,0.4)); border-color: rgba(255,255,255,0.5); box-shadow: 0 8px 20px rgba(0,0,0,0.3); }
-        .report-card.selected { background: linear-gradient(135deg, #667eea, #764ba2); border: 2px solid #38ef7d; box-shadow: 0 0 0 2px rgba(56,239,125,0.3); }
-        .report-name { font-weight: bold; font-size: 1.1rem; display: block; margin-bottom: 8px; word-break: break-word; }
-        .report-date { font-size: 0.75rem; color: #a8b2d1; display: block; margin-bottom: 12px; }
-        .report-actions { display: flex; gap: 8px; justify-content: flex-start; margin-top: 8px; }
-        .report-actions button { background: rgba(0,0,0,0.4); border: none; color: white; cursor: pointer; font-size: 14px; padding: 5px 10px; border-radius: 20px; transition: 0.2s; }
-        .report-actions button:hover { background: rgba(0,0,0,0.7); transform: scale(1.05); }
-        .view-report-btn { background: #4facfe; color: white; border: none; padding: 6px 12px; border-radius: 20px; font-size: 0.8rem; cursor: pointer; margin-top: 8px; width: 100%; transition: 0.2s; }
-        .view-report-btn:hover { background: #11998e; }
-        .flex-between { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 15px; }
+        .reports-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 20px;
+            max-height: 260px;
+            overflow-y: auto;
+            padding: 8px;
+        }
+        .report-card {
+            background: linear-gradient(145deg, rgba(102,126,234,0.25), rgba(118,75,162,0.25));
+            backdrop-filter: blur(4px);
+            border-radius: 20px;
+            padding: 14px 16px;
+            min-width: 200px;
+            flex: 1 0 auto;
+            max-width: 260px;
+            transition: all 0.3s ease;
+            border: 1px solid rgba(255,255,255,0.2);
+            cursor: pointer;
+            position: relative;
+        }
+        .report-card:hover {
+            transform: translateY(-5px);
+            background: linear-gradient(145deg, rgba(102,126,234,0.4), rgba(118,75,162,0.4));
+            border-color: rgba(255,255,255,0.5);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.3);
+        }
+        .report-card.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: 2px solid #38ef7d;
+            box-shadow: 0 0 0 2px rgba(56,239,125,0.3);
+        }
+        .report-name {
+            font-weight: bold;
+            font-size: 1.1rem;
+            display: block;
+            margin-bottom: 8px;
+            word-break: break-word;
+        }
+        .report-date {
+            font-size: 0.75rem;
+            color: #a8b2d1;
+            display: block;
+            margin-bottom: 12px;
+        }
+        .report-actions {
+            display: flex;
+            gap: 8px;
+            justify-content: flex-start;
+            margin-top: 8px;
+        }
+        .report-actions button {
+            background: rgba(0,0,0,0.4);
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            padding: 5px 10px;
+            border-radius: 20px;
+            transition: 0.2s;
+        }
+        .report-actions button:hover {
+            background: rgba(0,0,0,0.7);
+            transform: scale(1.05);
+        }
+        .view-report-btn {
+            background: #4facfe;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            cursor: pointer;
+            margin-top: 8px;
+            width: 100%;
+            transition: 0.2s;
+        }
+        .view-report-btn:hover {
+            background: #11998e;
+        }
+        .flex-between {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
         .toast-container { position: fixed; top: 20px; left: 20px; z-index: 3000; }
         .toast { padding: 12px 20px; border-radius: 8px; margin-bottom: 10px; animation: slideIn 0.3s ease; }
         .toast-success { background: #11998e; }
@@ -168,8 +244,10 @@
         return processData(rows);
     }
     
+    // ========== دالة معالجة البيانات (تعتمد على رقم السيارة كمفتاح) ==========
     function processData(rows){
         let matched = 0, notMatched = 0, total = 0;
+        // المفتاح = رقم السيارة
         const truckStats = new Map(); // key: truckNumber, value: { driver: string, trips: number, weight: number }
         const materialStats = new Map();
         
@@ -188,6 +266,7 @@
                 return m[String(row[5]??"").trim()] || String(row[5]??"").trim();
             })();
             
+            // استبعاد الأسماء الممنوعة
             if(row.some(c => EXCLUDED_NAMES.has(String(c).trim().toLowerCase()))){
                 notMatched++;
                 continue;
@@ -201,6 +280,12 @@
                 const rec = truckStats.get(cleanedTruck);
                 rec.trips++;
                 rec.weight += weight;
+                // إذا كان الاسم مختلفاً لنفس الرقم، نأخذ الاسم الأكثر تكراراً (بسيط: نأخذ أول اسم)
+                // لكن لا ندمج سيارات مختلفة حتى لو تشابهت الأسماء
+                if(rec.driver !== driverName && driverName !== '' && rec.driver !== ''){
+                    // نفضل الاسم الأطول أو الأكثر شيوعاً - هنا نأخذ أول اسم تم تسجيله
+                    // يمكن تحسينه بحساب تكرارات الاسم، لكن للتبسيط نترك الأول
+                }
                 if(materialName){
                     materialStats.set(materialName, (materialStats.get(materialName) || 0) + weight);
                 }
@@ -209,6 +294,7 @@
             }
         }
         
+        // تحويل إلى مصفوفة وترتيب حسب عدد الرحلات
         const driversArr = Array.from(truckStats.entries()).map(([truckNum, data]) => ({
             name: data.driver,
             truckNumber: truckNum,
@@ -322,15 +408,12 @@
         if(!currentResult){ showToast("لا توجد بيانات","error"); return; }
         await exportSimpleExcel(currentResult, document.getElementById("outputName").value.trim() || "Monthly_Report.xlsx");
     };
-    
-    // ========== حفظ التقرير مع إضافة رقم السيارة ==========
     document.getElementById("saveCurrentReportBtn").onclick = async () => {
         if(!currentResult){ showToast("لا توجد بيانات للحفظ","error"); return; }
         let name = prompt("اسم التقرير (مثال: مارس 2025 أو الربع سنوي):", "تقرير " + new Date().toLocaleDateString('ar-SA'));
         if(!name) return;
         showLoading(true);
         try{
-            // تخزين أيام العمل الفعلية لكل سائق مع إضافة truckNumber
             const driversStatsToSave = currentDriversWithDetails.map(d => {
                 // البحث عن رقم السيارة من currentResult.driversStats (الذي يحتوي على truckNumber)
                 const truckInfo = currentResult.driversStats.find(ds => ds.name === d.name);
@@ -367,7 +450,6 @@
             loadReportsList();
         } catch(e){ showToast(e.message,"error"); } finally{ showLoading(false); }
     };
-    
     document.getElementById("mergeReportsBtn").onclick = () => {
         const selected = Array.from(document.querySelectorAll('.report-card.selected')).map(card => card.dataset.id);
         if(selected.length < 2){ showToast("اختر تقريرين على الأقل للدمج","error"); return; }
@@ -471,12 +553,15 @@
             } else {
                 const monthDays = data.monthDays || 30;
                 const officialVac = data.officialVacations || 4;
-                const cleanDriversStats = driversStats.map(d => ({ 
-                    name: d.name || 'غير معروف', 
-                    trips: d.trips || 0, 
-                    totalWeight: d.totalWeight || 0 
+                const workDays = Math.max(0, monthDays - officialVac);
+                driversWithDetails = driversStats.map(d => ({
+                    name: d.name,
+                    trips: d.trips,
+                    totalWeight: d.totalWeight,
+                    workDays: workDays,
+                    requiredRoda: workDays * 2,
+                    percentage: workDays * 2 > 0 ? ((d.trips / (workDays * 2)) * 100).toFixed(2) : 0
                 }));
-                driversWithDetails = computeRodaFromMonthDays(cleanDriversStats, monthDays, officialVac);
                 currentMonthDays = monthDays;
                 currentOfficialVacations = officialVac;
                 document.getElementById("monthDays").value = monthDays;
@@ -507,14 +592,14 @@
         }
     }
     
-    // ========== دالة الدمج المعدلة لاستخدام رقم السيارة ==========
+    // ========== دالة الدمج المعدلة (تعتمد على رقم السيارة) ==========
     async function mergeReports(reportIds){
         showLoading(true);
         try{
-            let driversAgg = new Map(); // key: truckNumber, value: { name, trips, weight, totalWorkDays }
-            let materialsAgg = new Map();
             let totalRows = 0, matchedCount = 0, notMatchedCount = 0, totalWeightAll = 0;
-            let totalWorkDaysAll = 0; // لتوحيد أيام العمل (سنحسبها مرة واحدة لجميع السائقين)
+            let totalWorkDays = 0;
+            let driversMap = new Map(); // key: truckNumber (أو normalized name للتقارير القديمة)
+            let materialsMap = new Map();
             let reportCount = 0;
             
             for(let id of reportIds){
@@ -528,73 +613,87 @@
                 notMatchedCount += data.notMatchedCount || 0;
                 totalWeightAll += data.totalWeightAll || 0;
                 
-                // حساب أيام العمل لهذا التقرير (لجميع السائقين فيه)
-                let workDaysForReport = 0;
+                // حساب أيام العمل لهذا التقرير
+                let workDaysThisReport = 0;
                 if (data.monthDays !== undefined && data.officialVacations !== undefined) {
-                    workDaysForReport = Math.max(0, data.monthDays - data.officialVacations);
+                    workDaysThisReport = Math.max(0, data.monthDays - data.officialVacations);
                 } else {
-                    // إذا كان تقريراً مدمجاً قديماً، نأخذ أول سائق workDays
                     const driversStats = data.driversStats || [];
                     if (driversStats.length && driversStats[0].workDays !== undefined) {
-                        workDaysForReport = driversStats[0].workDays;
+                        workDaysThisReport = driversStats[0].workDays;
                     } else {
-                        workDaysForReport = 26; // قيمة افتراضية
+                        workDaysThisReport = 26;
                     }
                 }
-                totalWorkDaysAll += workDaysForReport;
+                totalWorkDays += workDaysThisReport;
                 
+                // معالجة السائقين
                 const driversStats = data.driversStats || [];
                 for(let d of driversStats){
-                    let truckKey = d.truckNumber || d.name; // استخدام رقم السيارة إذا وجد، وإلا الاسم
-                    // تطبيع الاسم (إزالة المسافات الزائدة)
-                    let driverName = (d.name || '').trim().replace(/\s+/g, ' ');
-                    let existing = driversAgg.get(truckKey);
+                    // محاولة الحصول على رقم السيارة (إن وجد)
+                    let key = d.truckNumber ? String(d.truckNumber).trim() : null;
+                    let driverName = d.name ? d.name.trim().replace(/\s+/g, ' ') : null;
+                    
+                    // إذا لم يوجد رقم سيارة، نستخدم الاسم المطبع كمفتاح (للتوافق مع التقارير القديمة)
+                    if (!key && driverName) {
+                        key = driverName;
+                    }
+                    if (!key) continue;
+                    
+                    let existing = driversMap.get(key);
                     if(existing){
-                        existing.trips += d.trips;
-                        existing.weight += d.totalWeight;
-                        existing.totalWorkDays += workDaysForReport;
+                        existing.trips += d.trips || 0;
+                        existing.weight += d.totalWeight || 0;
+                        // إذا كان هناك اسم مختلف لنفس المفتاح، نأخذ الاسم الأكثر شيوعاً (بسيط: نأخذ أول اسم)
+                        if (driverName && existing.name !== driverName) {
+                            // لا نغير الاسم، نترك الأول
+                        }
                     } else {
-                        driversAgg.set(truckKey, {
-                            name: driverName,
+                        driversMap.set(key, {
+                            name: driverName || key,
                             trips: d.trips || 0,
-                            weight: d.totalWeight || 0,
-                            totalWorkDays: workDaysForReport
+                            weight: d.totalWeight || 0
                         });
                     }
                 }
+                
+                // معالجة المواد
                 const materialsStats = data.materialsStats || [];
                 for(let m of materialsStats){
-                    let existing = materialsAgg.get(m.name);
+                    let name = m.name;
+                    if(!name) continue;
+                    let existing = materialsMap.get(name);
                     if(existing) existing.weight += m.weight;
-                    else materialsAgg.set(m.name, { name: m.name, weight: m.weight });
+                    else materialsMap.set(name, { name: name, weight: m.weight });
                 }
             }
             
-            // توحيد totalWorkDays لجميع السائقين (نفس القيمة لجميع من عملوا نفس الفترة)
-            // نأخذ متوسط totalWorkDaysAll / reportCount (أو أكبر قيمة)
-            const unifiedWorkDays = Math.round(totalWorkDaysAll / reportCount);
+            if(driversMap.size === 0) throw new Error('لا توجد بيانات سائقين صالحة للدمج');
             
-            const driversList = Array.from(driversAgg.entries()).map(([key, agg]) => ({
-                name: agg.name,
-                trips: agg.trips,
-                totalWeight: agg.weight,
-                totalWorkDays: unifiedWorkDays   // استخدام نفس عدد الأيام للجميع
+            // إجمالي أيام العمل للفترة (لجميع السائقين نفس القيمة)
+            const unifiedWorkDays = totalWorkDays;
+            const requiredRodaPerDriver = unifiedWorkDays * 2;
+            
+            const driversList = Array.from(driversMap.entries()).map(([key, d]) => ({
+                name: d.name,
+                trips: d.trips,
+                totalWeight: d.weight,
+                totalWorkDays: unifiedWorkDays
             })).sort((a,b) => b.trips - a.trips);
             
-            const materialsList = Array.from(materialsAgg.values()).sort((a,b) => b.weight - a.weight);
-            
-            const driversWithRoda = driversList.map(d => {
-                const requiredRoda = d.totalWorkDays * 2;
-                const percent = requiredRoda > 0 ? (d.trips / requiredRoda) * 100 : 0;
+            const driversWithPercentage = driversList.map(d => {
+                const percent = requiredRodaPerDriver > 0 ? (d.trips / requiredRodaPerDriver) * 100 : 0;
                 return {
                     name: d.name,
                     trips: d.trips,
                     totalWeight: d.totalWeight,
-                    workDays: d.totalWorkDays,
-                    requiredRoda: requiredRoda,
+                    workDays: unifiedWorkDays,
+                    requiredRoda: requiredRodaPerDriver,
                     percentage: Math.min(100, percent).toFixed(2)
                 };
             });
+            
+            const materialsList = Array.from(materialsMap.values()).sort((a,b) => b.weight - a.weight);
             
             currentResult = {
                 totalRows, matchedCount, notMatchedCount, totalWeightAll,
@@ -602,7 +701,7 @@
                 materialsStats: materialsList,
                 top10Drivers: driversList.slice(0,10).map(d => ({ name: d.name, trips: d.trips }))
             };
-            currentDriversWithDetails = driversWithRoda;
+            currentDriversWithDetails = driversWithPercentage;
             currentMonthDays = 0;
             currentOfficialVacations = 0;
             document.getElementById("monthDays").value = 30;
@@ -613,7 +712,7 @@
             renderDriverTable(currentDriversWithDetails);
             updateCharts();
             
-            document.getElementById("statusMsg").innerHTML = `✅ تم دمج ${reportIds.length} تقرير (إجمالي أيام العمل: ${unifiedWorkDays} يوم - الرودات المطلوبة: ${unifiedWorkDays * 2})`;
+            document.getElementById("statusMsg").innerHTML = `✅ تم دمج ${reportIds.length} تقرير (إجمالي أيام العمل: ${unifiedWorkDays} يوم - الرودات المطلوبة: ${requiredRodaPerDriver})`;
             showToast(`تم دمج ${reportIds.length} تقارير بنجاح`, "success");
         } catch(e){ 
             console.error(e);
@@ -623,7 +722,7 @@
         }
     }
 
-    // ========== دوال تصدير Excel (كما هي) ==========
+    // ========== دوال تصدير Excel (كما هي - بدون تغيير) ==========
     async function exportAdvancedExcel(res, drivers, monthDays, officialVac, filename){
         if(!res){ showToast("لا توجد بيانات","error"); return; }
         showLoading(true);
