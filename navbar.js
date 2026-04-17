@@ -39,7 +39,7 @@
                 { href: 'scale_report.html', text: '⚖️ تقارير الميزان الشهرية' },
                 { href: 'trucks-failed.html', text: '⚠️ السيارات المخالفة' },
                 { href: 'trucks-failed-report.html', text: '📊 تقرير المخالفات' },
-                { href: 'distribution-quality.html', text: '📈 جودة التوزيع' },  // الرابط الجديد
+                { href: 'distribution-quality.html', text: '📈 جودة التوزيع' },
                 { href: 'settings.html', text: '⚙️ الإعدادات' },
                 { href: 'restrictions.html', text: '⛔ الحظر' },
                 { href: 'users.html', text: '👥 المستخدمين' },
