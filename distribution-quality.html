@@ -98,6 +98,24 @@
         return FACTORY_DATA[factoryName] ? FACTORY_DATA[factoryName].time : "—";
     }
 
+    // دالة مساعدة لتنسيق التاريخ إلى YYYY-MM-DD (للاستخدام كاسم ورقة)
+    function formatDateForSheet(dateValue) {
+        if (!dateValue) return 'unknown';
+        let d;
+        if (typeof dateValue === 'string') {
+            d = new Date(dateValue);
+        } else if (dateValue instanceof Date) {
+            d = dateValue;
+        } else {
+            return String(dateValue).replace(/[\\/*?:[\]]/g, '_');
+        }
+        if (isNaN(d.getTime())) return 'invalid_date';
+        const year = d.getFullYear();
+        const month = String(d.getMonth() + 1).padStart(2, '0');
+        const day = String(d.getDate()).padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
     async function apiCall(endpoint) {
         const res = await fetch(`${API_BASE}${endpoint}`, { credentials: 'include' });
         if (res.status === 401) { window.location.href = '/login.html'; throw new Error('غير مصرح'); }
@@ -106,19 +124,20 @@
     }
 
     function analyzeDay(date, orders, distribution) {
+        // التأكد من تحويل date إلى نص (YYYY-MM-DD) لتوحيد التنسيق
+        const dateStr = formatDateForSheet(date);
         const trucksMap = new Map();
         distribution.forEach(d => {
             if (!d.truck) return;
             const num = d.truck.number;
             if (!trucksMap.has(num)) {
-                trucksMap.set(num, { number: num, driver: d.truck.driver, trips: 0, totalDistance: 0, roads: [], totalTime: 0 }); // totalTime بالدقائق تقريبية
+                trucksMap.set(num, { number: num, driver: d.truck.driver, trips: 0, totalDistance: 0, roads: [] });
             }
             const rec = trucksMap.get(num);
             rec.trips++;
             const dist = getFactoryDistance(d.factory);
             rec.totalDistance += dist;
             rec.roads.push(d.road);
-            // الوقت ليس ضرورياً للمجموع، لكن يمكن إضافته إذا أردت (اختياري)
         });
         const trucksArray = Array.from(trucksMap.values());
         const totalTrips = trucksArray.reduce((s, t) => s + t.trips, 0);
@@ -129,9 +148,16 @@
         let variance = distances.reduce((s,d)=>s+Math.pow(d-avgDist,2),0)/(distances.length||1);
         let stdDev = Math.sqrt(variance);
         return {
-            date, totalOrders: orders.length, totalDistributed: distribution.length,
-            trucks: trucksArray, trucksWith2Plus, trucksWith1, trucksWith0: 0,
-            avgDistance: avgDist, stdDevDistance: stdDev, totalTrips
+            date: dateStr,
+            totalOrders: orders.length,
+            totalDistributed: distribution.length,
+            trucks: trucksArray,
+            trucksWith2Plus,
+            trucksWith1,
+            trucksWith0: 0,
+            avgDistance: avgDist,
+            stdDevDistance: stdDev,
+            totalTrips
         };
     }
 
@@ -178,7 +204,7 @@
                 for (const [date, data] of Object.entries(rangeData)) {
                     reports.push(analyzeDay(date, data.orders || [], data.distribution || []));
                 }
-                reports.sort((a,b) => new Date(a.date) - new Date(b.date));
+                reports.sort((a,b) => a.date.localeCompare(b.date));
             } else {
                 let dates = [];
                 let current = new Date(startDate);
@@ -212,7 +238,9 @@
             const workbook = new ExcelJS.Workbook();
             workbook.creator = 'نظام كسارة الحبردي';
             for (let report of dailyDataStore) {
-                const sheet = workbook.addWorksheet(report.date, { views: [{ rightToLeft: true }] });
+                // استخدام التاريخ المنسق كاسم ورقة (YYYY-MM-DD)
+                const sheetName = report.date;
+                const sheet = workbook.addWorksheet(sheetName, { views: [{ rightToLeft: true }] });
                 sheet.mergeCells('A1:F1');
                 sheet.getCell('A1').value = `تقرير جودة التوزيع - ${report.date}`;
                 sheet.getCell('A1').font = { bold: true, size: 16 };
@@ -236,7 +264,10 @@
             const endDate = document.getElementById('endDate').value;
             saveAs(new Blob([buffer]), `جودة_التوزيع_${startDate}_إلى_${endDate}.xlsx`);
             showToast('✅ تم تصدير التقرير بنجاح', 'success');
-        } catch(e) { showToast('خطأ في التصدير: ' + e.message, 'error'); }
+        } catch(e) { 
+            console.error(e);
+            showToast('خطأ في التصدير: ' + e.message, 'error'); 
+        }
         showLoading(false);
     }
 
