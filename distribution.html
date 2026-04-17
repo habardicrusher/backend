@@ -79,7 +79,7 @@
     <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
-        <div class="header"><h1>🚚 التوزيع الجغرافي المتوازن (حسب المسافات)</h1><p>توزيع الطلبات بأولوية للسائقين الأكثر مسافة لضمان العدالة</p>
+        <div class="header"><h1>🚚 التوزيع الجغرافي المتوازن (حسب المسافات والوقت)</h1><p>توزيع الطلبات بأولوية للسائقين الأكثر مسافة لضمان العدالة</p>
             <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"></div>
         </div>
         <div class="nav-links" id="navLinks"></div>
@@ -100,16 +100,16 @@
         <h2>📋 الطلبات غير الموزعة</h2>
         <div style="overflow-x: auto; margin-bottom: 30px;">
             <table id="undistributedTable">
-                <thead><tr><th>#</th><th>المصنع</th><th>نوع البحص</th><th>المسافة (كم)</th><th>التوقيت</th><th>وقت الإضافة</th><th>توزيع يدوي</th></tr></thead>
-                <tbody id="undistributedBody"><tr><td colspan="7" style="text-align:center;">لا توجد طلبات غير موزعة</td></tr> </tbody>
+                <thead><tr><th>#</th><th>المصنع</th><th>نوع البحص</th><th>المسافة (كم)</th><th>الوقت</th><th>التوقيت</th><th>وقت الإضافة</th><th>توزيع يدوي</th></tr></thead>
+                <tbody id="undistributedBody"><tr><td colspan="8" style="text-align:center;">لا توجد طلبات غير موزعة</td></tr> </tbody>
             </table>
         </div>
 
         <h2>📋 قائمة التوزيع (المنفذة)</h2>
         <div style="overflow-x: auto;">
             <table id="distributionTable">
-                <thead><tr><th>#</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>نوع البحص</th><th>المسافة (كم)</th><th>التوقيت</th><th>الرود</th></tr></thead>
-                <tbody id="distributionBody"><tr><td colspan="8" style="text-align:center;">لا يوجد توزيع بعد</td></tr> </tbody>
+                <thead><tr><th>#</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>نوع البحص</th><th>المسافة (كم)</th><th>الوقت</th><th>التوقيت</th><th>الرود</th></tr></thead>
+                <tbody id="distributionBody"><tr><td colspan="9" style="text-align:center;">لا يوجد توزيع بعد</td></tr> </tbody>
             </table>
         </div>
     </div>
@@ -129,39 +129,43 @@
     </div>
 
     <script>
-        // ==================== بيانات المسافات المأخوذة من ملف Excel ====================
-        const FACTORY_DISTANCES = {
-            "مصنع الفهد": 170.45,
-            "مصنع قوة معمارية": 178.69,
-            "مصنع سارمكس النظيم": 178.14,
-            "مصنع القيشان 3": 196.73,
-            "مصنع القيشان 1": 196.76,
-            "شركة الحارث للمنتجات الاسمنيه حي المنار": 201.17,
-            "شركة برينسا للخرسانة الجاهزه": 197.55,
-            "مصنع الاحجار الشرقية": 207.24,
-            "شركة ابتك للخرسانة الجاهزه": 209.52,
-            "شركةالحارث للمنتجات الاسمنتية": 209.65,
-            "مصنع باسل أبو الرب وشريكه": 209.14,
-            "شركة عبر الخليج": 214.06,
-            "مصنع المعجل": 214.52,
-            "مصنع نبراس2": 220.25,
-            "مصنع دعم وحلول الدرعية": 218.54,
-            "مصنع نبراس الخليج": 214.52,
-            "الحارث العزيزية": 241.49,
-            "انشاءات دبي": 267.21,
-            "الشركة الصينية": 303.92,
-            "شركة اعمار": 272.62
+        // ==================== بيانات المسافات والوقت (ذهاب وعودة) ====================
+        // تم استخراجها من الجدول المرفق: المسافة الكلية (كم) ووقت الرحلة الكلي
+        const FACTORY_DATA = {
+            "مصنع الفهد": { distance: 337.99, time: "3 س و 30 د" },
+            "مصنع قوة معمارية": { distance: 339.87, time: "3 س و 29 د" },
+            "مصنع سارمكس النظيم": { distance: 352.64, time: "3 س و 45 د" },
+            "مصنع القيشان 3": { distance: 396.22, time: "4 س و 8 د" },
+            "مصنع القيشان 1": { distance: 396.22, time: "4 س و 8 د" },
+            "شركة الحارث للمنتجات الاسمنيه حي المنار": { distance: 401.37, time: "4 س و 7 د" },
+            "شركة برينسا للخرسانة الجاهزه": { distance: 403.21, time: "4 س و 19 د" },
+            "مصنع الاحجار الشرقية": { distance: 416.11, time: "4 س و 36 د" },
+            "شركة ابتك للخرسانة الجاهزه": { distance: 418.11, time: "4 س و 20 د" },
+            "شركةالحارث للمنتجات الاسمنتية": { distance: 420.4, time: "4 س و 31 د" },
+            "مصنع باسل أبو الرب وشريكه": { distance: 420.6, time: "4 س و 43 د" },
+            "شركة عبر الخليج": { distance: 427.48, time: "4 س و 42 د" },
+            "مصنع المعجل": { distance: 431.01, time: "4 س و 31 د" },
+            "مصنع نبراس2": { distance: 439.61, time: "4 س و 35 د" },
+            "مصنع دعم وحلول الدرعية": { distance: 441.05, time: "4 س و 47 د" },
+            "مصنع نبراس الخليج": { distance: 448.99, time: "5 س" },
+            "الحارث العزيزية": { distance: 475.49, time: "5 س و 3 د" },
+            "انشاءات دبي": { distance: 522.92, time: "6 س و 3 د" },
+            "الشركة الصينية": { distance: 605.51, time: "7 س و 40 د" },
+            "شركة اعمار": { distance: 662.14, time: "7 س و 38 د" }
         };
-        // دالة مساعدة للحصول على المسافة مع قيمة افتراضية
+        
         function getFactoryDistance(factoryName) {
-            return FACTORY_DISTANCES[factoryName] || 150; // مسافة افتراضية إذا لم توجد
+            return FACTORY_DATA[factoryName] ? FACTORY_DATA[factoryName].distance : 150;
+        }
+        
+        function getFactoryTime(factoryName) {
+            return FACTORY_DATA[factoryName] ? FACTORY_DATA[factoryName].time : "—";
         }
         // ========================================================================
 
         const API_BASE = '/api';
         let trucks = [], orders = [], distribution = [], currentDate = '';
         let currentOrderToDistribute = null;
-        let factoryLocations = {}; // قد لا نحتاجها للمسافات لكن نبقيها للتوافق
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -179,11 +183,6 @@
                 const data = await apiCall('/settings'); 
                 trucks = data.trucks || []; 
                 document.getElementById('statTrucks').textContent = trucks.length;
-                factoryLocations = {};
-                (data.factories || []).forEach(f => {
-                    if (f.name && f.location) factoryLocations[f.name] = f.location;
-                });
-                console.log('مواقع المصانع:', factoryLocations);
             } catch(e) { showToast('خطأ في تحميل السيارات', 'error'); }
         }
 
@@ -217,15 +216,17 @@
 
         function renderUndistributed(undistributed) {
             const tbody = document.getElementById('undistributedBody');
-            if (!undistributed.length) { tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;">لا توجد طلبات غير موزعة</td></tr>'; return; }
+            if (!undistributed.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد طلبات غير موزعة</td></tr>'; return; }
             tbody.innerHTML = undistributed.map((order, i) => {
                 const dist = getFactoryDistance(order.factory);
+                const time = getFactoryTime(order.factory);
                 return `
                     <tr>
                         <td>${i+1}</td>
                         <td>${order.factory}</td>
                         <td>بحص ${order.material}</td>
                         <td><span class="distance-badge">${dist} كم</span></td>
+                        <td><span class="time-badge">⏱️ ${time}</span></td>
                         <td>${order.time && order.time !== 'undefined' ? order.time : '-'}</td>
                         <td>${order.timestamp || '-'}</td>
                         <td><button class="btn btn-sm btn-warning" onclick='openManualDistributeModalForOrder(${JSON.stringify(order).replace(/'/g, "&#39;")})'>🖐️ توزيع</button></td>
@@ -236,12 +237,13 @@
 
         function renderDistribution() {
             const tbody = document.getElementById('distributionBody');
-            if (!distribution.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا يوجد توزيع</td></tr>'; return; }
+            if (!distribution.length) { tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;">لا يوجد توزيع بعد</td></tr>'; return; }
             const uniqueMap = new Map();
             distribution.forEach(d => { if (!uniqueMap.has(d.orderId)) uniqueMap.set(d.orderId, d); });
             const uniqueDistributions = Array.from(uniqueMap.values());
             tbody.innerHTML = uniqueDistributions.map((d, i) => {
                 const dist = getFactoryDistance(d.factory);
+                const time = getFactoryTime(d.factory);
                 return `
                     <tr>
                         <td>${i+1}</td>
@@ -250,6 +252,7 @@
                         <td>${d.factory}</td>
                         <td>بحص ${d.material}</td>
                         <td><span class="distance-badge">${dist} كم</span></td>
+                        <td><span class="time-badge">⏱️ ${time}</span></td>
                         <td>${d.time && d.time !== 'undefined' ? `<span class="time-badge">⏰ ${d.time}</span>` : '-'}</td>
                         <td><span class="road-badge road-${d.road}">رود ${d.road}</span></td>
                     </tr>
@@ -298,7 +301,7 @@
             showLoading(false);
         }
 
-        // =============== خوارزمية التوزيع التلقائي المحسنة (بالمسافات) ===============
+        // =============== خوارزمية التوزيع التلقائي العادل (بالمسافات والوقت) ===============
         async function autoDistribute() {
             const distributedOrderIds = new Set(distribution.map(d => d.orderId));
             const undistributed = orders.filter(o => !distributedOrderIds.has(o.id));
@@ -306,10 +309,10 @@
             if (!trucks.length) { showToast('لا توجد سيارات', 'error'); return; }
             showLoading(true);
 
-            // إحصائيات اليوم الحالي لكل سيارة
-            let truckTrips = {};      // عدد الرحلات
-            let truckTotalDistance = {}; // مجموع المسافات المقطوعة اليوم
-            let truckLastFactory = {};   // آخر مصنع تم التوزيع إليه (لتجنب التكرار)
+            // إحصائيات اليوم لكل سيارة
+            let truckTrips = {};          // عدد الرحلات
+            let truckTotalDistance = {};   // مجموع المسافات المقطوعة (ذهاب وعودة)
+            let truckLastFactory = {};     // آخر مصنع تم التوزيع إليه (لتجنب التكرار)
 
             trucks.forEach(t => {
                 truckTrips[t.number] = 0;
@@ -329,25 +332,25 @@
 
             let newDistributions = [];
 
-            // دالة لترتيب السيارات حسب الأولوية:
-            // 1- السيارات التي لم تكمل رودين (عدد رحلات < 2) تُفضل بشدة.
-            // 2- ضمن تلك الفئة، نعطي الأولوية للأعلى مسافة مقطوعة (لتعويضهم بطلب أقرب).
-            // 3- إذا كانت جميع السيارات قد أكملت رودين، نعطي الأولوية للأقل مسافة مقطوعة (لتوزيع الأحمال).
+            // دالة لترتيب السيارات حسب الأولوية العادلة
+            // الأولوية القصوى للسيارات ذات عدد الرحلات الأقل (<2)
+            // ثم ضمن هذه الفئة: الأعلى مسافة مقطوعة أولاً (لتعويض من ذهب بعيداً)
+            // بعد اكتمال رحلتين: نعطي الأولوية للأقل مسافة مقطوعة (لتوازن الأحمال)
             function getPrioritizedTrucks(currentOrderFactory) {
-                // نسخة من السيارات
                 let candidates = [...trucks];
-                // تصنيف: lowTrips (رحلات < 2) و highTrips (رحلات >=2)
+                
+                // تقسيم إلى فئتين
                 let lowTrips = candidates.filter(t => truckTrips[t.number] < 2);
                 let highTrips = candidates.filter(t => truckTrips[t.number] >= 2);
                 
                 // ترتيب lowTrips تنازلياً حسب المسافة المقطوعة (الأعلى أولاً)
-                lowTrips.sort((a,b) => truckTotalDistance[b.number] - truckTotalDistance[a.number]);
-                // ترتيب highTrips تصاعدياً حسب المسافة المقطوعة (للعدالة)
-                highTrips.sort((a,b) => truckTotalDistance[a.number] - truckTotalDistance[b.number]);
+                lowTrips.sort((a, b) => truckTotalDistance[b.number] - truckTotalDistance[a.number]);
+                // ترتيب highTrips تصاعدياً حسب المسافة المقطوعة (الأقل أولاً)
+                highTrips.sort((a, b) => truckTotalDistance[a.number] - truckTotalDistance[b.number]);
                 
                 let ordered = [...lowTrips, ...highTrips];
-                // إضافي: تجنب تكرار نفس المصنع إذا أمكن (دون كسر الأولوية)
-                // نمر على القائمة ونحرك السيارة التي لها نفس المصنع إلى الخلف إن وجد بديل
+                
+                // تجنب تكرار نفس المصنع قدر الإمكان (دون كسر الأولوية الكلية)
                 let finalOrder = [];
                 let sameFactoryTrucks = [];
                 for (let t of ordered) {
@@ -361,31 +364,32 @@
                 return finalOrder;
             }
 
+            // تنفيذ التوزيع على كل طلب غير موزع
             for (let i = 0; i < undistributed.length; i++) {
                 const order = undistributed[i];
                 const orderDistance = getFactoryDistance(order.factory);
                 const prioritizedTrucks = getPrioritizedTrucks(order.factory);
                 let selectedTruck = null;
-                // اختر أول سيارة من القائمة (الأكثر أولوية)
+                
                 if (prioritizedTrucks.length > 0) {
                     selectedTruck = prioritizedTrucks[0];
                 } else {
                     selectedTruck = trucks[0];
                 }
-
+                
                 if (!selectedTruck) {
                     showToast(`لا توجد سيارات متاحة للطلب رقم ${i+1}`, 'error');
                     continue;
                 }
-
+                
                 // تحديث الإحصائيات
                 truckTrips[selectedTruck.number]++;
                 truckTotalDistance[selectedTruck.number] += orderDistance;
                 truckLastFactory[selectedTruck.number] = order.factory;
-
-                // حساب الرود = عدد الرحلات الحالية (بعد الإضافة)
+                
+                // الرود = عدد الرحلات بعد الإضافة (أول رحلة = رود 1، ثانية = رود 2، إلخ)
                 const currentRoad = truckTrips[selectedTruck.number];
-
+                
                 newDistributions.push({
                     orderId: order.id,
                     orderIndex: distribution.length + newDistributions.length + 1,
@@ -396,15 +400,15 @@
                     road: currentRoad
                 });
             }
-
+            
             if (newDistributions.length) {
                 distribution.push(...newDistributions);
                 await saveData();
                 await loadData();
                 
-                // إحصائيات نهائية للتوضيح
-                let tripsSummary = trucks.map(t => `${t.number}: ${truckTrips[t.number]} رحلة (مجموع مسافات ${truckTotalDistance[t.number].toFixed(1)} كم)`).join(' | ');
-                showToast(`✅ تم توزيع ${newDistributions.length} طلب. التوزيع: ${tripsSummary}`, 'success');
+                // إحصائيات نهائية
+                let summary = trucks.map(t => `${t.number}: ${truckTrips[t.number]} رحلة (${truckTotalDistance[t.number].toFixed(1)} كم)`).join(' | ');
+                showToast(`✅ تم توزيع ${newDistributions.length} طلب. التوزيع: ${summary}`, 'success');
                 localStorage.setItem('pendingOrdersCount', '0');
             } else {
                 showToast('فشل التوزيع التلقائي', 'error');
