@@ -86,7 +86,7 @@ async function initTables() {
                 UNIQUE(year, month)
             )
         `);
-        // جدول التقارير المحفوظة (الميزان)
+        // جدول التقارير المحفوظة (الميزان) - مع إصلاح id
         await query(`
             CREATE TABLE IF NOT EXISTS scale_reports (
                 id SERIAL PRIMARY KEY,
@@ -96,6 +96,13 @@ async function initTables() {
                 created_at TIMESTAMP DEFAULT NOW()
             )
         `);
+        // إصلاح إذا كان هناك عمود قديم باسم report_id
+        try {
+            await query(`ALTER TABLE scale_reports RENAME COLUMN report_id TO id`);
+            await query(`ALTER TABLE scale_reports ALTER COLUMN id SET DEFAULT nextval('scale_reports_id_seq')`);
+            console.log('✅ تم إصلاح جدول scale_reports (إعادة تسمية العمود id)');
+        } catch(e) { /* العمود غير موجود أو لا حاجة */ }
+
         // جدول بيانات اليوم (الطلبات والتوزيع)
         await query(`
             CREATE TABLE IF NOT EXISTS day_data (
@@ -130,10 +137,9 @@ async function initTables() {
             )
         `);
         
-        // إضافة المستخدمين الافتراضيين إذا لم يوجد أحد (مع دعم حالة الأحرف)
+        // إضافة المستخدمين الافتراضيين (مع دعم حالة الأحرف)
         const adminCheck = await query(`SELECT * FROM users WHERE LOWER(username) = 'admin'`);
         if (adminCheck.rows.length === 0) {
-            // إنشاء مستخدم admin بالحرف الصغير
             await query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', 
                 ['admin', bcrypt.hashSync('admin', 10), 'admin']);
             console.log('✅ تم إنشاء المستخدم admin (admin/admin)');
@@ -187,7 +193,6 @@ app.post('/api/login', async (req, res) => {
         const { username, password } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'مطلوب' });
         
-        // البحث بدون حساسية حالة الأحرف (case-insensitive)
         const result = await query(`SELECT * FROM users WHERE LOWER(username) = LOWER($1)`, [username]);
         const user = result.rows[0];
         if (!user || !bcrypt.compareSync(password, user.password)) {
@@ -195,10 +200,9 @@ app.post('/api/login', async (req, res) => {
         }
         
         req.session.userId = user.id;
-        req.session.username = user.username; // الاسم الأصلي من قاعدة البيانات
+        req.session.username = user.username;
         req.session.role = user.role;
         
-        // حفظ الجلسة بشكل صريح
         req.session.save((err) => {
             if (err) {
                 console.error('خطأ في حفظ الجلسة:', err);
@@ -339,7 +343,6 @@ app.post('/api/users', async (req, res) => {
     try {
         const { username, password, role, factory } = req.body;
         if (!username || !password) return res.status(400).json({ error: 'مطلوب' });
-        // تحقق من وجود المستخدم بدون حساسية حالة
         const exists = await query(`SELECT id FROM users WHERE LOWER(username) = LOWER($1)`, [username]);
         if (exists.rows.length) return res.status(400).json({ error: 'اسم المستخدم موجود' });
         const hashed = bcrypt.hashSync(password, 10);
@@ -473,7 +476,7 @@ app.delete('/api/scale-reports/:id', async (req, res) => {
     }
 });
 
-// ==================== بيانات الميزان الشهرية (الخام) ====================
+// ==================== بيانات الميزان الشهرية ====================
 app.get('/api/scale/monthly/:year/:month', async (req, res) => {
     try {
         const year = parseInt(req.params.year);
@@ -604,7 +607,6 @@ app.get('/api/truck-violations/report/:startDate/:endDate', async (req, res) => 
 });
 
 // ==================== إدارة أسباب المخالفات (لصفحة trucks-failed.html) ====================
-// جلب الأسباب المحفوظة ليوم معين
 app.get('/api/truck-violations/:date', async (req, res) => {
     const { date } = req.params;
     try {
@@ -620,15 +622,12 @@ app.get('/api/truck-violations/:date', async (req, res) => {
     }
 });
 
-// حفظ أسباب المخالفات ليوم معين
 app.post('/api/truck-violations/save', async (req, res) => {
     if (req.session.role !== 'admin') return res.status(403).json({ error: 'غير مصرح' });
     const { date, violations } = req.body;
     if (!date || !violations) return res.status(400).json({ error: 'بيانات ناقصة' });
     try {
-        // حذف الأسباب القديمة لهذا اليوم
         await query('DELETE FROM truck_violations WHERE date = $1', [date]);
-        // إدخال الأسباب الجديدة
         for (const v of violations) {
             await query(
                 'INSERT INTO truck_violations (date, truck_number, driver, trips, reason, details) VALUES ($1, $2, $3, $4, $5, $6)',
