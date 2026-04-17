@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>المصانع - نظام إدارة طلبات البحص</title>
     <style>
+        /* نفس الأنماط السابقة - اختصار */
         * { margin:0; padding:0; box-sizing:border-box; }
         body { font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background:linear-gradient(135deg,#1a1a2e,#16213e); color:#fff; }
         .container { max-width:1200px; margin:0 auto; padding:20px; }
@@ -94,29 +95,29 @@
         const API_BASE = '/api';
         let factories = [];
 
-        // ==================== قائمة المصانع الافتراضية (مع المسافات) ====================
-        const DEFAULT_FACTORIES = [
-            { name: "مصنع الفهد", distance: 337.99, location: "الرياض" },
-            { name: "مصنع قوة معمارية", distance: 339.87, location: "الدمام" },
-            { name: "مصنع سارمكس النظيم", distance: 352.64, location: "الرياض" },
-            { name: "مصنع القيشان 3", distance: 396.22, location: "الدمام" },
-            { name: "مصنع القيشان 1", distance: 396.22, location: "الدمام" },
-            { name: "شركة الحارث للمنتجات الاسمنيه حي المنار", distance: 401.37, location: "الدمام" },
-            { name: "شركة برينسا للخرسانة الجاهزه", distance: 403.21, location: "الدمام" },
-            { name: "مصنع الاحجار الشرقية", distance: 416.11, location: "الدمام" },
-            { name: "شركة ابتك للخرسانة الجاهزه", distance: 418.11, location: "الدمام" },
-            { name: "شركةالحارث للمنتجات الاسمنتية", distance: 420.4, location: "الدمام" },
-            { name: "مصنع باسل أبو الرب وشريكه", distance: 420.6, location: "الدمام" },
-            { name: "شركة عبر الخليج", distance: 427.48, location: "الرياض" },
-            { name: "مصنع المعجل", distance: 431.01, location: "الدمام" },
-            { name: "مصنع نبراس2", distance: 439.61, location: "الدمام" },
-            { name: "مصنع دعم وحلول الدرعية", distance: 441.05, location: "الرياض" },
-            { name: "مصنع نبراس الخليج", distance: 448.99, location: "الدمام" },
-            { name: "الحارث العزيزية", distance: 475.49, location: "الدمام" },
-            { name: "انشاءات دبي", distance: 522.92, location: "الدمام" },
-            { name: "الشركة الصينية", distance: 605.51, location: "الجبيل" },
-            { name: "شركة اعمار", distance: 662.14, location: "الدمام" }
-        ];
+        // ==================== قائمة المصانع الافتراضية (مع المسافات الصحيحة) ====================
+        const DEFAULT_FACTORIES_MAP = new Map([
+            ["مصنع الفهد", { distance: 337.99, location: "الرياض" }],
+            ["مصنع قوة معمارية", { distance: 339.87, location: "الدمام" }],
+            ["مصنع سارمكس النظيم", { distance: 352.64, location: "الرياض" }],
+            ["مصنع القيشان 3", { distance: 396.22, location: "الدمام" }],
+            ["مصنع القيشان 1", { distance: 396.22, location: "الدمام" }],
+            ["شركة الحارث للمنتجات الاسمنيه حي المنار", { distance: 401.37, location: "الدمام" }],
+            ["شركة برينسا للخرسانة الجاهزه", { distance: 403.21, location: "الدمام" }],
+            ["مصنع الاحجار الشرقية", { distance: 416.11, location: "الدمام" }],
+            ["شركة ابتك للخرسانة الجاهزه", { distance: 418.11, location: "الدمام" }],
+            ["شركةالحارث للمنتجات الاسمنتية", { distance: 420.4, location: "الدمام" }],
+            ["مصنع باسل أبو الرب وشريكه", { distance: 420.6, location: "الدمام" }],
+            ["شركة عبر الخليج", { distance: 427.48, location: "الرياض" }],
+            ["مصنع المعجل", { distance: 431.01, location: "الدمام" }],
+            ["مصنع نبراس2", { distance: 439.61, location: "الدمام" }],
+            ["مصنع دعم وحلول الدرعية", { distance: 441.05, location: "الرياض" }],
+            ["مصنع نبراس الخليج", { distance: 448.99, location: "الدمام" }],
+            ["الحارث العزيزية", { distance: 475.49, location: "الدمام" }],
+            ["انشاءات دبي", { distance: 522.92, location: "الدمام" }],
+            ["الشركة الصينية", { distance: 605.51, location: "الجبيل" }],
+            ["شركة اعمار", { distance: 662.14, location: "الدمام" }]
+        ]);
         // ========================================================================
 
         async function apiCall(endpoint, method='GET', data=null) {
@@ -132,24 +133,48 @@
             showLoading(true);
             try {
                 const settings = await apiCall('/settings');
-                // إذا لم توجد مصانع أو القائمة فارغة، نستخدم القائمة الافتراضية
-                if (!settings.factories || settings.factories.length === 0) {
-                    factories = [...DEFAULT_FACTORIES];
-                    await saveFactories(); // حفظها في الخادم
-                } else {
-                    // التأكد من أن كل مصنع يحتوي على حقل distance (للتوافق مع القديم)
-                    factories = settings.factories.map(f => ({
-                        name: f.name,
-                        distance: f.distance || 150,
-                        location: f.location || 'أخرى'
+                let existingFactories = settings.factories || [];
+                
+                // إذا كانت القائمة فارغة، ننشئها من القائمة الافتراضية
+                if (existingFactories.length === 0) {
+                    factories = Array.from(DEFAULT_FACTORIES_MAP.entries()).map(([name, data]) => ({
+                        name: name,
+                        distance: data.distance,
+                        location: data.location
                     }));
+                    await saveFactories();
+                } else {
+                    // نقوم بتحديث المصانع الموجودة بالمسافات الصحيحة من الخريطة الافتراضية
+                    factories = existingFactories.map(f => {
+                        const defaultData = DEFAULT_FACTORIES_MAP.get(f.name);
+                        if (defaultData) {
+                            // تحديث المسافة والموقع إذا كانت القيم القديمة مختلفة (أو مفقودة)
+                            return {
+                                name: f.name,
+                                distance: defaultData.distance,
+                                location: defaultData.location
+                            };
+                        } else {
+                            // مصنع جديد غير موجود في القائمة الافتراضية، نحافظ على قيمته
+                            return {
+                                name: f.name,
+                                distance: f.distance || 150,
+                                location: f.location || 'أخرى'
+                            };
+                        }
+                    });
+                    // حفظ القيم المحدثة (إذا تغير شيء)
+                    await saveFactories();
                 }
                 renderFactoriesTable();
             } catch(e) { 
                 console.error(e);
-                showToast('خطأ في تحميل البيانات','error');
-                // في حالة فشل الاتصال، نستخدم القائمة الافتراضية محلياً
-                factories = [...DEFAULT_FACTORIES];
+                showToast('خطأ في تحميل البيانات، يتم استخدام القيم الافتراضية محلياً','error');
+                factories = Array.from(DEFAULT_FACTORIES_MAP.entries()).map(([name, data]) => ({
+                    name: name,
+                    distance: data.distance,
+                    location: data.location
+                }));
                 renderFactoriesTable();
             }
             showLoading(false);
@@ -167,8 +192,8 @@
                     <td>
                         <button class="btn btn-warning" onclick="openEditModal(${idx})">✏️ تعديل</button>
                         <button class="btn btn-danger" onclick="deleteFactory(${idx})">🗑️ حذف</button>
-                    </td>
-                </tr>
+                     </td>
+                 </tr>
             `).join('');
         }
 
