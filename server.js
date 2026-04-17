@@ -2,21 +2,21 @@ const express = require('express');
 const fs = require('fs').promises;
 const path = require('path');
 const session = require('express-session');
-const bcrypt = require('bcrypt'); // npm install bcrypt
+const bcrypt = require('bcryptjs'); // ✅ تم التبديل إلى bcryptjs
 
 const app = express();
 const PORT = process.env.PORT || 3000;
 
 const DATA_DIR = path.join(__dirname, 'data');
 const SETTINGS_FILE = path.join(__dirname, 'settings.json');
-const USERS_FILE = path.join(__dirname, 'users.json'); // ملف المستخدمين
+const USERS_FILE = path.join(__dirname, 'users.json');
 
 (async () => {
     try { await fs.mkdir(DATA_DIR, { recursive: true }); } catch(e) {}
 })();
 
 app.use(express.json());
-app.use(express.static(__dirname)); // خدمة الملفات الثابتة من الجذر
+app.use(express.static(__dirname));
 app.use(session({
     secret: 'كسارة_الحبردي_سر_آمن',
     resave: false,
