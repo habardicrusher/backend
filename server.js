@@ -104,6 +104,7 @@ async function initTables() {
             )
         `);
         
+        // إضافة المستخدمين الافتراضيين إذا لم يوجد أحد
         const userCount = await query('SELECT COUNT(*) FROM users');
         if (parseInt(userCount.rows[0].count) === 0) {
             await query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', bcrypt.hashSync('admin', 10), 'admin']);
@@ -116,8 +117,25 @@ async function initTables() {
         console.error('❌ فشل إنشاء الجداول:', err.message);
     }
 }
-
 initTables().catch(console.error);
+
+// ==================== دوال تحميل البيانات ====================
+async function loadSettings() {
+    try {
+        const result = await query(`SELECT value FROM settings WHERE key = 'settings'`);
+        if (result.rows.length) return result.rows[0].value;
+        else return { trucks: [], factories: [], materials: [] };
+    } catch (err) {
+        console.error('فشل تحميل الإعدادات:', err);
+        return { trucks: [], factories: [], materials: [] };
+    }
+}
+
+async function getDayData(date) {
+    const result = await query('SELECT orders, distribution FROM day_data WHERE date = $1', [date]);
+    if (result.rows.length) return result.rows[0];
+    else return { orders: [], distribution: [] };
+}
 
 // ==================== Endpoints العامة ====================
 app.get('/', (req, res) => {
@@ -137,8 +155,8 @@ app.post('/api/login', async (req, res) => {
         req.session.role = user.role;
         res.json({ success: true, role: user.role });
     } catch (err) {
-        console.error('خطأ في /api/login:', err);
-        res.status(500).json({ error: 'خطأ داخلي في الخادم' });
+        console.error(err);
+        res.status(500).json({ error: 'خطأ داخلي' });
     }
 });
 
@@ -161,9 +179,8 @@ app.get('/api/me', async (req, res) => {
 // ==================== الإعدادات ====================
 app.get('/api/settings', async (req, res) => {
     try {
-        const result = await query(`SELECT value FROM settings WHERE key = 'settings'`);
-        if (result.rows.length) res.json(result.rows[0].value);
-        else res.json({ trucks: [], factories: [], materials: [] });
+        const settings = await loadSettings();
+        res.json(settings);
     } catch (err) {
         res.status(500).json({ error: 'خطأ في جلب الإعدادات' });
     }
@@ -212,49 +229,32 @@ app.delete('/api/products/:name', async (req, res) => {
     }
 });
 
-// ==================== بيانات اليوم (الطلبات والتوزيع) ====================
+// ==================== بيانات اليوم ====================
 app.get('/api/day/:date', async (req, res) => {
     const { date } = req.params;
     try {
-        if (!date || isNaN(new Date(date).getTime())) {
-            return res.status(400).json({ error: 'تاريخ غير صالح' });
-        }
-        const result = await query('SELECT orders, distribution FROM day_data WHERE date = $1', [date]);
-        if (result.rows.length > 0) {
-            const orders = result.rows[0].orders || [];
-            const distribution = result.rows[0].distribution || [];
-            res.json({ orders, distribution });
-        } else {
-            res.json({ orders: [], distribution: [] });
-        }
+        if (!date || isNaN(new Date(date).getTime())) return res.status(400).json({ error: 'تاريخ غير صالح' });
+        const data = await getDayData(date);
+        res.json(data);
     } catch (err) {
-        console.error(`❌ خطأ في GET /api/day/${date}:`, err);
-        res.status(500).json({ error: 'خطأ في قاعدة البيانات: ' + err.message });
+        console.error(err);
+        res.status(500).json({ error: 'خطأ في جلب البيانات' });
     }
 });
 
 app.put('/api/day/:date', async (req, res) => {
     const { date } = req.params;
     const { orders, distribution } = req.body;
-    if (!date || isNaN(new Date(date).getTime())) {
-        return res.status(400).json({ error: 'تاريخ غير صالح' });
-    }
-    if (!Array.isArray(orders) || !Array.isArray(distribution)) {
-        return res.status(400).json({ error: 'بيانات غير صالحة: orders و distribution يجب أن تكون مصفوفات' });
-    }
+    if (!date || isNaN(new Date(date).getTime())) return res.status(400).json({ error: 'تاريخ غير صالح' });
+    if (!Array.isArray(orders) || !Array.isArray(distribution)) return res.status(400).json({ error: 'بيانات غير صالحة' });
     try {
         const ordersJson = JSON.stringify(orders);
         const distributionJson = JSON.stringify(distribution);
-        await query(`
-            INSERT INTO day_data (date, orders, distribution) 
-            VALUES ($1, $2::jsonb, $3::jsonb) 
-            ON CONFLICT (date) 
-            DO UPDATE SET orders = $2::jsonb, distribution = $3::jsonb
-        `, [date, ordersJson, distributionJson]);
+        await query(`INSERT INTO day_data (date, orders, distribution) VALUES ($1, $2::jsonb, $3::jsonb) ON CONFLICT (date) DO UPDATE SET orders = $2::jsonb, distribution = $3::jsonb`, [date, ordersJson, distributionJson]);
         res.json({ success: true });
     } catch (err) {
-        console.error(`❌ خطأ في PUT /api/day/${date}:`, err);
-        res.status(500).json({ error: 'خطأ في حفظ البيانات: ' + err.message });
+        console.error(err);
+        res.status(500).json({ error: 'خطأ في حفظ البيانات' });
     }
 });
 
@@ -333,54 +333,27 @@ app.delete('/api/users/:id', async (req, res) => {
     }
 });
 
-// ==================== تقارير الميزان المحفوظة (مع إصلاح 500) ====================
+// ==================== تقارير الميزان المحفوظة ====================
 app.get('/api/scale-reports', async (req, res) => {
     try {
         const result = await query('SELECT id, report_name, report_date, created_at FROM scale_reports ORDER BY created_at DESC');
-        res.json(result.rows.map(r => ({
-            id: r.id,
-            reportName: r.report_name,
-            reportDate: r.report_date,
-            createdAt: r.created_at
-        })));
-    } catch (err) {
-        console.error('❌ خطأ في GET /api/scale-reports:', err);
-        res.status(500).json({ error: 'خطأ في جلب التقارير' });
-    }
+        res.json(result.rows.map(r => ({ id: r.id, reportName: r.report_name, reportDate: r.report_date, createdAt: r.created_at })));
+    } catch (err) { res.status(500).json({ error: 'خطأ في جلب التقارير' }); }
 });
 
 app.get('/api/scale-reports/:id', async (req, res) => {
     try {
         const id = parseInt(req.params.id);
-        if (isNaN(id)) {
-            return res.status(400).json({ error: 'معرّف التقرير غير صالح' });
-        }
+        if (isNaN(id)) return res.status(400).json({ error: 'معرّف غير صالح' });
         const result = await query('SELECT report_name, report_date, data, created_at FROM scale_reports WHERE id = $1', [id]);
-        if (result.rows.length === 0) {
-            return res.status(404).json({ error: 'التقرير غير موجود' });
-        }
+        if (!result.rows.length) return res.status(404).json({ error: 'غير موجود' });
         const row = result.rows[0];
         let reportData = row.data;
-        // تأكد من أن البيانات هي كائن JSON صالح
         if (typeof reportData === 'string') {
-            try {
-                reportData = JSON.parse(reportData);
-            } catch (e) {
-                console.error('خطأ في تحويل البيانات إلى JSON:', e);
-                reportData = {};
-            }
+            try { reportData = JSON.parse(reportData); } catch(e) { reportData = {}; }
         }
-        res.json({
-            id: id,
-            reportName: row.report_name,
-            reportDate: row.report_date,
-            data: reportData,
-            createdAt: row.created_at
-        });
-    } catch (err) {
-        console.error('❌ خطأ في GET /api/scale-reports/:id:', err);
-        res.status(500).json({ error: 'خطأ في جلب التقرير: ' + err.message });
-    }
+        res.json({ id, reportName: row.report_name, reportDate: row.report_date, data: reportData, createdAt: row.created_at });
+    } catch (err) { res.status(500).json({ error: 'خطأ في جلب التقرير' }); }
 });
 
 app.post('/api/scale-reports', async (req, res) => {
@@ -389,15 +362,9 @@ app.post('/api/scale-reports', async (req, res) => {
         const { reportName, reportDate, data } = req.body;
         if (!reportName || !data) return res.status(400).json({ error: 'اسم التقرير والبيانات مطلوبة' });
         const dataJson = JSON.stringify(data);
-        await query(
-            'INSERT INTO scale_reports (report_name, report_date, data) VALUES ($1, $2, $3::jsonb)',
-            [reportName, reportDate || new Date().toISOString().split('T')[0], dataJson]
-        );
+        await query('INSERT INTO scale_reports (report_name, report_date, data) VALUES ($1, $2, $3::jsonb)', [reportName, reportDate || new Date().toISOString().split('T')[0], dataJson]);
         res.status(201).json({ success: true });
-    } catch (err) {
-        console.error('❌ خطأ في POST /api/scale-reports:', err);
-        res.status(500).json({ error: 'خطأ في حفظ التقرير: ' + err.message });
-    }
+    } catch (err) { res.status(500).json({ error: 'خطأ في حفظ التقرير' }); }
 });
 
 app.put('/api/scale-reports/:id', async (req, res) => {
@@ -408,10 +375,7 @@ app.put('/api/scale-reports/:id', async (req, res) => {
         if (!reportName) return res.status(400).json({ error: 'اسم التقرير مطلوب' });
         await query('UPDATE scale_reports SET report_name = $1 WHERE id = $2', [reportName, id]);
         res.json({ success: true });
-    } catch (err) {
-        console.error('❌ خطأ في PUT /api/scale-reports/:id:', err);
-        res.status(500).json({ error: 'خطأ في تعديل التقرير: ' + err.message });
-    }
+    } catch (err) { res.status(500).json({ error: 'خطأ في تعديل التقرير' }); }
 });
 
 app.delete('/api/scale-reports/:id', async (req, res) => {
@@ -420,10 +384,7 @@ app.delete('/api/scale-reports/:id', async (req, res) => {
         const id = parseInt(req.params.id);
         await query('DELETE FROM scale_reports WHERE id = $1', [id]);
         res.json({ success: true });
-    } catch (err) {
-        console.error('❌ خطأ في DELETE /api/scale-reports/:id:', err);
-        res.status(500).json({ error: 'خطأ في حذف التقرير' });
-    }
+    } catch (err) { res.status(500).json({ error: 'خطأ في حذف التقرير' }); }
 });
 
 // ==================== بيانات الميزان الشهرية (الخام) ====================
@@ -432,11 +393,8 @@ app.get('/api/scale/monthly/:year/:month', async (req, res) => {
         const year = parseInt(req.params.year);
         const month = parseInt(req.params.month);
         const result = await query('SELECT data FROM scale_data WHERE year = $1 AND month = $2', [year, month]);
-        if (result.rows.length) res.json(result.rows[0].data);
-        else res.json({});
-    } catch (err) {
-        res.status(500).json({ error: 'خطأ في جلب بيانات الميزان' });
-    }
+        res.json(result.rows.length ? result.rows[0].data : {});
+    } catch (err) { res.status(500).json({ error: 'خطأ في جلب بيانات الميزان' }); }
 });
 
 app.put('/api/scale/monthly/:year/:month', async (req, res) => {
@@ -447,14 +405,113 @@ app.put('/api/scale/monthly/:year/:month', async (req, res) => {
         const data = req.body;
         await query(`INSERT INTO scale_data (year, month, data) VALUES ($1, $2, $3) ON CONFLICT (year, month) DO UPDATE SET data = $3, updated_at = NOW()`, [year, month, data]);
         res.json({ success: true });
-    } catch (err) {
-        res.status(500).json({ error: 'خطأ في حفظ بيانات الميزان' });
-    }
+    } catch (err) { res.status(500).json({ error: 'خطأ في حفظ بيانات الميزان' }); }
+});
+
+// ==================== تقارير المخالفات (السيارات التي لم تحقق رودين) ====================
+function analyzeTruckViolationsForDay(date, orders, distribution, trucksList) {
+    const truckTrips = new Map();
+    distribution.forEach(d => {
+        if (!d.truck) return;
+        const num = d.truck.number;
+        if (!truckTrips.has(num)) truckTrips.set(num, { trips: 0, driver: d.truck.driver });
+        truckTrips.get(num).trips++;
+    });
+    const requiredTrips = 2;
+    const violations = [];
+    trucksList.forEach(truck => {
+        const stats = truckTrips.get(truck.number);
+        const trips = stats ? stats.trips : 0;
+        const driver = stats ? stats.driver : truck.driver;
+        if (trips < requiredTrips) {
+            const reason = trips === 0 ? 'لم يقم بأي رحلة' : 'أقل من رودين (رحلة واحدة فقط)';
+            const details = trips === 0 ? 'لم يتم توزيع أي طلب على هذه السيارة' : `قام بـ ${trips} رحلة فقط، والمطلوب ${requiredTrips}`;
+            violations.push({ truck_number: truck.number, driver_name: driver, trips_count: trips, reason, details });
+        }
+    });
+    return violations;
+}
+
+app.get('/api/truck-violations/stats/:startDate/:endDate', async (req, res) => {
+    try {
+        const { startDate, endDate } = req.params;
+        const dates = [];
+        let current = new Date(startDate);
+        let end = new Date(endDate);
+        while (current <= end) { dates.push(current.toISOString().split('T')[0]); current.setDate(current.getDate() + 1); }
+        const settings = await loadSettings();
+        const trucksList = settings.trucks || [];
+        const allViolations = [];
+        const violationsByTruck = new Map();
+        for (const date of dates) {
+            const dayData = await getDayData(date);
+            const orders = dayData.orders || [];
+            const distribution = dayData.distribution || [];
+            const violations = analyzeTruckViolationsForDay(date, orders, distribution, trucksList);
+            violations.forEach(v => {
+                allViolations.push({ ...v, report_date: date });
+                const key = v.truck_number;
+                if (!violationsByTruck.has(key)) violationsByTruck.set(key, { count: 0, totalTrips: 0, driver: v.driver_name });
+                const rec = violationsByTruck.get(key);
+                rec.count++;
+                rec.totalTrips += v.trips_count;
+            });
+        }
+        const topTrucks = Array.from(violationsByTruck.entries()).map(([truck_number, data]) => ({
+            truck_number, driver_name: data.driver, violation_count: data.count, avg_trips: data.totalTrips / data.count
+        })).sort((a,b) => b.violation_count - a.violation_count).slice(0,10);
+        const totalViolations = allViolations.length;
+        const uniqueTrucksViolated = violationsByTruck.size;
+        const avgTrips = totalViolations > 0 ? (allViolations.reduce((s,v) => s + v.trips_count, 0) / totalViolations) : 0;
+        const reasonCount = new Map();
+        allViolations.forEach(v => reasonCount.set(v.reason, (reasonCount.get(v.reason) || 0) + 1));
+        const topReasons = Array.from(reasonCount.entries()).map(([reason, count]) => ({ reason, count })).sort((a,b) => b.count - a.count).slice(0,5);
+        res.json({
+            general: {
+                total_trucks: uniqueTrucksViolated,
+                total_violations: totalViolations,
+                avg_trips: avgTrips,
+                zero_trips_count: allViolations.filter(v => v.trips_count === 0).length
+            },
+            topTrucks,
+            topReasons
+        });
+    } catch (err) { console.error(err); res.status(500).json({ error: 'خطأ في جلب الإحصائيات' }); }
+});
+
+app.get('/api/truck-violations/report/:startDate/:endDate', async (req, res) => {
+    try {
+        const { startDate, endDate } = req.params;
+        const dates = [];
+        let current = new Date(startDate);
+        let end = new Date(endDate);
+        while (current <= end) { dates.push(current.toISOString().split('T')[0]); current.setDate(current.getDate() + 1); }
+        const settings = await loadSettings();
+        const trucksList = settings.trucks || [];
+        const report = [];
+        for (const date of dates) {
+            const dayData = await getDayData(date);
+            const orders = dayData.orders || [];
+            const distribution = dayData.distribution || [];
+            const violations = analyzeTruckViolationsForDay(date, orders, distribution, trucksList);
+            violations.forEach(v => {
+                report.push({
+                    report_date: date,
+                    truck_number: v.truck_number,
+                    driver_name: v.driver_name,
+                    trips_count: v.trips_count,
+                    reason: v.reason,
+                    details: v.details
+                });
+            });
+        }
+        res.json(report);
+    } catch (err) { console.error(err); res.status(500).json({ error: 'خطأ في جلب التقرير' }); }
 });
 
 // بدء الخادم
 app.listen(PORT, () => {
     console.log(`✅ الخادم يعمل على المنفذ ${PORT}`);
     console.log(`🔗 http://localhost:${PORT}`);
-    console.log(`👤 بيانات الدخول: admin/admin , user/user , client/client`);
+    console.log(`👤 بيانات الدخول الافتراضية: admin/admin , user/user , client/client`);
 });
