@@ -16,7 +16,6 @@ const pool = new Pool({
     max: 10
 });
 
-// اختبار الاتصال بقاعدة البيانات
 pool.connect((err, client, release) => {
     if (err) {
         console.error('❌ فشل الاتصال بقاعدة البيانات:', err.message);
@@ -51,17 +50,15 @@ async function query(text, params) {
     }
 }
 
-// ==================== إنشاء الجداول (مع إصلاح عمود data) ====================
+// ==================== إنشاء الجداول ====================
 async function initTables() {
     try {
-        // جدول الإعدادات
         await query(`
             CREATE TABLE IF NOT EXISTS settings (
                 key TEXT PRIMARY KEY,
                 value JSONB NOT NULL
             )
         `);
-        // جدول المنتجات
         await query(`
             CREATE TABLE IF NOT EXISTS products (
                 id SERIAL PRIMARY KEY,
@@ -69,7 +66,6 @@ async function initTables() {
                 created_at TIMESTAMP DEFAULT NOW()
             )
         `);
-        // جدول بيانات الميزان الشهرية
         await query(`
             CREATE TABLE IF NOT EXISTS scale_data (
                 id SERIAL PRIMARY KEY,
@@ -80,7 +76,6 @@ async function initTables() {
                 UNIQUE(year, month)
             )
         `);
-        // جدول التقارير المحفوظة (مع التحقق من وجود عمود data)
         await query(`
             CREATE TABLE IF NOT EXISTS scale_reports (
                 id SERIAL PRIMARY KEY,
@@ -90,7 +85,6 @@ async function initTables() {
                 created_at TIMESTAMP DEFAULT NOW()
             )
         `);
-        // إضافة عمود data إذا لم يكن موجوداً (للتأكد من التوافق)
         try {
             await query(`ALTER TABLE scale_reports ADD COLUMN IF NOT EXISTS data JSONB`);
             console.log('✅ تم التأكد من وجود عمود data في scale_reports');
@@ -98,7 +92,6 @@ async function initTables() {
             console.warn('⚠️ لا يمكن إضافة عمود data (ربما موجود بالفعل):', err.message);
         }
 
-        // جدول بيانات اليوم (الطلبات والتوزيع)
         await query(`
             CREATE TABLE IF NOT EXISTS day_data (
                 date DATE PRIMARY KEY,
@@ -106,7 +99,6 @@ async function initTables() {
                 distribution JSONB NOT NULL
             )
         `);
-        // جدول المستخدمين
         await query(`
             CREATE TABLE IF NOT EXISTS users (
                 id SERIAL PRIMARY KEY,
@@ -118,7 +110,6 @@ async function initTables() {
             )
         `);
         
-        // إضافة المستخدمين الافتراضيين إذا لم يوجد أحد
         const userCount = await query('SELECT COUNT(*) FROM users');
         if (parseInt(userCount.rows[0].count) === 0) {
             await query('INSERT INTO users (username, password, role) VALUES ($1, $2, $3)', ['admin', bcrypt.hashSync('admin', 10), 'admin']);
@@ -133,7 +124,6 @@ async function initTables() {
 }
 initTables().catch(console.error);
 
-// ==================== دوال تحميل البيانات ====================
 async function loadSettings() {
     try {
         const result = await query(`SELECT value FROM settings WHERE key = 'settings'`);
@@ -347,7 +337,7 @@ app.delete('/api/users/:id', async (req, res) => {
     }
 });
 
-// ==================== تقارير الميزان المحفوظة (مع إصلاح عمود data) ====================
+// ==================== تقارير الميزان المحفوظة ====================
 app.get('/api/scale-reports', async (req, res) => {
     try {
         const result = await query('SELECT id, report_name, report_date, created_at FROM scale_reports ORDER BY created_at DESC');
@@ -431,7 +421,7 @@ app.delete('/api/scale-reports/:id', async (req, res) => {
     }
 });
 
-// ==================== بيانات الميزان الشهرية (الخام) ====================
+// ==================== بيانات الميزان الشهرية ====================
 app.get('/api/scale/monthly/:year/:month', async (req, res) => {
     try {
         const year = parseInt(req.params.year);
@@ -456,7 +446,7 @@ app.put('/api/scale/monthly/:year/:month', async (req, res) => {
     }
 });
 
-// ==================== تقارير المخالفات (السيارات التي عملت برحلة واحدة فقط) ====================
+// ==================== تقارير المخالفات (مع احتساب 0 و 1) ====================
 function analyzeTruckViolationsForDay(date, orders, distribution, trucksList) {
     const truckTrips = new Map();
     distribution.forEach(d => {
@@ -471,12 +461,16 @@ function analyzeTruckViolationsForDay(date, orders, distribution, trucksList) {
         const stats = truckTrips.get(truck.number);
         const trips = stats ? stats.trips : 0;
         const driver = stats ? stats.driver : truck.driver;
-        // فقط الرحلات = 1 تعتبر مخالفة (أقل من المطلوب ولكنها عملت)
-        if (trips === 1) {
+        if (trips === 0) {
+            const reason = 'لم تتوفر رحلات كافية';
+            const details = `لم تقم هذه السيارة بأي رحلة في هذا اليوم.`;
+            violations.push({ truck_number: truck.number, driver_name: driver, trips_count: trips, reason, details });
+        } else if (trips === 1) {
             const reason = 'أقل من رودين (رحلة واحدة فقط)';
             const details = `قام بـ ${trips} رحلة فقط، والمطلوب ${requiredTrips}`;
             violations.push({ truck_number: truck.number, driver_name: driver, trips_count: trips, reason, details });
         }
+        // الحالة trips >= 2 لا تحتسب مخالفة
     });
     return violations;
 }
@@ -520,7 +514,7 @@ app.get('/api/truck-violations/stats/:startDate/:endDate', async (req, res) => {
                 total_trucks: uniqueTrucksViolated,
                 total_violations: totalViolations,
                 avg_trips: avgTrips,
-                zero_trips_count: 0   // لم نعد نحتسبها كمخالفات
+                zero_trips_count: allViolations.filter(v => v.trips_count === 0).length
             },
             topTrucks,
             topReasons
