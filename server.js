@@ -18,7 +18,7 @@ const SETTINGS_FILE = path.join(__dirname, 'settings.json');
 
 // Middlewares
 app.use(express.json());
-app.use(express.static(path.join(__dirname, 'public'))); // مجلد الصفحات الأمامية
+app.use(express.static(__dirname));
 app.use(session({
     secret: 'كسارة_الحبردي_سر_آمن',
     resave: false,
