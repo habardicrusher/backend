@@ -41,12 +41,24 @@
                 { href: 'trucks-failed-report.html', text: '📊 تقرير المخالفات' },
                 { href: 'distribution-quality.html', text: '📈 جودة التوزيع' },
                 { href: 'settings.html', text: '⚙️ الإعدادات' },
-                { href: 'restrictions.html', text: '⛔ الحظر' },
+                { href: 'restrictions.html', text: '⛔ الحظر' }
+            ];
+
+            // ✅ روابط خاصة بالمدير فقط
+            const adminLinks = [
                 { href: 'users.html', text: '👥 المستخدمين' },
                 { href: 'logs.html', text: '📜 السجلات' }
             ];
 
-            let linksToShow = (isAdmin || isUser) ? allLinks : (isClient ? [{ href: 'orders.html', text: '📝 الطلبات' }] : []);
+            let linksToShow = [];
+            if (isAdmin) {
+                linksToShow = [...allLinks, ...adminLinks];
+            } else if (isUser) {
+                linksToShow = [...allLinks]; // المستخدم العادي لا يرى users ولا logs
+            } else if (isClient) {
+                linksToShow = [{ href: 'orders.html', text: '📝 الطلبات' }];
+            }
+
             const currentPage = window.location.pathname.split('/').pop();
             navContainer.innerHTML = linksToShow.map(link => `<a href="${link.href}" class="nav-link ${currentPage === link.href ? 'active' : ''}">${link.text}</a>`).join('');
 
