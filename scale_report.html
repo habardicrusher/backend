@@ -15,80 +15,17 @@
             color: #fff;
         }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
-        .header {
-            text-align: center;
-            padding: 30px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            border-radius: 20px;
-            margin-bottom: 30px;
-            position: relative;
-        }
-        .nav-links {
-            display: flex;
-            flex-wrap: wrap;
-            gap: 10px;
-            justify-content: center;
-            margin-bottom: 30px;
-        }
-        .nav-link {
-            padding: 12px 24px;
-            background: rgba(255,255,255,0.1);
-            border-radius: 12px;
-            text-decoration: none;
-            color: #fff;
-            font-weight: 600;
-            transition: all 0.3s;
-        }
-        .nav-link:hover, .nav-link.active {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            transform: translateY(-2px);
-        }
-        .card {
-            background: rgba(255,255,255,0.08);
-            backdrop-filter: blur(8px);
-            border-radius: 28px;
-            padding: 28px;
-            margin-bottom: 28px;
-            border: 1px solid rgba(255,255,255,0.15);
-        }
-        .settings-row {
-            background: rgba(0,0,0,0.2);
-            padding: 15px 20px;
-            border-radius: 24px;
-            margin-bottom: 20px;
-        }
-        .vacation-control {
-            display: flex;
-            flex-direction: row;
-            flex-wrap: nowrap;
-            align-items: flex-end;
-            gap: 20px;
-        }
-        .upload-field {
-            min-width: 140px;
-        }
-        .upload-field label {
-            display: block;
-            font-weight: 700;
-            margin-bottom: 8px;
-            color: #a8b2d1;
-        }
-        .upload-field input {
-            width: 100%;
-            padding: 12px 14px;
-            border-radius: 16px;
-            border: 1px solid rgba(255,255,255,0.2);
-            background: rgba(0,0,0,0.3);
-            color: #fff;
-        }
-        .btn-primary, .btn-secondary, .btn-advanced, .btn-warning {
-            border: none;
-            padding: 12px 24px;
-            border-radius: 28px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: 0.2s;
-        }
+        .header { text-align: center; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 20px; margin-bottom: 30px; position: relative; }
+        .nav-links { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-bottom: 30px; }
+        .nav-link { padding: 12px 24px; background: rgba(255,255,255,0.1); border-radius: 12px; text-decoration: none; color: #fff; font-weight: 600; transition: all 0.3s; }
+        .nav-link:hover, .nav-link.active { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); transform: translateY(-2px); }
+        .card { background: rgba(255,255,255,0.08); backdrop-filter: blur(8px); border-radius: 28px; padding: 28px; margin-bottom: 28px; border: 1px solid rgba(255,255,255,0.15); }
+        .settings-row { background: rgba(0,0,0,0.2); padding: 15px 20px; border-radius: 24px; margin-bottom: 20px; }
+        .vacation-control { display: flex; flex-direction: row; flex-wrap: nowrap; align-items: flex-end; gap: 20px; }
+        .upload-field { min-width: 140px; }
+        .upload-field label { display: block; font-weight: 700; margin-bottom: 8px; color: #a8b2d1; }
+        .upload-field input { width: 100%; padding: 12px 14px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.2); background: rgba(0,0,0,0.3); color: #fff; }
+        .btn-primary, .btn-secondary, .btn-advanced, .btn-warning { border: none; padding: 12px 24px; border-radius: 28px; font-weight: 600; cursor: pointer; transition: 0.2s; }
         .btn-primary { background: linear-gradient(135deg, #11998e, #38ef7d); color: #1a1a2e; }
         .btn-secondary { background: #4facfe; color: #fff; }
         .btn-advanced { background: linear-gradient(135deg, #f093fb, #f5576c); color: #fff; }
@@ -253,7 +190,53 @@
     let currentDriversWithDetails = [];
     let currentMonthDays = 30, currentOfficialVacations = 4;
 
-    // ========== دوال معالجة Excel (بدون تغيير) ==========
+    // ========== قائمة السيارات الصحيحة (الأرقام والرموز) ==========
+    const VALID_TRUCKS = new Map([
+        ["1091", "SDA"], ["2757", "BTA"], ["2758", "BTA"], ["2759", "BTA"],
+        ["2760", "BTA"], ["2762", "BTA"], ["2818", "BTA"], ["2927", "BTA"],
+        ["2928", "BTA"], ["2929", "BTA"], ["3321", "UXA"], ["3322", "UXA"],
+        ["3324", "UXA"], ["3325", "UXA"], ["3326", "UXA"], ["3461", "KXA"],
+        ["3462", "KXA"], ["3963", "TSA"], ["4445", "GSA"], ["5324", "SXA"],
+        ["5367", "KRA"], ["5520", "XXA"], ["5521", "XXA"], ["5522", "XXA"],
+        ["5523", "XXA"], ["5524", "XXA"], ["5525", "XXA"], ["5526", "XXA"],
+        ["5527", "XXA"], ["5528", "XXA"], ["5658", "SXA"], ["5796", "VRA"],
+        ["5797", "VRA"], ["5800", "VRA"], ["6398", "ERA"], ["6428", "TRA"],
+        ["6429", "TRA"], ["6430", "TRA"], ["6432", "TRA"], ["6612", "DSA"],
+        ["6613", "DSA"], ["6614", "DSA"], ["6615", "DSA"], ["6616", "DSA"],
+        ["6617", "DSA"], ["6618", "DSA"], ["6619", "DSA"], ["6620", "DSA"],
+        ["6621", "DSA"], ["6622", "DSA"], ["6623", "DSA"], ["6624", "DSA"],
+        ["6626", "DSA"], ["6629", "DSA"], ["6935", "GSA"], ["6939", "GSA"],
+        ["7042", "ZXA"], ["7043", "ZXA"], ["7332", "DXA"], ["7682", "DXA"],
+        ["7750", "DXA"], ["7837", "DXA"], ["7926", "DXA"], ["7927", "DXA"],
+        ["7928", "DXA"], ["7929", "DXA"], ["7930", "DXA"], ["7974", "DXA"],
+        ["7980", "DXA"], ["9103", "HSA"], ["9492", "SXA"], ["9493", "SXA"],
+        ["9495", "SXA"], ["9496", "SXA"]
+    ]);
+    const EXCLUDED_NAMES = new Set(["eisam خ","eisam ح","عادل خ","عادل ح","mamoon","zeshan","برهان","ابراهيم"]);
+    // ============================================================
+
+    function keepDigitsOnly(v) {
+        const ad = { "٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9" };
+        let t = String(v??"").replace(/[٠-٩]/g, d=>ad[d]);
+        let m = t.match(/\d+/g);
+        return m ? m.join("") : "";
+    }
+    
+    function extractTruckCode(text) {
+        if (!text) return '';
+        const match = String(text).match(/[A-Z]{2,4}/);
+        return match ? match[0] : '';
+    }
+    
+    function isTruckValid(truckNumber, truckCode) {
+        const expectedCode = VALID_TRUCKS.get(truckNumber);
+        if (!expectedCode) return false;
+        if (truckCode && truckCode.trim() !== '') {
+            return expectedCode === truckCode.trim();
+        }
+        return true;
+    }
+
     async function processExcelFile(file){
         let buf = await file.arrayBuffer();
         let wb = new ExcelJS.Workbook();
@@ -263,36 +246,75 @@
         sheet.eachRow({includeEmpty:true}, (row)=>{ rows.push(row.values.slice(1).map(v=>v??"")); });
         return processData(rows);
     }
+    
     function processData(rows){
-        const VALID_TRUCK_NUMBERS = new Set(["1091","2757","2758","2759","2760","2762","2818","2927","2928","2929","3321","3322","3324","3325","3326","3461","3462","3963","4445","5324","5367","5520","5521","5522","5523","5524","5525","5526","5527","5528","5658","5796","5797","5800","6398","6428","6429","6430","6432","6612","6613","6614","6615","6616","6617","6618","6619","6620","6621","6622","6623","6624","6626","6629","6935","6939","7042","7043","7332","7682","7750","7837","7926","7927","7928","7929","7930","7974","7980","9103","9492","9493","9495","9496"]);
-        const EXCLUDED_NAMES = new Set(["eisam خ","eisam ح","عادل خ","عادل ح","mamoon","zeshan","برهان","ابراهيم"]);
-        function mapMaterialCode(code){ const m={"46089":"3/8","46085":"3/4","46097":"3/16"}; return m[code]||code; }
-        function keepDigitsOnly(v){ const ad={"٠":"0","١":"1","٢":"2","٣":"3","٤":"4","٥":"5","٦":"6","٧":"7","٨":"8","٩":"9"}; let t=String(v??"").replace(/[٠-٩]/g,d=>ad[d]); let m=t.match(/\d+/g); return m?m.join(""):""; }
-        function hasExcludedName(row){ return row.some(c=>EXCLUDED_NAMES.has(String(c).trim().toLowerCase())); }
-        let matched=0, notMatched=0, total=0;
-        const driverStats=new Map(), materialStats=new Map();
-        for(let i=1;i<rows.length;i++){
-            let row=(rows[i]||[]).slice();
-            if(!row.some(v=>v!==null&&v!==undefined&&v!=="")) continue;
+        let matched = 0, notMatched = 0, total = 0;
+        // استخدام Map بالمفتاح = رقم السيارة (وليس اسم السائق)
+        const truckStats = new Map(); // key: truckNumber, value: { driver: string, trips: number, weight: number }
+        const materialStats = new Map();
+        
+        for(let i=1; i<rows.length; i++){
+            let row = (rows[i] || []).slice();
+            if(!row.some(v=>v!==null && v!==undefined && v!=="")) continue;
             total++;
-            let cleanedTruck=keepDigitsOnly(row[4]??"");
-            if(hasExcludedName(row)){ notMatched++; continue; }
-            if(VALID_TRUCK_NUMBERS.has(cleanedTruck)){
+            
+            let truckRaw = String(row[4] ?? "");
+            let cleanedTruck = keepDigitsOnly(truckRaw);
+            let truckCode = extractTruckCode(truckRaw);
+            let driverName = String(row[3] ?? "").trim();
+            let weight = parseFloat(row[11]) || 0;
+            let materialName = (() => {
+                const m = {"46089":"3/8","46085":"3/4","46097":"3/16"};
+                return m[String(row[5]??"").trim()] || String(row[5]??"").trim();
+            })();
+            
+            // استبعاد الأسماء الممنوعة
+            if(row.some(c => EXCLUDED_NAMES.has(String(c).trim().toLowerCase()))){
+                notMatched++;
+                continue;
+            }
+            
+            if(isTruckValid(cleanedTruck, truckCode)){
                 matched++;
-                let driver=String(row[3]??"").trim();
-                let weight=parseFloat(row[11])||0;
-                let materialName=mapMaterialCode(String(row[5]??"").trim());
-                if(driver){
-                    if(!driverStats.has(driver)) driverStats.set(driver,{trips:0,weight:0});
-                    let d=driverStats.get(driver); d.trips++; d.weight+=weight;
+                if(!truckStats.has(cleanedTruck)){
+                    truckStats.set(cleanedTruck, { driver: driverName, trips: 0, weight: 0 });
                 }
-                if(materialName) materialStats.set(materialName,(materialStats.get(materialName)||0)+weight);
-            } else notMatched++;
+                const rec = truckStats.get(cleanedTruck);
+                rec.trips++;
+                rec.weight += weight;
+                // إذا كان اسم السائق مختلفاً، نأخذ الاسم الأكثر شيوعاً (نترك الأول حالياً)
+                if(rec.driver !== driverName && driverName !== ''){
+                    // اختيار الاسم الأكثر تكراراً يمكن تحسينه، لكننا نكتفي بالأول
+                }
+                if(materialName){
+                    materialStats.set(materialName, (materialStats.get(materialName) || 0) + weight);
+                }
+            } else {
+                notMatched++;
+            }
         }
-        const driversArr=Array.from(driverStats.entries()).map(([n,d])=>({name:n, trips:d.trips, totalWeight:d.weight})).sort((a,b)=>b.trips-a.trips);
-        const materialsArr=Array.from(materialStats.entries()).map(([n,w])=>({name:n, weight:w})).sort((a,b)=>b.weight-a.weight);
-        return { matchedCount:matched, notMatchedCount:notMatched, totalRows:total, driversStats:driversArr, top10Drivers:driversArr.slice(0,10), materialsStats:materialsArr, totalWeightAll:materialsArr.reduce((s,m)=>s+m.weight,0) };
+        
+        const driversArr = Array.from(truckStats.entries()).map(([truckNum, data]) => ({
+            name: data.driver,
+            truckNumber: truckNum,
+            trips: data.trips,
+            totalWeight: data.weight
+        })).sort((a,b) => b.trips - a.trips);
+        
+        const materialsArr = Array.from(materialStats.entries()).map(([n,w]) => ({ name: n, weight: w })).sort((a,b) => b.weight - a.weight);
+        const totalWeightAll = materialsArr.reduce((s,m) => s + m.weight, 0);
+        
+        return {
+            matchedCount: matched,
+            notMatchedCount: notMatched,
+            totalRows: total,
+            driversStats: driversArr,
+            top10Drivers: driversArr.slice(0,10),
+            materialsStats: materialsArr,
+            totalWeightAll: totalWeightAll
+        };
     }
+    
     function computeRodaFromWorkDays(driversList){
         return driversList.map(d=>{
             const required = d.totalWorkDays * 2;
@@ -348,7 +370,7 @@
         topDriversChart = new Chart(document.getElementById("topDriversChart"),{type:"bar",data:{labels:top10.map(d=>d.name),datasets:[{label:"عدد الرحلات",data:top10.map(d=>d.trips),backgroundColor:"#4facfe"}]},options:{responsive:true,maintainAspectRatio:false,indexAxis:'y'}});
     }
 
-    // ========== أحداث الصفحة (بدون تغيير) ==========
+    // ========== أحداث الصفحة ==========
     document.getElementById("showResultsBtn").onclick = async () => {
         const file = document.getElementById("fileInput").files[0];
         if(!file){ showToast("اختر ملف","error"); return; }
@@ -432,7 +454,7 @@
         showToast("تم إلغاء التحديد","success");
     };
 
-    // ========== دوال التقارير المحفوظة (معدلة بشكل جذري لتحمل أي تنسيق) ==========
+    // ========== دوال التقارير المحفوظة ==========
     async function loadReportsList(){
         try{
             const res = await fetch(`${API_BASE}/scale-reports`);
@@ -501,38 +523,24 @@
         }
     }
     
-    // دالة مساعدة لاستخراج البيانات من أي شكل من الاستجابة
     function extractReportData(response) {
-        // محاولة استخراج البيانات من response.data أو من response مباشرة إذا كانت البيانات هي نفسها
         let data = response.data;
         if (!data || typeof data !== 'object') {
-            // إذا لم توجد خاصية data، نفترض أن الاستجابة بأكملها هي البيانات (قديمة)
             data = response;
         }
-        // إذا كانت data لا تزال غير موجودة أو ليست كائن، نعيد كائن فارغ
         if (!data || typeof data !== 'object') return {};
         return data;
     }
     
-    // ✅ دالة عرض التقرير المحفوظة (معدلة لتفادي undefined وتحمل أي تنسيق)
     async function displaySingleReport(reportId){
         showLoading(true);
         try{
             const res = await fetch(`${API_BASE}/scale-reports/${reportId}`);
             const full = await res.json();
-            console.log("البيانات المستلمة من الخادم:", full); // للتصحيح
-            
-            // استخراج البيانات باستخدام الدالة المساعدة
             const data = extractReportData(full);
-            
-            if (!data || Object.keys(data).length === 0) {
-                throw new Error('التقرير لا يحتوي على بيانات صالحة');
-            }
-            
-            // الحصول على driversStats مع التحقق من وجودها
+            if (!data || Object.keys(data).length === 0) throw new Error('التقرير لا يحتوي على بيانات صالحة');
             let driversStats = data.driversStats || [];
             if (!Array.isArray(driversStats)) driversStats = [];
-            
             let driversWithDetails;
             if (driversStats.length > 0 && driversStats[0].totalWorkDays !== undefined) {
                 driversWithDetails = computeRodaFromWorkDays(driversStats);
@@ -550,7 +558,6 @@
                 document.getElementById("monthDays").value = monthDays;
                 document.getElementById("officialVacations").value = officialVac;
             }
-            
             currentResult = {
                 totalRows: data.totalRows || 0,
                 matchedCount: data.matchedCount || 0,
@@ -561,12 +568,10 @@
                 top10Drivers: driversWithDetails.slice(0,10).map(d => ({ name: d.name, trips: d.trips }))
             };
             currentDriversWithDetails = driversWithDetails;
-            
             document.getElementById("metricsGrid").style.display = "grid";
             document.getElementById("chartsArea").style.display = "block";
             renderDriverTable(currentDriversWithDetails);
             updateCharts();
-            
             const reportName = full.reportName || (full.report_name) || "التقرير";
             document.getElementById("statusMsg").innerHTML = `✅ تم عرض التقرير: ${reportName}`;
             showToast(`تم عرض التقرير: ${reportName}`,"success");
@@ -578,25 +583,21 @@
         }
     }
     
-    // ✅ دالة الدمج (معدلة لتفادي undefined)
     async function mergeReports(reportIds){
         showLoading(true);
         try{
             let driversAgg = new Map();
             let materialsAgg = new Map();
             let totalRows = 0, matchedCount = 0, notMatchedCount = 0, totalWeightAll = 0;
-
             for(let id of reportIds){
                 const res = await fetch(`${API_BASE}/scale-reports/${id}`);
                 const full = await res.json();
                 const data = extractReportData(full);
                 if (!data || Object.keys(data).length === 0) continue;
-                
                 totalRows += data.totalRows || 0;
                 matchedCount += data.matchedCount || 0;
                 notMatchedCount += data.notMatchedCount || 0;
                 totalWeightAll += data.totalWeightAll || 0;
-                
                 const driversStats = data.driversStats || [];
                 for(let d of driversStats){
                     let workDaysForDriver = 0;
@@ -629,16 +630,13 @@
                     else materialsAgg.set(m.name, { name: m.name, weight: m.weight });
                 }
             }
-            
             const driversList = Array.from(driversAgg.entries()).map(([name, agg]) => ({
                 name,
                 trips: agg.trips,
                 totalWeight: agg.weight,
                 totalWorkDays: agg.totalWorkDays
             })).sort((a,b) => b.trips - a.trips);
-            
             const materialsList = Array.from(materialsAgg.values()).sort((a,b) => b.weight - a.weight);
-            
             const driversWithRoda = driversList.map(d => {
                 const requiredRoda = d.totalWorkDays * 2;
                 const percent = requiredRoda > 0 ? (d.trips / requiredRoda) * 100 : 0;
@@ -651,7 +649,6 @@
                     percentage: Math.min(100, percent).toFixed(2)
                 };
             });
-            
             currentResult = {
                 totalRows, matchedCount, notMatchedCount, totalWeightAll,
                 driversStats: driversList.map(d => ({ name: d.name, trips: d.trips, totalWeight: d.totalWeight })),
@@ -663,12 +660,10 @@
             currentOfficialVacations = 0;
             document.getElementById("monthDays").value = 30;
             document.getElementById("officialVacations").value = 4;
-            
             document.getElementById("metricsGrid").style.display = "grid";
             document.getElementById("chartsArea").style.display = "block";
             renderDriverTable(currentDriversWithDetails);
             updateCharts();
-            
             const totalWorkDaysSample = driversList.length ? driversList[0].totalWorkDays : 0;
             document.getElementById("statusMsg").innerHTML = `✅ تم دمج ${reportIds.length} تقرير (إجمالي أيام العمل: ${totalWorkDaysSample} يوم - الرودات المطلوبة: ${totalWorkDaysSample * 2})`;
             showToast(`تم دمج ${reportIds.length} تقارير بنجاح`, "success");
@@ -680,7 +675,7 @@
         }
     }
 
-    // ========== دوال تصدير Excel (بدون تغيير) ==========
+    // ========== دوال تصدير Excel ==========
     async function exportAdvancedExcel(res, drivers, monthDays, officialVac, filename){
         if(!res){ showToast("لا توجد بيانات","error"); return; }
         showLoading(true);
@@ -696,7 +691,6 @@
             const rightAlign = { horizontal:'right', vertical:'middle' };
             const thinBorder = { top:{ style:'thin' }, left:{ style:'thin' }, bottom:{ style:'thin' }, right:{ style:'thin' } };
 
-            // ورقة1: ملخص التقرير
             const ws1 = workbook.addWorksheet('ملخص التقرير', { views:[{ rightToLeft:true }] });
             ws1.columns = [{ width:35 }, { width:25 }];
             ws1.mergeCells('A1:B1');
@@ -736,7 +730,6 @@
                 });
             });
 
-            // ورقة2: تكريم السائقين
             const ws2 = workbook.addWorksheet('تكريم السائقين', { views:[{ rightToLeft:true }] });
             ws2.columns = [{ width:8 }, { width:28 }, { width:18 }, { width:18 }, { width:18 }, { width:18 }, { width:22 }];
             ws2.mergeCells('A1:G1');
@@ -767,7 +760,6 @@
                 });
             });
 
-            // أوراق إضافية مختصرة (3-8) لضمان 8 أوراق
             const ws3 = workbook.addWorksheet('رسم السائقين');
             ws3.getCell('A1').value = '📊 رسم بياني - عدد الرحلات (أفضل 20)';
             ws3.getRow(2).values = ['السائق', 'عدد الرحلات'];
@@ -820,7 +812,6 @@
         saveAs(new Blob([buf]), filename.endsWith('.xlsx') ? filename : filename+'.xlsx');
     }
 
-    // ========== دوال مساعدة ==========
     function showToast(msg, type){
         let t = document.createElement('div');
         t.className = `toast toast-${type}`;
@@ -853,5 +844,6 @@
         }
     };
 </script>
+<script src="navbar.js"></script>
 </body>
 </html>
