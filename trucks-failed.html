@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>السيارات المخالفة للهدف - رودين في اليوم</title>
+    <title>السيارات غير المستوفية للرحلات - كسارة الحبردي</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
@@ -74,7 +74,7 @@
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
         <div class="header">
-            <h1>⚠️ السيارات المخالفة للهدف (أقل من رودين)</h1>
+            <h1>⚠️ السيارات غير المستوفية للرحلات (أقل من رودين)</h1>
             <p>الهدف الأساسي: كل سيارة تنفذ رودين يومياً</p>
             <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;"></div>
         </div>
@@ -86,9 +86,9 @@
                 <input type="date" id="reportDate" onchange="loadViolations()">
             </div>
             <div>
-                <button class="btn btn-primary" onclick="loadViolations()">🔍 عرض السيارات المخالفة</button>
+                <button class="btn btn-primary" onclick="loadViolations()">🔍 عرض السيارات غير المستوفية</button>
                 <button class="btn btn-success" onclick="saveAllReasons()">💾 حفظ الأسباب على الخادم</button>
-                <button class="btn btn-info" onclick="window.location.href='trucks-failed-report.html'">📊 تقرير المخالفات المتقدم</button>
+                <button class="btn btn-info" onclick="window.location.href='trucks-failed-report.html'">📊 تقرير السيارات غير المستوفية (متقدم)</button>
             </div>
         </div>
 
@@ -246,7 +246,7 @@
         function renderViolationsTable(violations) {
             const tbody = document.getElementById('violationsBody');
             if (!violations.length) {
-                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">✅ لا توجد سيارات مخالفة اليوم، كل السيارات حققت الهدف</td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">✅ لا توجد سيارات غير مستوفية اليوم، كل السيارات حققت الهدف</td></tr>';
                 return;
             }
             
@@ -297,7 +297,7 @@
         
         async function saveAllReasons() {
             if (!violationsData.length) {
-                showToast('لا توجد سيارات مخالفة لحفظ الأسباب', 'error');
+                showToast('لا توجد سيارات غير مستوفية لحفظ الأسباب', 'error');
                 return;
             }
             const missing = violationsData.filter(v => !v.reason);
@@ -319,7 +319,7 @@
                     detail: v.detail || ''
                 }));
                 await apiCall('/truck-violations/save', 'POST', { date: currentDate, violations: toSave });
-                showToast(`✅ تم حفظ أسباب ${violationsData.length} سيارة مخالفة على الخادم`, 'success');
+                showToast(`✅ تم حفظ أسباب ${violationsData.length} سيارة غير مستوفية على الخادم`, 'success');
             } catch(e) {
                 showToast('خطأ في الحفظ: ' + e.message, 'error');
             }
@@ -350,8 +350,8 @@
                         <a href="factories.html" class="nav-link">🏭 المصانع</a>
                         <a href="reports.html" class="nav-link">📊 تقارير الكسارة</a>
                         <a href="scale_report.html" class="nav-link">⚖️ تقارير الميزان الشهرية</a>
-                        <a href="trucks-failed.html" class="nav-link active">⚠️ السيارات المخالفة</a>
-                        <a href="trucks-failed-report.html" class="nav-link">📊 تقرير المخالفات</a>
+                        <a href="trucks-failed.html" class="nav-link active">⚠️ السيارات غير المستوفية</a>
+                        <a href="trucks-failed-report.html" class="nav-link">📊 تقرير السيارات غير المستوفية</a>
                         <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
                         <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
                         <a href="users.html" class="nav-link">👥 المستخدمين</a>
