@@ -65,7 +65,7 @@
 <div class="container">
     <div class="header">
         <h1>📊 تقرير السيارات المخالفة المتقدم</h1>
-        <p>تحليل السيارات التي لم تحقق الهدف (أقل من رودين في اليوم)</p>
+        <p>تحليل السيارات التي عملت ولكن لم تحقق الهدف (أقل من رودين في اليوم)</p>
     </div>
     <div class="nav-links" id="navLinks"></div>
     
@@ -82,7 +82,7 @@
     <div class="stats-grid" id="statsGrid"></div>
 
     <h2>🚛 أكثر السيارات تكراراً للمخالفات</h2>
-    <div style="overflow-x: auto;"><table id="topTrucksTable"><thead><tr><th>#</th><th>رقم السيارة</th><th>السائق</th><th>عدد مرات المخالفة (أيام)</th><th>متوسط الرحلات</th></tr></thead><tbody></tbody></table></div>
+    <div style="overflow-x: auto;"><table id="topTrucksTable"><thead><tr><th>#</th><th>رقم السيارة</th><th>السائق</th><th>عدد مرات المخالفة (أيام)</th><th>متوسط الرحلات</th><tr></thead><tbody></tbody></table></div>
 
     <h2>📋 أكثر الأسباب شيوعاً</h2>
     <div style="overflow-x: auto;"><table id="topReasonsTable"><thead><tr><th>#</th><th>السبب</th><th>عدد المرات</th></tr></thead><tbody></tbody></table></div>
@@ -93,8 +93,8 @@
 
 <script>
     const API_BASE = '/api';
-    let currentData = [];      // تفاصيل المخالفات (كل سجل = يوم + سيارة)
-    let currentStats = null;   // الإحصائيات من الخادم (غير موثوقة بالكامل، سنعيد حسابها)
+    let currentData = [];
+    let currentStats = null;
 
     setInterval(async () => {
         try {
@@ -109,36 +109,16 @@
         return res.json();
     }
 
-    // دالة لحساب إحصائيات صحيحة من بيانات المخالفات (بدلاً من الاعتماد على stats.general)
-    function computeCorrectStats(violations, allTrucksFromServer) {
-        // violations: [{ report_date, truck_number, driver_name, trips_count, reason, details }]
+    // حساب إحصائيات صحيحة من بيانات المخالفات (حيث المخالفة فقط عندما trips_count === 1)
+    function computeCorrectStats(violations) {
         if (!violations.length) return null;
-        
-        // 1. السيارات الفريدة المخالفة (ظهرت في أي مخالفة)
         const uniqueTrucksViolated = new Set(violations.map(v => v.truck_number));
-        
-        // 2. إجمالي المخالفات = عدد السجلات
         const totalViolations = violations.length;
-        
-        // 3. متوسط الرحلات للمخالفات (متوسط trips_count لكل سجل مخالفة)
         const totalTripsInViolations = violations.reduce((sum, v) => sum + (v.trips_count || 0), 0);
         const avgTrips = totalViolations ? (totalTripsInViolations / totalViolations).toFixed(2) : 0;
-        
-        // 4. السيارات التي بدون رحلات إطلاقاً خلال الفترة (بحاجة إلى معرفة جميع السيارات)
-        // نستخرج السيارات التي ظهرت في المخالفات وعدد رحلاتها = 0 في ذلك اليوم
-        // لكننا لا نعرف جميع السيارات من هذه البيانات فقط. لذا نستخدم قائمة السيارات من الخادم إن وردت.
-        let zeroTripsCount = 0;
-        if (allTrucksFromServer && allTrucksFromServer.length) {
-            // سيارات لم تظهر في المخالفات إطلاقاً؟ لا، قد تكون ظهرت ولكن برحلات >0.
-            // الأفضل: حساب السيارات التي مجموع رحلاتها في كل الأيام = 0.
-            // لكن البيانات غير كافية هنا. سنعتمد على ما يرسله الخادم في general.zero_trips_count إن كان دقيقاً.
-            // لحل المشكلة، نستخدم الخادم مع تعديل بسيط.
-        }
-        // بدلاً من ذلك، نستخرج من violations السجلات التي trips_count === 0
-        const zeroTripsRecords = violations.filter(v => v.trips_count === 0);
-        const zeroTripsUniqueTrucks = new Set(zeroTripsRecords.map(v => v.truck_number));
-        zeroTripsCount = zeroTripsUniqueTrucks.size;
-        
+        // عدد السيارات التي لم تقم بأي رحلة في أي يوم (لا تظهر في المخالفات لأننا استبعدنا الرحلات 0)
+        // هذه القيمة ستكون صفراً لأن المخالفات تحتوي فقط على رحلة واحدة.
+        const zeroTripsCount = 0;
         return {
             total_trucks: uniqueTrucksViolated.size,
             total_violations: totalViolations,
@@ -156,24 +136,15 @@
         }
         showLoading(true);
         try {
-            // جلب البيانات من الخادم
             const [statsFromServer, violations] = await Promise.all([
                 apiCall(`/truck-violations/stats/${startDate}/${endDate}`),
                 apiCall(`/truck-violations/report/${startDate}/${endDate}`)
             ]);
             currentData = violations;
             
-            // جلب قائمة السيارات الكاملة من الإعدادات (لحساب السيارات بدون رحلات بشكل صحيح)
-            let allTrucks = [];
-            try {
-                const settings = await apiCall('/settings');
-                allTrucks = settings.trucks || [];
-            } catch(e) { console.warn('لا يمكن جلب قائمة السيارات', e); }
+            // إعادة حساب الإحصائيات بشكل صحيح بناءً على البيانات المستلمة
+            const correctedGeneral = computeCorrectStats(violations);
             
-            // إعادة حساب الإحصائيات بشكل صحيح
-            const correctedGeneral = computeCorrectStats(violations, allTrucks);
-            
-            // دمج مع البيانات الأخرى من الخادم (topTrucks, topReasons)
             currentStats = {
                 general: correctedGeneral || statsFromServer.general,
                 topTrucks: statsFromServer.topTrucks || [],
@@ -199,12 +170,11 @@
             return;
         }
         container.style.display = 'block';
-        const percentViolated = general.total_trucks ? ((general.total_violations / (general.total_trucks * 1)) * 100).toFixed(1) : 0;
         container.innerHTML = `
             <h3>📌 خلاصة تنفيذية</h3>
             <p>خلال الفترة من <strong>${startDate}</strong> إلى <strong>${endDate}</strong>، تم رصد <strong>${general.total_violations}</strong> مخالفة (أيام) تتعلق بعدم تحقيق الهدف (رودين على الأقل).</p>
             <p>عدد السيارات التي سجلت مخالفة مرة واحدة على الأقل: <strong>${general.total_trucks}</strong> سيارة. متوسط عدد الرحلات لهذه السيارات في أيام المخالفة: <strong>${general.avg_trips}</strong> رحلة.</p>
-            <p>من بين هذه السيارات، هناك <strong>${general.zero_trips_count}</strong> سيارة لم تقم بأي رحلة على الإطلاق في بعض الأيام (أو طوال الفترة حسب البيانات). يوصى بمراجعة أسباب عدم توزيع طلبات على هذه السيارات.</p>
+            <p><strong>ملاحظة:</strong> المخالفة تُحتسب فقط عندما تقوم السيارة برحلة واحدة فقط في اليوم (أقل من الرودين المطلوبين). السيارات التي لم تقم بأي رحلة لا تُعتبر مخالفة لأنها لم تُعطَ فرصة للعمل.</p>
             <p>السيارات الأكثر تكراراً للمخالفات معروضة في الجدول أدناه، مع تحديد عدد الأيام التي خالفت فيها.</p>
         `;
     }
@@ -215,16 +185,16 @@
             return;
         }
         document.getElementById('statsGrid').innerHTML = `
-            <div class="stat-card"><h4>🚛 إجمالي السيارات المخالفة</h4><div class="number">${g.total_trucks || 0}</div><div class="small-note">(سيارات خالفت مرة على الأقل)</div></div>
+            <div class="stat-card"><h4>🚛 إجمالي السيارات المخالفة</h4><div class="number">${g.total_trucks || 0}</div><div class="small-note">(سيارات عملت برحلة واحدة فقط)</div></div>
             <div class="stat-card"><h4>⚠️ إجمالي المخالفات</h4><div class="number">${g.total_violations || 0}</div><div class="small-note">(إجمالي أيام المخالفات)</div></div>
-            <div class="stat-card"><h4>📊 متوسط الرحلات</h4><div class="number">${parseFloat(g.avg_trips || 0).toFixed(2)}</div><div class="small-note">(لكل مخالفة)</div></div>
-            <div class="stat-card"><h4>🚫 سيارات بدون رحلات</h4><div class="number">${g.zero_trips_count || 0}</div><div class="small-note">(سيارات لم تعمل في بعض الأيام)</div></div>
+            <div class="stat-card"><h4>📊 متوسط الرحلات</h4><div class="number">${parseFloat(g.avg_trips || 0).toFixed(2)}</div><div class="small-note">(لكل مخالفة - يجب أن يكون 1)</div></div>
+            <div class="stat-card"><h4>🚫 سيارات بدون رحلات</h4><div class="number">${g.zero_trips_count || 0}</div><div class="small-note">(لا تُحتسب مخالفات)</div></div>
         `;
     }
 
     function renderTopTrucks(trucks) {
         const tbody = document.querySelector('#topTrucksTable tbody');
-        if (!trucks.length) { tbody.innerHTML = '<td><td colspan="5">لا توجد بيانات</td></tr>'; return; }
+        if (!trucks.length) { tbody.innerHTML = '<tr><td colspan="5">لا توجد بيانات</td></tr>'; return; }
         tbody.innerHTML = trucks.map((t, i) => `
             <tr>
                 <td>${i+1}</td>
@@ -274,7 +244,6 @@
             const workbook = new ExcelJS.Workbook();
             workbook.creator = 'نظام كسارة الحبردي';
             
-            // ورقة الإحصائيات العامة
             const ws1 = workbook.addWorksheet('إحصائيات عامة', { views: [{ rightToLeft: true }] });
             ws1.columns = [{ width: 30 }, { width: 20 }];
             ws1.mergeCells('A1:B1');
@@ -283,10 +252,10 @@
             ws1.getRow(1).height = 35;
             const g = currentStats.general || {};
             const statsRows = [
-                ['إجمالي السيارات المخالفة (فريدة)', g.total_trucks || 0],
+                ['إجمالي السيارات المخالفة (عملت برحلة واحدة)', g.total_trucks || 0],
                 ['إجمالي المخالفات (أيام)', g.total_violations || 0],
                 ['متوسط الرحلات لكل مخالفة', parseFloat(g.avg_trips || 0).toFixed(2)],
-                ['سيارات بدون رحلات (أيام صفر)', g.zero_trips_count || 0]
+                ['سيارات بدون رحلات (لا تُحتسب)', g.zero_trips_count || 0]
             ];
             statsRows.forEach((row, i) => {
                 const r = ws1.getRow(3 + i);
@@ -294,7 +263,6 @@
                 r.eachCell(cell => { cell.border = { top: { style: 'thin' }, left: { style: 'thin' }, bottom: { style: 'thin' }, right: { style: 'thin' } }; });
             });
             
-            // ورقة أكثر السيارات مخالفة
             const ws2 = workbook.addWorksheet('أكثر السيارات مخالفة', { views: [{ rightToLeft: true }] });
             ws2.columns = [{ width: 10 }, { width: 15 }, { width: 25 }, { width: 15 }, { width: 15 }];
             ws2.getRow(1).values = ['#', 'رقم السيارة', 'السائق', 'عدد أيام المخالفة', 'متوسط الرحلات'];
@@ -303,7 +271,6 @@
                 ws2.getRow(2 + i).values = [i+1, t.truck_number, t.driver_name, t.violation_count, parseFloat(t.avg_trips).toFixed(2)];
             });
             
-            // ورقة الأسباب الشائعة
             const ws3 = workbook.addWorksheet('الأسباب الشائعة', { views: [{ rightToLeft: true }] });
             ws3.columns = [{ width: 10 }, { width: 40 }, { width: 15 }];
             ws3.getRow(1).values = ['#', 'السبب', 'عدد المرات'];
@@ -312,7 +279,6 @@
                 ws3.getRow(2 + i).values = [i+1, r.reason, r.count];
             });
             
-            // ورقة تفاصيل المخالفات
             const ws4 = workbook.addWorksheet('تفاصيل المخالفات', { views: [{ rightToLeft: true }] });
             ws4.columns = [{ width: 12 }, { width: 15 }, { width: 25 }, { width: 12 }, { width: 35 }, { width: 40 }];
             ws4.getRow(1).values = ['التاريخ', 'رقم السيارة', 'السائق', 'عدد الرحلات', 'السبب', 'التفاصيل'];
