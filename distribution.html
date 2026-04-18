@@ -64,6 +64,38 @@
         }
         .excluded-warning .message { display: flex; align-items: center; gap: 10px; }
         .excluded-warning .count { font-weight: bold; font-size: 1.3em; color: #f5576c; }
+        
+        /* لوحة الإشعارات الدائمة للقيود */
+        .restriction-notice-panel {
+            background: rgba(79,172,254,0.15);
+            border-right: 4px solid #4facfe;
+            border-radius: 12px;
+            padding: 15px 20px;
+            margin-bottom: 20px;
+            backdrop-filter: blur(5px);
+        }
+        .restriction-notice-panel h4 {
+            color: #4facfe;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .restriction-notice-panel ul {
+            list-style: none;
+            margin-top: 8px;
+        }
+        .restriction-notice-panel li {
+            padding: 8px 12px;
+            margin: 5px 0;
+            background: rgba(0,0,0,0.2);
+            border-radius: 8px;
+            font-size: 0.9rem;
+        }
+        .restriction-notice-panel .reason-text {
+            color: #f6d365;
+            font-weight: bold;
+        }
     </style>
 </head>
 <body>
@@ -81,6 +113,13 @@
                 <button class="btn btn-danger" onclick="resetDistribution()">🔄 إعادة التعيين</button>
                 <button class="btn print-btn" onclick="window.print()">🖨️ طباعة</button>
             </div>
+        </div>
+        
+        <!-- لوحة الإشعارات الدائمة للقيود -->
+        <div id="restrictionNoticePanel" class="restriction-notice-panel" style="display: none;">
+            <h4>⛔ قيود الحظر المطبقة أثناء التوزيع</h4>
+            <ul id="restrictionNoticeList"></ul>
+            <p style="font-size:0.8rem; margin-top:8px; color:#a8b2d1;">ℹ️ تم استبعاد السيارات المذكورة أعلاه من الذهاب إلى المصانع المحددة تلقائياً لضمان الالتزام بسياسات المنع.</p>
         </div>
         
         <div id="excludedWarning" class="excluded-warning" style="display: none;">
@@ -155,7 +194,8 @@
         const API_BASE = '/api';
         let trucks = [], orders = [], distribution = [], currentDate = '';
         let currentOrderToDistribute = null;
-        let restrictions = []; // قيود الحظر: { truck_number, driver_name, restricted_factories, reason, active }
+        let restrictions = [];
+        let currentRestrictionNotices = []; // لتخزين الإشعارات الدائمة
 
         const EXCLUDED_FACTORY = "مصنع دعم وحلول الدرعية";
         const BLOCK_START_HOUR = 7;
@@ -210,6 +250,9 @@
                 renderDistribution();
                 updateStats(undistributed.length);
                 updateExcludedWarning(undistributed);
+                // إعادة تعيين الإشعارات (لن تظهر من تلقاء نفسها، تظهر فقط بعد توزيع جديد)
+                currentRestrictionNotices = [];
+                updateRestrictionNoticePanel();
             } catch(e) { orders = []; distribution = []; renderUndistributed([]); renderDistribution(); updateStats(0); updateExcludedWarning([]); }
         }
 
@@ -369,9 +412,27 @@
             showLoading(false);
         }
 
-        // =============== خوارزمية التوزيع التلقائي مع مراعاة قيود الحظر وأسبابها ===============
+        // تحديث لوحة الإشعارات الدائمة
+        function updateRestrictionNoticePanel() {
+            const panel = document.getElementById('restrictionNoticePanel');
+            const listContainer = document.getElementById('restrictionNoticeList');
+            if (!currentRestrictionNotices.length) {
+                panel.style.display = 'none';
+                return;
+            }
+            panel.style.display = 'block';
+            listContainer.innerHTML = currentRestrictionNotices.map(n => `
+                <li>
+                    🚛 <strong>${n.truckNumber} (${n.driver})</strong> - ممنوع من الذهاب إلى <strong>${n.factory}</strong><br>
+                    <span class="reason-text">📝 السبب: ${n.reason}</span><br>
+                    <span style="font-size:0.8rem;">⏱️ تم استبعاده تلقائياً أثناء التوزيع العادل في يوم ${n.date}</span>
+                </li>
+            `).join('');
+        }
+
+        // =============== خوارزمية التوزيع التلقائي مع مراعاة قيود الحظر وتسجيل الإشعارات ===============
         async function autoDistribute() {
-            await loadRestrictions(); // تحميل أحدث القيود
+            await loadRestrictions();
             const distributedOrderIds = new Set(distribution.map(d => d.orderId));
             let undistributed = orders.filter(o => !distributedOrderIds.has(o.id));
             if (!undistributed.length) { showToast('لا توجد طلبات غير موزعة', 'error'); return; }
@@ -404,11 +465,26 @@
 
             let newDistributions = [];
             let remainingOrders = [...undistributed];
+            let restrictionNoticesTemp = []; // لتجميع الإشعارات الجديدة
             
             function getFilteredSortedTrucks(factory) {
                 let available = trucks.filter(t => {
                     const restriction = getTruckRestriction(t.number, factory);
-                    return !restriction; // فقط السيارات غير الممنوعة
+                    if (restriction) {
+                        // تسجيل الإشعار لهذه السيارة (مرة واحدة فقط لكل زوج سيارة-مصنع في هذا التوزيع)
+                        const existingNotice = restrictionNoticesTemp.find(n => n.truckNumber === t.number && n.factory === factory);
+                        if (!existingNotice) {
+                            restrictionNoticesTemp.push({
+                                truckNumber: t.number,
+                                driver: t.driver,
+                                factory: factory,
+                                reason: restriction.reason,
+                                date: currentDate
+                            });
+                        }
+                        return false; // نستبعدها
+                    }
+                    return true;
                 });
                 if (available.length === 0) {
                     console.warn(`جميع السيارات ممنوعة من الذهاب إلى ${factory}، سيتم تجاهل القيود مؤقتاً.`);
@@ -439,7 +515,6 @@
                 truckLastFactory[selectedTruck.number] = order.factory;
                 const currentRoad = truckTrips[selectedTruck.number];
                 
-                // التحقق من وجود قيد (للتسجيل في التقرير)
                 const restriction = getTruckRestriction(selectedTruck.number, order.factory);
                 const restrictionApplied = restriction !== null;
                 const restrictionReason = restriction ? restriction.reason : '';
@@ -464,6 +539,15 @@
                 distribution.push(...newDistributions);
                 await saveData();
                 await loadData();
+                // تحديث الإشعارات الدائمة (إضافة الجديدة مع الاحتفاظ بالقديمة)
+                // ندمج الإشعارات الجديدة مع القديمة (نتجنب التكرار)
+                for (let newNotice of restrictionNoticesTemp) {
+                    const exists = currentRestrictionNotices.find(n => n.truckNumber === newNotice.truckNumber && n.factory === newNotice.factory);
+                    if (!exists) {
+                        currentRestrictionNotices.push(newNotice);
+                    }
+                }
+                updateRestrictionNoticePanel();
                 let tripsCount = {};
                 for (let d of distribution) if (d.truck) tripsCount[d.truck.number] = (tripsCount[d.truck.number] || 0) + 1;
                 let summary = trucks.slice(0,5).map(t => `${t.number}: ${tripsCount[t.number] || 0} رحلة`).join(' | ');
@@ -478,6 +562,8 @@
         async function resetDistribution() {
             if (!confirm('إعادة تعيين التوزيع؟ سيتم حذف جميع التوزيعات الحالية.')) return;
             distribution = [];
+            currentRestrictionNotices = [];
+            updateRestrictionNoticePanel();
             if (await saveData()) { await loadData(); showToast('تم إعادة التعيين', 'info'); }
         }
 
