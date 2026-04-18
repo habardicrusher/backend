@@ -9,7 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* (جميع الأنماط السابقة كما هي - اختصاراً) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -110,8 +109,10 @@
     <div class="nav-links" id="navLinks"></div>
     
     <div class="date-section">
-        <div><label>من تاريخ:</label><input type="date" id="startDate"></div>
-        <div><label>إلى تاريخ:</label><input type="date" id="endDate"></div>
+        <div>
+            <div><label>من تاريخ:</label><input type="date" id="startDate"></div>
+            <div><label>إلى تاريخ:</label><input type="date" id="endDate"></div>
+        </div>
         <div>
             <button class="btn btn-primary" onclick="loadQualityReport()">🔍 عرض التقرير</button>
             <button class="btn btn-success" onclick="exportToExcel()">📥 تصدير Excel</button>
@@ -173,37 +174,50 @@
         return res.json();
     }
 
-    // تحليل اليوم مع جمع معلومات القيود من localStorage و distribution
     function analyzeDay(date, orders, distribution) {
-     try {
-    const log = sessionStorage.getItem(`excluded_log_${dateStr}`);
-    if (log) {
-        const excluded = JSON.parse(log);
-        excluded.forEach(e => {
-            restrictionSkips.push({
-                truckNumber: e.truckNumber,
-                driver: e.driver,
-                factory: e.factory,
-                road: '—',
-                reason: e.reason,
-                date: dateStr
-            });
-        });
-    }
-} catch(e) { console.warn('فشل تحميل سجل الاستبعادات', e); }
+        // ✅ الخطوة 1: تنسيق التاريخ (يجب أن يكون أولاً)
+        const dateStr = formatDateForSheet(date);
+        
+        const trucksMap = new Map();
+        const manualOverrides = [];
+        const restrictionSkips = [];
 
-        // أيضاً نتحقق من التوزيعات لمعرفة إذا كان هناك restrictionApplied مسجل (قد لا يكون موجوداً)
+        // ✅ الخطوة 2: جلب سجل الاستبعادات من sessionStorage (باستخدام dateStr)
+        try {
+            const log = sessionStorage.getItem(`excluded_log_${dateStr}`);
+            if (log) {
+                const excluded = JSON.parse(log);
+                excluded.forEach(e => {
+                    restrictionSkips.push({
+                        truckNumber: e.truckNumber,
+                        driver: e.driver,
+                        factory: e.factory,
+                        road: '—',
+                        reason: e.reason,
+                        date: dateStr
+                    });
+                });
+            }
+        } catch(e) { console.warn('فشل تحميل سجل الاستبعادات', e); }
+
+        // تحليل التوزيعات
         distribution.forEach(d => {
             if (!d.truck) return;
             const num = d.truck.number;
-            if (!trucksMap.has(num)) trucksMap.set(num, { number: num, driver: d.truck.driver, trips: 0, totalDistance: 0, roads: [] });
+            if (!trucksMap.has(num)) {
+                trucksMap.set(num, { number: num, driver: d.truck.driver, trips: 0, totalDistance: 0, roads: [] });
+            }
             const rec = trucksMap.get(num);
             rec.trips++;
             rec.totalDistance += getFactoryDistance(d.factory);
             rec.roads.push(d.road);
             if (d.manualOverride === true) {
                 manualOverrides.push({
-                    truckNumber: d.truck.number, driver: d.truck.driver, factory: d.factory, material: d.material, road: d.road,
+                    truckNumber: d.truck.number,
+                    driver: d.truck.driver,
+                    factory: d.factory,
+                    material: d.material,
+                    road: d.road,
                     reason: d.overrideReason || 'تم اختيار سائق مخالف للتوصية العادلة',
                     recommendedTruck: d.recommendedTruck || 'غير محدد'
                 });
@@ -219,8 +233,11 @@
         let variance = distances.reduce((s,d)=>s+Math.pow(d-avgDist,2),0)/(distances.length||1);
         let stdDev = Math.sqrt(variance);
         return {
-            date: dateStr, totalOrders: orders.length, totalDistributed: distribution.length,
-            trucks: trucksArray, trucksWith2Plus, trucksWith1, trucksWith0: 0,
+            date: dateStr,
+            totalOrders: orders.length,
+            totalDistributed: distribution.length,
+            trucks: trucksArray,
+            trucksWith2Plus, trucksWith1, trucksWith0: 0,
             avgDistance: avgDist, stdDevDistance: stdDev, totalTrips,
             manualOverrides, restrictionSkips
         };
@@ -229,7 +246,9 @@
     function calculateCompliance(reports) {
         if (!reports.length) return 0;
         let totalDriverDays = 0, totalCompliantDays = 0;
-        reports.forEach(r => { r.trucks.forEach(t => { totalDriverDays++; if (t.trips >= 2) totalCompliantDays++; }); });
+        reports.forEach(r => {
+            r.trucks.forEach(t => { totalDriverDays++; if (t.trips >= 2) totalCompliantDays++; });
+        });
         return totalDriverDays ? (totalCompliantDays / totalDriverDays) * 100 : 0;
     }
 
@@ -292,10 +311,17 @@
         
         let manualOverridesHtml = '';
         if (allManualOverrides.length) {
-            manualOverridesHtml = `<div class="method-box" style="border-right-color:#f5576c;"><strong>⚠️ تدخلات يدوية مخالفة للعدالة</strong><p>تم رصد ${allManualOverrides.length} عملية توزيع يدوي خالفت توصيات النظام العادل.</p><table class="manual-overrides-table"><thead><tr><th>التاريخ</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>الرود</th><th>التفاصيل</th><th>السائق الموصى به</th></tr></thead><tbody>${allManualOverrides.map(m=>`<tr><td>${m.date}</td><td>${m.truckNumber}</td><td>${m.driver}</td><td>${m.factory}</td><td>${m.road}</td><td>${m.reason}</td><td>${m.recommendedTruck}</td></tr>`).join('')}</tbody></td></div>`;
+            manualOverridesHtml = `<div class="method-box" style="border-right-color:#f5576c;"><strong>⚠️ تدخلات يدوية مخالفة للعدالة</strong><p>تم رصد ${allManualOverrides.length} عملية توزيع يدوي خالفت توصيات النظام العادل.</p><table class="manual-overrides-table"><thead><tr><th>التاريخ</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>الرود</th><th>التفاصيل</th><th>السائق الموصى به</th></tr></thead><tbody>${allManualOverrides.map(m=>`<tr>
+                <td>${m.date}</td>
+                <td>${m.truckNumber}</td>
+                <td>${m.driver}</td>
+                <td>${m.factory}</td>
+                <td>${m.road}</td>
+                <td>${m.reason}</td>
+                <td>${m.recommendedTruck}</td>
+            </tr>`).join('')}</tbody></table></div>`;
         }
         
-        // ✅ القسم المهم: عرض قيود الحظر بالصيغة المطلوبة
         let restrictionHtml = '';
         if (allRestrictionSkips.length > 0) {
             restrictionHtml = `
@@ -336,7 +362,7 @@
     }
 
     function renderDailyReport(report) {
-        let trucksTable = `<table><thead><tr><th>رقم السيارة</th><th>السائق</th><th>عدد الرحلات</th><th>الروودات</th><th>المسافة الكلية (كم)</th><th>التقييم</th></tr></thead><tbody>`;
+        let trucksTable = `<tr><thead><tr><th>رقم السيارة</th><th>السائق</th><th>عدد الرحلات</th><th>الروودات</th><th>المسافة الكلية (كم)</th><th>التقييم</th></tr></thead><tbody>`;
         report.trucks.forEach(t => {
             let roadsStr = t.roads.join(', ');
             let evaluation = t.trips >= 2 ? '<span class="badge badge-success">مستوفٍ</span>' : (t.trips === 1 ? '<span class="badge badge-warning">رود واحد</span>' : '<span class="badge badge-danger">بدون رحلات</span>');
