@@ -9,7 +9,6 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <style>
-        /* (نفس الأنماط السابقة، اختصاراً) */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -79,16 +78,65 @@
         .manual-overrides-table th, .manual-overrides-table td { border: 1px solid rgba(255,255,255,0.15); padding: 12px; text-align: center; }
         .manual-overrides-table th { background: rgba(245,87,108,0.3); color: #ffb3b3; }
         .toggle-summary-btn { margin-bottom: 20px; background: #4facfe; }
+        
+        /* تحسين الطباعة: خلفية بيضاء، نصوص داكنة، ألوان مناسبة */
         @media print {
-            body * { visibility: hidden; }
-            .executive-summary, .executive-summary * { visibility: visible; }
-            .executive-summary { position: absolute; top: 0; left: 0; width: 100%; margin: 0; padding: 20px; background: white; color: black; }
-            .btn, .nav-links, .date-section, .toast-container, .loading { display: none; }
-            .kpi-card { background: #f5f5f5; border: 1px solid #ccc; color: black; }
-            .kpi-value { color: #2c7a4d; }
-            .method-box { background: #eef2f7; border-right-color: #2c7a4d; }
-            .method-list li::before { color: #2c7a4d; }
-            .priority-item { background: #eef2f7; border-color: #aaa; }
+            body, .container, .executive-summary, .daily-section, .kpi-card, .method-box, table {
+                background: white !important;
+                color: black !important;
+                border-color: #ccc !important;
+            }
+            .header, .nav-links, .date-section, .btn, .toast-container, .loading {
+                display: none !important;
+            }
+            .executive-summary {
+                padding: 15px !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                border: 1px solid #ccc !important;
+            }
+            .kpi-card {
+                background: #f9f9f9 !important;
+                border: 1px solid #ddd !important;
+                color: black !important;
+            }
+            .kpi-value {
+                color: #2c7a4d !important;
+            }
+            .method-box {
+                background: #f5f5f5 !important;
+                border-right-color: #2c7a4d !important;
+            }
+            .method-list li::before {
+                color: #2c7a4d !important;
+            }
+            .priority-item {
+                background: #e9e9e9 !important;
+                border-color: #aaa !important;
+                color: black !important;
+            }
+            table {
+                border-collapse: collapse !important;
+            }
+            th, td {
+                border: 1px solid #ccc !important;
+                color: black !important;
+            }
+            th {
+                background: #e0e0e0 !important;
+            }
+            .badge-success, .badge-warning, .badge-danger {
+                background: transparent !important;
+                border: 1px solid;
+                color: black !important;
+            }
+            .badge-success { border-color: green; }
+            .badge-warning { border-color: orange; }
+            .badge-danger { border-color: red; }
+            .road-badge {
+                background: #e0e0e0 !important;
+                color: black !important;
+            }
         }
     </style>
 </head>
@@ -174,7 +222,7 @@
         return res.json();
     }
 
-    // تحليل اليوم مع جمع معلومات القيود
+    // تحليل اليوم مع جمع معلومات القيود والأسباب
     function analyzeDay(date, orders, distribution) {
         const dateStr = formatDateForSheet(date);
         const trucksMap = new Map();
@@ -203,13 +251,13 @@
                     recommendedTruck: d.recommendedTruck || 'غير محدد'
                 });
             }
-            // التأكد من وجود restrictionApplied (قد تكون boolean أو undefined)
             if (d.restrictionApplied === true) {
                 restrictionSkips.push({
                     truckNumber: d.truck.number,
                     driver: d.truck.driver,
                     factory: d.factory,
-                    road: d.road
+                    road: d.road,
+                    reason: d.restrictionReason || 'لا يوجد سبب محدد'
                 });
             }
         });
@@ -333,7 +381,9 @@
                     <table class="manual-overrides-table">
                         <thead><tr><th>التاريخ</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>الرود</th><th>التفاصيل</th><th>السائق الموصى به</th></tr></thead>
                         <tbody>
-                            ${allManualOverrides.map(m => `<tr><td>${m.date}</td><td>${m.truckNumber}</td><td>${m.driver}</td><td>${m.factory}</td><td>${m.road}</td><td>${m.reason}</td><td>${m.recommendedTruck}</td></tr>`).join('')}
+                            ${allManualOverrides.map(m => `<tr>
+                                <td>${m.date}</td><td>${m.truckNumber}</td><td>${m.driver}</td><td>${m.factory}</td><td>${m.road}</td><td>${m.reason}</td><td>${m.recommendedTruck}</td>
+                            </tr>`).join('')}
                         </tbody>
                     </table>
                     <p style="margin-top:10px; color:#f5576c;">🔔 تنبيه: يُرجى من الإدارة مراجعة هذه الحالات والتأكد من عدم وجود محاباة.</p>
@@ -343,14 +393,19 @@
 
         let restrictionSkipsHtml = '';
         if (allRestrictionSkips.length > 0) {
-            const skipDetails = allRestrictionSkips.map(s => `🚛 ${s.truckNumber} (${s.driver}) → تم تجنبه من ${s.factory} (رود ${s.road}) بتاريخ ${s.date}`);
             restrictionSkipsHtml = `
                 <div class="method-box" style="border-right-color: #4facfe;">
-                    <strong>⛔ تطبيق قيود الحظر</strong>
-                    <p style="margin-top:10px;">تم تطبيق قيود الحظر <strong>${allRestrictionSkips.length}</strong> مرة، حيث تم تجنب السيارات الممنوعة من الذهاب إلى مصانع معينة تلقائياً أثناء التوزيع العادل.</p>
-                    <ul class="method-list" style="margin-top:8px;">
-                        ${skipDetails.map(d => `<li>${d}</li>`).join('')}
-                    </ul>
+                    <strong>⛔ تطبيق قيود الحظر (استبعاد سائقين بسبب منعهم من مصانع معينة)</strong>
+                    <p style="margin-top:10px;">تم تطبيق قيود الحظر <strong>${allRestrictionSkips.length}</strong> مرة، حيث تم تجنب السيارات الممنوعة من الذهاب إلى مصانع معينة تلقائياً أثناء التوزيع العادل. التفاصيل:</p>
+                    <table class="manual-overrides-table" style="background: rgba(79,172,254,0.1);">
+                        <thead><tr><th>التاريخ</th><th>رقم السيارة</th><th>السائق</th><th>المصنع</th><th>الرود</th><th>سبب المنع</th></tr></thead>
+                        <tbody>
+                            ${allRestrictionSkips.map(s => `<tr>
+                                <td>${s.date}</td><td>${s.truckNumber}</td><td>${s.driver}</td><td>${s.factory}</td><td>${s.road}</td><td>${s.reason}</td>
+                            </tr>`).join('')}
+                        </tbody>
+                    </table>
+                    <p style="margin-top:10px; color:#4facfe;">ℹ️ تم استبعاد هذه السيارات تلقائياً للحفاظ على سياسات المنع المحددة في نظام القيود.</p>
                 </div>
             `;
         }
@@ -397,12 +452,7 @@
             let roadsStr = t.roads.join(', ');
             let evaluation = t.trips >= 2 ? '<span class="badge badge-success">مستوفٍ</span>' : (t.trips === 1 ? '<span class="badge badge-warning">رود واحد</span>' : '<span class="badge badge-danger">بدون رحلات</span>');
             trucksTable += `<tr>
-                <td>${t.number}</td>
-                <td>${t.driver}</td>
-                <td>${t.trips}</td>
-                <td>${roadsStr}</td>
-                <td>${t.totalDistance.toFixed(1)}</td>
-                <td>${evaluation}</td>
+                <td>${t.number}</td><td>${t.driver}</td><td>${t.trips}</td><td>${roadsStr}</td><td>${t.totalDistance.toFixed(1)}</td><td>${evaluation}</td>
             </tr>`;
         });
         trucksTable += `</tbody></table>`;
@@ -505,7 +555,6 @@
     });
 
     async function exportToExcel() {
-        // (كما هو سابقاً، لا تغيير)
         if (!dailyDataStore.length) { showToast('لا توجد بيانات للتصدير', 'error'); return; }
         showLoading(true);
         try {
@@ -527,7 +576,7 @@
                 totalDistanceSum += r.avgDistance * (r.trucks.length || 1);
                 totalDistanceCount += (r.trucks.length || 1);
                 if (r.manualOverrides && r.manualOverrides.length) allManualOverrides.push(...r.manualOverrides.map(m => ({ ...m, date: r.date })));
-                if (r.restrictionSkips && r.restrictionSkips.length) allRestrictionSkips.push(...r.restrictionSkips.map(s => ({ ...s, date: r.date })));
+                if (r.restrictionSkips && r.restrictionSkips.length) allRestrictionSkips.push(...r.restrictionSkips.map(s => ({ ...s, date: r.date, reason: s.reason })));
             });
             const avgDistanceOverall = totalDistanceCount ? (totalDistanceSum / totalDistanceCount).toFixed(1) : 0;
             const startDate = document.getElementById('startDate').value, endDate = document.getElementById('endDate').value;
@@ -549,10 +598,10 @@
             }
             if (allRestrictionSkips.length) {
                 const skipSheet = workbook.addWorksheet('تطبيق قيود الحظر', { views: [{ rightToLeft: true }] });
-                skipSheet.columns = [{ width: 12 }, { width: 15 }, { width: 25 }, { width: 30 }, { width: 12 }];
-                skipSheet.getRow(1).values = ['التاريخ', 'رقم السيارة', 'السائق', 'المصنع', 'الرود'];
+                skipSheet.columns = [{ width: 12 }, { width: 15 }, { width: 25 }, { width: 30 }, { width: 12 }, { width: 40 }];
+                skipSheet.getRow(1).values = ['التاريخ', 'رقم السيارة', 'السائق', 'المصنع', 'الرود', 'سبب المنع'];
                 skipSheet.getRow(1).font = { bold: true };
-                allRestrictionSkips.forEach((s, i) => { skipSheet.getRow(2 + i).values = [s.date, s.truckNumber, s.driver, s.factory, s.road]; });
+                allRestrictionSkips.forEach((s, i) => { skipSheet.getRow(2 + i).values = [s.date, s.truckNumber, s.driver, s.factory, s.road, s.reason]; });
             }
             for (let report of dailyDataStore) {
                 const sheet = workbook.addWorksheet(report.date, { views: [{ rightToLeft: true }] });
@@ -574,17 +623,11 @@
 
     async function exportExecutivePDF() {
         const summaryElement = document.getElementById('executiveSummary');
-        if (!summaryElement) {
-            showToast('لا يوجد تقرير تنفيذي لتصديره', 'error');
-            return;
-        }
-        // إذا كان العنصر مخفياً، نظهره مؤقتاً للتصدير ثم نعيد إخفاءه
-        const wasHidden = summaryElement.classList.contains('hidden');
-        if (wasHidden) summaryElement.classList.remove('hidden');
+        if (!summaryElement) { showToast('لا يوجد تقرير تنفيذي لتصديره', 'error'); return; }
         showLoading(true);
         try {
             const { jsPDF } = window.jspdf;
-            const canvas = await html2canvas(summaryElement, { scale: 2, backgroundColor: '#ffffff' });
+            const canvas = await html2canvas(summaryElement, { scale: 2, backgroundColor: '#ffffff', useCORS: true, logging: false });
             const imgData = canvas.toDataURL('image/png');
             const pdf = new jsPDF('p', 'mm', 'a4');
             const imgWidth = 210;
@@ -604,13 +647,8 @@
             }
             pdf.save(`التقرير_التنفيذي_${document.getElementById('startDate').value}_إلى_${document.getElementById('endDate').value}.pdf`);
             showToast('✅ تم تصدير PDF بنجاح', 'success');
-        } catch(e) {
-            console.error(e);
-            showToast('خطأ في تصدير PDF: ' + e.message, 'error');
-        } finally {
-            if (wasHidden) summaryElement.classList.add('hidden');
-            showLoading(false);
-        }
+        } catch(e) { showToast('خطأ في تصدير PDF: ' + e.message, 'error'); }
+        showLoading(false);
     }
 
     function showToast(msg, type) { const c = document.getElementById('toastContainer'); const t = document.createElement('div'); t.className = `toast toast-${type}`; t.textContent = msg; c.appendChild(t); setTimeout(() => t.remove(), 3000); }
