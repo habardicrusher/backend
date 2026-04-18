@@ -38,7 +38,7 @@
                 { href: 'reports.html', text: '📊 تقارير الكسارة' },
                 { href: 'scale_report.html', text: '⚖️ تقارير الميزان الشهرية' },
                 { href: 'trucks-failed.html', text: '⚠️ السيارات غير المستوفية' },
-                { href: 'trucks-failed-report.html', text: '📊 تقرير المخالفات' },
+                { href: 'trucks-failed-report.html', text: '📊 تقرير الغير مستوفية' },
                 { href: 'distribution-quality.html', text: '📈 جودة التوزيع' },
                 { href: 'settings.html', text: '⚙️ الإعدادات' },
                 { href: 'restrictions.html', text: '⛔ الحظر' }
