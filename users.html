@@ -96,6 +96,21 @@
             border-radius: 6px;
             white-space: nowrap;
         }
+        .permissions-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 10px;
+            margin-top: 10px;
+            background: rgba(255,255,255,0.05);
+            padding: 15px;
+            border-radius: 12px;
+        }
+        .permissions-grid label {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.85rem;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -156,7 +171,7 @@
             background: #1a1a2e;
             border-radius: 20px;
             padding: 30px;
-            max-width: 500px;
+            max-width: 600px;
             width: 90%;
         }
         .unauthorized {
@@ -208,6 +223,26 @@
                     <label>المصنع</label>
                     <select id="newFactory"></select>
                 </div>
+                <div class="form-group" id="permissionsGroupNew" style="display:none;">
+                    <label>الصلاحيات (اختر الصفحات المسموح بها)</label>
+                    <div class="permissions-grid">
+                        <label><input type="checkbox" value="dashboard"> 📊 الرئيسية</label>
+                        <label><input type="checkbox" value="orders"> 📝 الطلبات</label>
+                        <label><input type="checkbox" value="distribution"> 🚚 التوزيع</label>
+                        <label><input type="checkbox" value="trucks"> 🚛 السيارات</label>
+                        <label><input type="checkbox" value="products"> 📦 أنواع البحص</label>
+                        <label><input type="checkbox" value="factories"> 🏭 المصانع</label>
+                        <label><input type="checkbox" value="reports"> 📊 تقارير الكسارة</label>
+                        <label><input type="checkbox" value="scale_reports"> ⚖️ تقارير الميزان الشهرية</label>
+                        <label><input type="checkbox" value="failed_trucks"> ⚠️ السيارات غير المستوفية</label>
+                        <label><input type="checkbox" value="failed_trucks_report"> 📊 تقرير الغير مستوفية</label>
+                        <label><input type="checkbox" value="quality"> 📈 جودة التوزيع</label>
+                        <label><input type="checkbox" value="settings"> ⚙️ الإعدادات</label>
+                        <label><input type="checkbox" value="restrictions"> ⛔ الحظر</label>
+                        <label><input type="checkbox" value="users_management"> 👥 المستخدمين</label>
+                        <label><input type="checkbox" value="logs"> 📜 السجلات</label>
+                    </div>
+                </div>
                 <div class="form-group">
                     <button class="btn btn-success" onclick="addUser()">➕ إضافة</button>
                 </div>
@@ -218,7 +253,7 @@
             <h3>📋 قائمة المستخدمين</h3>
             <table id="usersTable">
                 <thead>
-                    <tr><th>#</th><th>اسم المستخدم</th><th>الدور</th><th>المصنع</th><th>تاريخ الإنشاء</th><th>الإجراءات</th></tr>
+                    <tr><th>#</th><th>اسم المستخدم</th><th>الدور</th><th>المصنع</th><th>الصلاحيات</th><th>تاريخ الإنشاء</th><th>الإجراءات</th></tr>
                 </thead>
                 <tbody id="usersBody"></tbody>
             </table>
@@ -233,6 +268,26 @@
         <input type="hidden" id="editUserId">
         <div class="form-group"><label>الدور</label><select id="editRole"><option value="user">مستخدم</option><option value="admin">مدير</option><option value="client">عميل مصنع</option></select></div>
         <div class="form-group" id="editFactoryGroup" style="display:none;"><label>المصنع</label><select id="editFactory"></select></div>
+        <div class="form-group" id="editPermissionsGroup" style="display:none;">
+            <label>الصلاحيات</label>
+            <div class="permissions-grid">
+                <label><input type="checkbox" value="dashboard"> 📊 الرئيسية</label>
+                <label><input type="checkbox" value="orders"> 📝 الطلبات</label>
+                <label><input type="checkbox" value="distribution"> 🚚 التوزيع</label>
+                <label><input type="checkbox" value="trucks"> 🚛 السيارات</label>
+                <label><input type="checkbox" value="products"> 📦 أنواع البحص</label>
+                <label><input type="checkbox" value="factories"> 🏭 المصانع</label>
+                <label><input type="checkbox" value="reports"> 📊 تقارير الكسارة</label>
+                <label><input type="checkbox" value="scale_reports"> ⚖️ تقارير الميزان الشهرية</label>
+                <label><input type="checkbox" value="failed_trucks"> ⚠️ السيارات غير المستوفية</label>
+                <label><input type="checkbox" value="failed_trucks_report"> 📊 تقرير الغير مستوفية</label>
+                <label><input type="checkbox" value="quality"> 📈 جودة التوزيع</label>
+                <label><input type="checkbox" value="settings"> ⚙️ الإعدادات</label>
+                <label><input type="checkbox" value="restrictions"> ⛔ الحظر</label>
+                <label><input type="checkbox" value="users_management"> 👥 المستخدمين</label>
+                <label><input type="checkbox" value="logs"> 📜 السجلات</label>
+            </div>
+        </div>
         <div class="form-group"><label>كلمة مرور جديدة (اختياري)</label><div class="password-wrapper"><input type="password" id="editPassword"><button type="button" class="toggle-password" onclick="togglePassword('editPassword', this)">👁️ إظهار</button></div></div>
         <div style="margin-top:20px;"><button class="btn btn-danger" onclick="closeModal()">إلغاء</button><button class="btn btn-success" onclick="saveUserEdit()">حفظ</button></div>
     </div>
@@ -241,6 +296,16 @@
 <script>
     const API_BASE = '/api';
     let users = [], currentUserRole = '', factoriesList = [];
+
+    // دالة مساعدة لتحويل permissions إلى مصفوفة بأمان
+    function safePermissions(perms) {
+        if (!perms) return [];
+        if (Array.isArray(perms)) return perms;
+        if (typeof perms === 'string') {
+            try { return JSON.parse(perms); } catch(e) { return []; }
+        }
+        return [];
+    }
 
     function togglePassword(inputId, btn) {
         const input = document.getElementById(inputId);
@@ -271,7 +336,6 @@
     async function loadFactories() {
         try {
             const settings = await apiCall('/settings');
-            // التأكد من أن factories عبارة عن مصفوفة من الكائنات ذات الخاصية name
             let rawFactories = settings.factories || [];
             factoriesList = rawFactories.map(f => {
                 if (typeof f === 'string') return { name: f };
@@ -304,16 +368,21 @@
             document.getElementById('authorizedContent').classList.remove('hidden');
             
             users = await apiCall('/users');
+            // تأمين permissions لكل مستخدم
+            users = users.map(u => ({ ...u, permissions: safePermissions(u.permissions) }));
             renderUsersTable();
             await loadFactories();
             
             const roleSelect = document.getElementById('newRole');
             const factoryGroup = document.getElementById('factoryGroup');
-            function toggleFactoryField() {
-                factoryGroup.style.display = roleSelect.value === 'client' ? 'flex' : 'none';
+            const permissionsGroupNew = document.getElementById('permissionsGroupNew');
+            function toggleFields() {
+                const role = roleSelect.value;
+                factoryGroup.style.display = role === 'client' ? 'flex' : 'none';
+                permissionsGroupNew.style.display = role === 'user' ? 'block' : 'none';
             }
-            roleSelect.addEventListener('change', toggleFactoryField);
-            toggleFactoryField();
+            roleSelect.addEventListener('change', toggleFields);
+            toggleFields();
         } catch(e) { 
             showToast('خطأ: ' + e.message, 'error');
         }
@@ -329,12 +398,15 @@
         const password = document.getElementById('newPassword').value;
         let role = document.getElementById('newRole').value;
         let factory = '';
+        let permissions = [];
         if (role === 'client') {
             factory = document.getElementById('newFactory').value;
             if (!factory) {
                 showToast('الرجاء اختيار مصنع للعميل', 'error');
                 return;
             }
+        } else if (role === 'user') {
+            permissions = Array.from(document.querySelectorAll('#permissionsGroupNew input:checked')).map(cb => cb.value);
         }
         if (!username || !password) {
             showToast('املأ جميع الحقول', 'error');
@@ -342,15 +414,14 @@
         }
         showLoading(true);
         try {
-            const payload = { username, password, role };
+            const payload = { username, password, role, permissions };
             if (factory) payload.factory = factory;
             await apiCall('/users', 'POST', payload);
             showToast('✅ تم إضافة المستخدم', 'success');
             await loadUsers();
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
-            const passInput = document.getElementById('newPassword');
-            if (passInput) passInput.type = 'password';
+            document.querySelectorAll('#permissionsGroupNew input').forEach(cb => cb.checked = false);
         } catch(e) {
             showToast('خطأ: ' + e.message, 'error');
         }
@@ -383,12 +454,22 @@
         document.getElementById('editRole').value = user.role;
         document.getElementById('editPassword').value = '';
         const factoryGroup = document.getElementById('editFactoryGroup');
+        const permissionsGroup = document.getElementById('editPermissionsGroup');
         const factorySelect = document.getElementById('editFactory');
         if (user.role === 'client') {
             factoryGroup.style.display = 'flex';
             factorySelect.value = user.factory || '';
         } else {
             factoryGroup.style.display = 'none';
+        }
+        if (user.role === 'user') {
+            permissionsGroup.style.display = 'block';
+            const perms = safePermissions(user.permissions);
+            document.querySelectorAll('#editPermissionsGroup input').forEach(cb => {
+                cb.checked = perms.includes(cb.value);
+            });
+        } else {
+            permissionsGroup.style.display = 'none';
         }
         document.getElementById('editUserModal').classList.add('active');
     }
@@ -398,14 +479,17 @@
         const role = document.getElementById('editRole').value;
         const password = document.getElementById('editPassword').value;
         let factory = '';
+        let permissions = [];
         if (role === 'client') {
             factory = document.getElementById('editFactory').value;
             if (!factory) {
                 showToast('الرجاء اختيار مصنع للعميل', 'error');
                 return;
             }
+        } else if (role === 'user') {
+            permissions = Array.from(document.querySelectorAll('#editPermissionsGroup input:checked')).map(cb => cb.value);
         }
-        const data = { role };
+        const data = { role, permissions };
         if (factory) data.factory = factory;
         if (password) data.password = password;
         showLoading(true);
@@ -423,9 +507,16 @@
     function renderUsersTable() {
         const tbody = document.getElementById('usersBody');
         if (!users.length) {
-            tbody.innerHTML = '<tr><td colspan="6">لا يوجد مستخدمين</td></tr>';
+            tbody.innerHTML = '<tr><td colspan="7">لا يوجد مستخدمين</td></tr>';
             return;
         }
+        const permMap = {
+            'dashboard': 'الرئيسية', 'orders': 'الطلبات', 'distribution': 'التوزيع',
+            'trucks': 'السيارات', 'products': 'المنتجات', 'factories': 'المصانع',
+            'reports': 'تقارير', 'scale_reports': 'ميزان', 'failed_trucks': 'غير مستوفية',
+            'failed_trucks_report': 'تقرير غير مستوفية', 'quality': 'جودة', 'settings': 'إعدادات',
+            'restrictions': 'حظر', 'users_management': 'مستخدمين', 'logs': 'سجلات'
+        };
         tbody.innerHTML = users.map((u, i) => {
             let formattedDate = 'غير محدد';
             if (u.created_at) {
@@ -434,17 +525,27 @@
                     if (!isNaN(date.getTime())) formattedDate = date.toLocaleDateString('ar-SA');
                 } catch(e) {}
             }
+            let permsText = '';
+            if (u.role === 'user') {
+                const perms = safePermissions(u.permissions);
+                permsText = perms.map(p => permMap[p] || p).join(', ');
+            } else if (u.role === 'client') {
+                permsText = 'عميل مصنع (يظهر فقط الطلبات)';
+            } else {
+                permsText = 'مدير كامل (كل الصلاحيات)';
+            }
             return `
             <tr>
                 <td>${i+1}</td>
                 <td>${escapeHtml(u.username)}</td>
                 <td>${u.role === 'admin' ? 'مدير' : (u.role === 'client' ? 'عميل مصنع' : 'مستخدم')}</td>
                 <td>${escapeHtml(u.factory || '')}</td>
+                <td style="max-width:200px; font-size:0.75rem;">${permsText}</td>
                 <td>${formattedDate}</td>
                 <td>
                     <button class="btn btn-warning" onclick='openEditModal(${JSON.stringify(u).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
                     <button class="btn btn-danger" onclick="deleteUser(${u.id}, '${escapeHtml(u.username)}')">🗑️ حذف</button>
-                 </td>
+                </td>
             </tr>`;
         }).join('');
     }
@@ -465,43 +566,13 @@
             fetch('/api/logout', { method: 'POST', credentials: 'include' }).then(() => window.location.href = '/login.html');
         }
     }
-    
-    function loadNav() {
-        fetch('/api/me', { credentials: 'include' })
-            .then(r => r.json())
-            .then(data => {
-                if (data.user) {
-                    const nav = document.getElementById('navLinks');
-                    if (nav) {
-                        nav.innerHTML = `
-                            <a href="index.html" class="nav-link">📊 الرئيسية</a>
-                            <a href="orders.html" class="nav-link">📝 الطلبات</a>
-                            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
-                            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
-                            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
-                            <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                            <a href="reports.html" class="nav-link">📊 تقارير الكسارة</a>
-                            <a href="scale_report.html" class="nav-link">⚖️ تقارير الميزان الشهرية</a>
-                            <a href="trucks-failed.html" class="nav-link">⚠️ السيارات غير المستوفية</a>
-                            <a href="trucks-failed-report.html" class="nav-link">📊 تقرير السيارات غير المستوفية</a>
-                            <a href="distribution-quality.html" class="nav-link">📈 جودة التوزيع</a>
-                            <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
-                            <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
-                            <a href="users.html" class="nav-link active">👥 المستخدمين</a>
-                            <a href="logs.html" class="nav-link">📜 السجلات</a>
-                        `;
-                    }
-                } else {
-                    window.location.href = '/login.html';
-                }
-            })
-            .catch(() => window.location.href = '/login.html');
-    }
 
+    // تم حذف دالة loadNav القديمة واستبدالها بـ navbar.js
     document.addEventListener('DOMContentLoaded', () => {
-        loadNav();
         loadUsers();
     });
 </script>
+<!-- إضافة شريط التنقل الديناميكي -->
+<script src="navbar.js"></script>
 </body>
 </html>

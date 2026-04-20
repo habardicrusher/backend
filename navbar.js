@@ -1,22 +1,22 @@
+// navbar.js - شريط التنقل الديناميكي حسب صلاحيات المستخدم
 (function() {
     setInterval(async () => {
-        try {
-            await fetch('/api/me', { credentials: 'include' });
-        } catch(e) {}
+        try { await fetch('/api/me', { credentials: 'include' }); } catch(e) {}
     }, 3 * 60 * 1000);
 
     async function renderNavbar() {
         try {
             const res = await fetch('/api/me', { credentials: 'include' });
             const data = await res.json();
-            if (!data.user) {
-                window.location.href = '/login.html';
-                return;
+            if (!data.user) { window.location.href = '/login.html'; return; }
+            const user = data.user;
+            const role = user.role;
+            let permissions = user.permissions || [];
+            if (typeof permissions === 'string') {
+                try { permissions = JSON.parse(permissions); } catch(e) { permissions = []; }
             }
-            const role = data.user.role;
-            const isAdmin = (role === 'admin');
-            const isUser = (role === 'user');
-            const isClient = (role === 'client');
+
+            const hasPermission = (perm) => permissions.includes(perm) || role === 'admin';
 
             let navContainer = document.querySelector('.nav-links');
             if (!navContainer) {
@@ -28,39 +28,38 @@
                 } else return;
             }
 
-            const commonLinks = [
-                { href: 'index.html', text: '📊 الرئيسية' },
-                { href: 'orders.html', text: '📝 الطلبات' },
-                { href: 'distribution.html', text: '🚚 التوزيع' },
-                { href: 'trucks.html', text: '🚛 السيارات' },
-                { href: 'products.html', text: '📦 أنواع البحص' },
-                { href: 'factories.html', text: '🏭 المصانع' },
-                { href: 'reports.html', text: '📊 تقارير الكسارة' },
-                { href: 'scale_report.html', text: '⚖️ تقارير الميزان الشهرية' },
-                { href: 'trucks-failed.html', text: '⚠️ السيارات غير المستوفية' },
-                { href: 'trucks-failed-report.html', text: '📊 تقرير الغير مستوفية' },
-                { href: 'distribution-quality.html', text: '📈 جودة التوزيع' },
-                { href: 'settings.html', text: '⚙️ الإعدادات' },
-                { href: 'restrictions.html', text: '⛔ الحظر' }
-            ];
-
-            const adminOnlyLinks = [
-                { href: 'users.html', text: '👥 المستخدمين' },
-                { href: 'logs.html', text: '📜 السجلات' }
+            // جميع الروابط مع الصلاحية المطلوبة
+            const allLinks = [
+                { href: 'index.html', text: '📊 الرئيسية', permission: 'dashboard' },
+                { href: 'orders.html', text: '📝 الطلبات', permission: 'orders' },
+                { href: 'distribution.html', text: '🚚 التوزيع', permission: 'distribution' },
+                { href: 'trucks.html', text: '🚛 السيارات', permission: 'trucks' },
+                { href: 'products.html', text: '📦 أنواع البحص', permission: 'products' },
+                { href: 'factories.html', text: '🏭 المصانع', permission: 'factories' },
+                { href: 'reports.html', text: '📊 تقارير الكسارة', permission: 'reports' },
+                { href: 'scale_report.html', text: '⚖️ تقارير الميزان الشهرية', permission: 'scale_reports' },
+                { href: 'trucks-failed.html', text: '⚠️ السيارات غير المستوفية', permission: 'failed_trucks' },
+                { href: 'trucks-failed-report.html', text: '📊 تقرير الغير مستوفية', permission: 'failed_trucks_report' },
+                { href: 'distribution-quality.html', text: '📈 جودة التوزيع', permission: 'quality' },
+                { href: 'settings.html', text: '⚙️ الإعدادات', permission: 'settings' },
+                { href: 'restrictions.html', text: '⛔ الحظر', permission: 'restrictions' },
+                { href: 'users.html', text: '👥 المستخدمين', permission: 'users_management' },
+                { href: 'logs.html', text: '📜 السجلات', permission: 'logs' }
             ];
 
             let linksToShow = [];
-            if (isAdmin) {
-                linksToShow = [...commonLinks, ...adminOnlyLinks];
-            } else if (isUser) {
-                linksToShow = [...commonLinks];
-            } else if (isClient) {
-                linksToShow = [{ href: 'orders.html', text: '📝 الطلبات' }];
+            if (role === 'admin') {
+                linksToShow = allLinks; // المدير يرى كل شيء
+            } else if (role === 'client') {
+                linksToShow = [{ href: 'orders.html', text: '📝 الطلبات', permission: 'orders' }];
+            } else if (role === 'user') {
+                linksToShow = allLinks.filter(link => hasPermission(link.permission));
             }
 
             const currentPage = window.location.pathname.split('/').pop();
             navContainer.innerHTML = linksToShow.map(link => `<a href="${link.href}" class="nav-link ${currentPage === link.href ? 'active' : ''}">${link.text}</a>`).join('');
 
+            // زر تسجيل الخروج (إذا لم يوجد)
             if (!document.getElementById('logout-btn-container')) {
                 const logoutDiv = document.createElement('div');
                 logoutDiv.id = 'logout-btn-container';
@@ -75,7 +74,7 @@
                 };
                 logoutDiv.appendChild(logoutBtn);
                 const header = document.querySelector('.header');
-                if (header) {
+                if (header && !header.contains(logoutDiv)) {
                     header.style.position = 'relative';
                     header.appendChild(logoutDiv);
                 }
