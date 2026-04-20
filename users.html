@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>المستخدمين - نظام إدارة طلبات البحص</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+        }
+        .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
+        .header {
+            text-align: center;
+            padding: 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            border-radius: 20px;
+            margin-bottom: 30px;
+            position: relative;
+        }
+        .nav-links {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+            justify-content: center;
+            margin-bottom: 30px;
+        }
+        .nav-link {
+            padding: 12px 24px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+            text-decoration: none;
+            color: #fff;
+            font-weight: 600;
+        }
+        .nav-link:hover, .nav-link.active {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        }
+        .btn {
+            padding: 8px 12px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            margin: 3px;
+            font-size: 0.8rem;
+        }
+        .btn-success { background: #11998e; color: #fff; }
+        .btn-danger { background: #eb3349; color: #fff; }
+        .btn-warning { background: #f093fb; color: #fff; }
+        .btn-info { background: #4facfe; color: #fff; }
+        .btn-secondary { background: #6c757d; color: #fff; }
+        .card {
+            background: rgba(255,255,255,0.05);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 25px;
+        }
+        .form-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-bottom: 20px;
+            align-items: flex-end;
+        }
+        .form-group {
+            flex: 1;
+            min-width: 150px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+        }
+        .form-group label { font-size: 0.85em; color: #a8b2d1; }
+        .form-group input, .form-group select {
+            padding: 10px;
+            border-radius: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: rgba(255,255,255,0.05);
+            color: #fff;
+        }
+        .password-wrapper {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .toggle-password {
+            background: #2d3e50;
+            border: none;
+            color: white;
+            cursor: pointer;
+            font-size: 0.9rem;
+            padding: 8px 12px;
+            border-radius: 6px;
+            white-space: nowrap;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+            font-size: 0.9rem;
+        }
+        th, td {
+            padding: 10px;
+            text-align: center;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        th { background: rgba(102,126,234,0.3); }
+        .toast-container {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 3000;
+        }
+        .toast {
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .toast-success { background: #11998e; }
+        .toast-error { background: #eb3349; }
+        .loading {
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background:rgba(0,0,0,0.8);
+            display: none;
+            align-items:center;
+            justify-content:center;
+            z-index:2000;
+        }
+        .loading.active { display: flex; }
+        .spinner {
+            width:40px; height:40px;
+            border:4px solid rgba(255,255,255,0.3);
+            border-top-color:#667eea;
+            border-radius:50%;
+            animation: spin 1s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+        .modal {
+            display: none;
+            position: fixed;
+            top:0; left:0;
+            width:100%; height:100%;
+            background:rgba(0,0,0,0.8);
+            align-items:center;
+            justify-content:center;
+            z-index:1000;
+        }
+        .modal.active { display: flex; }
+        .modal-content {
+            background: #1a1a2e;
+            border-radius: 20px;
+            padding: 30px;
+            max-width: 500px;
+            width: 90%;
+        }
+        .unauthorized {
+            text-align: center;
+            padding: 50px;
+            color: #f5576c;
+            font-size: 1.2em;
+        }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+<div class="loading" id="loading"><div class="spinner"></div></div>
+<div class="toast-container" id="toastContainer"></div>
+<div class="container">
+    <div class="header">
+        <h1>👥 إدارة المستخدمين</h1>
+        <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
+            <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
+        </div>
+    </div>
+    <div class="nav-links" id="navLinks"></div>
+
+    <div id="unauthorizedMsg" class="unauthorized hidden"></div>
+    <div id="authorizedContent" class="hidden">
+        <div class="card">
+            <h3>➕ إضافة مستخدم جديد</h3>
+            <div class="form-row">
+                <div class="form-group">
+                    <label>اسم المستخدم</label>
+                    <input type="text" id="newUsername">
+                </div>
+                <div class="form-group">
+                    <label>كلمة المرور</label>
+                    <div class="password-wrapper">
+                        <input type="password" id="newPassword">
+                        <button type="button" class="toggle-password" onclick="togglePassword('newPassword', this)">👁️ إظهار</button>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>الدور</label>
+                    <select id="newRole">
+                        <option value="user">مستخدم عادي</option>
+                        <option value="admin">مدير</option>
+                        <option value="client">عميل مصنع</option>
+                    </select>
+                </div>
+                <div class="form-group" id="factoryGroup" style="display:none;">
+                    <label>المصنع</label>
+                    <select id="newFactory"></select>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="addUser()">➕ إضافة</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <h3>📋 قائمة المستخدمين</h3>
+            <table id="usersTable">
+                <thead>
+                    <tr><th>#</th><th>اسم المستخدم</th><th>الدور</th><th>المصنع</th><th>تاريخ الإنشاء</th><th>الإجراءات</th></tr>
+                </thead>
+                <tbody id="usersBody"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- مودال تعديل المستخدم -->
+<div class="modal" id="editUserModal">
+    <div class="modal-content">
+        <h3>✏️ تعديل المستخدم</h3>
+        <input type="hidden" id="editUserId">
+        <div class="form-group"><label>الدور</label><select id="editRole"><option value="user">مستخدم</option><option value="admin">مدير</option><option value="client">عميل مصنع</option></select></div>
+        <div class="form-group" id="editFactoryGroup" style="display:none;"><label>المصنع</label><select id="editFactory"></select></div>
+        <div class="form-group"><label>كلمة مرور جديدة (اختياري)</label><div class="password-wrapper"><input type="password" id="editPassword"><button type="button" class="toggle-password" onclick="togglePassword('editPassword', this)">👁️ إظهار</button></div></div>
+        <div style="margin-top:20px;"><button class="btn btn-danger" onclick="closeModal()">إلغاء</button><button class="btn btn-success" onclick="saveUserEdit()">حفظ</button></div>
+    </div>
+</div>
+
+<script>
+    const API_BASE = '/api';
+    let users = [], currentUserRole = '', factoriesList = [];
+
+    function togglePassword(inputId, btn) {
+        const input = document.getElementById(inputId);
+        if (input.type === 'password') {
+            input.type = 'text';
+            btn.textContent = '🙈 إخفاء';
+        } else {
+            input.type = 'password';
+            btn.textContent = '👁️ إظهار';
+        }
+    }
+
+    async function apiCall(endpoint, method='GET', data=null) {
+        const opts = { method, headers:{'Content-Type':'application/json'}, credentials:'include' };
+        if (data && (method==='POST'||method==='PUT')) opts.body = JSON.stringify(data);
+        const res = await fetch(`${API_BASE}${endpoint}`, opts);
+        if (res.status === 401) {
+            window.location.href = '/login.html';
+            throw new Error('غير مصرح');
+        }
+        if (!res.ok) {
+            const err = await res.text();
+            throw new Error(err || `HTTP ${res.status}`);
+        }
+        return res.json();
+    }
+
+    async function loadFactories() {
+        try {
+            const settings = await apiCall('/settings');
+            // التأكد من أن factories عبارة عن مصفوفة من الكائنات ذات الخاصية name
+            let rawFactories = settings.factories || [];
+            factoriesList = rawFactories.map(f => {
+                if (typeof f === 'string') return { name: f };
+                return { name: f.name || f.factory_name || '' };
+            }).filter(f => f.name);
+            const factorySelects = ['newFactory', 'editFactory'];
+            factorySelects.forEach(id => {
+                const select = document.getElementById(id);
+                if (select) {
+                    select.innerHTML = '<option value="">-- اختر مصنع --</option>' + 
+                        factoriesList.map(f => `<option value="${escapeHtml(f.name)}">${escapeHtml(f.name)}</option>`).join('');
+                }
+            });
+        } catch(e) { console.error('فشل تحميل المصانع', e); }
+    }
+
+    async function loadUsers() {
+        showLoading(true);
+        try {
+            const me = await apiCall('/me');
+            currentUserRole = me.user.role;
+            if (currentUserRole !== 'admin') {
+                document.getElementById('unauthorizedMsg').innerHTML = '⛔ غير مصرح لك بالوصول إلى إدارة المستخدمين. هذه الصفحة متاحة فقط للمديرين.';
+                document.getElementById('unauthorizedMsg').classList.remove('hidden');
+                document.getElementById('authorizedContent').classList.add('hidden');
+                showLoading(false);
+                return;
+            }
+            document.getElementById('unauthorizedMsg').classList.add('hidden');
+            document.getElementById('authorizedContent').classList.remove('hidden');
+            
+            users = await apiCall('/users');
+            renderUsersTable();
+            await loadFactories();
+            
+            const roleSelect = document.getElementById('newRole');
+            const factoryGroup = document.getElementById('factoryGroup');
+            function toggleFactoryField() {
+                factoryGroup.style.display = roleSelect.value === 'client' ? 'flex' : 'none';
+            }
+            roleSelect.addEventListener('change', toggleFactoryField);
+            toggleFactoryField();
+        } catch(e) { 
+            showToast('خطأ: ' + e.message, 'error');
+        }
+        showLoading(false);
+    }
+
+    async function addUser() {
+        if (currentUserRole !== 'admin') {
+            showToast('غير مصرح', 'error');
+            return;
+        }
+        const username = document.getElementById('newUsername').value.trim();
+        const password = document.getElementById('newPassword').value;
+        let role = document.getElementById('newRole').value;
+        let factory = '';
+        if (role === 'client') {
+            factory = document.getElementById('newFactory').value;
+            if (!factory) {
+                showToast('الرجاء اختيار مصنع للعميل', 'error');
+                return;
+            }
+        }
+        if (!username || !password) {
+            showToast('املأ جميع الحقول', 'error');
+            return;
+        }
+        showLoading(true);
+        try {
+            const payload = { username, password, role };
+            if (factory) payload.factory = factory;
+            await apiCall('/users', 'POST', payload);
+            showToast('✅ تم إضافة المستخدم', 'success');
+            await loadUsers();
+            document.getElementById('newUsername').value = '';
+            document.getElementById('newPassword').value = '';
+            const passInput = document.getElementById('newPassword');
+            if (passInput) passInput.type = 'password';
+        } catch(e) {
+            showToast('خطأ: ' + e.message, 'error');
+        }
+        showLoading(false);
+    }
+
+    async function deleteUser(id, username) {
+        if (currentUserRole !== 'admin') {
+            showToast('غير مصرح', 'error');
+            return;
+        }
+        if (username === 'admin') {
+            showToast('لا يمكن حذف المدير الرئيسي', 'error');
+            return;
+        }
+        if (!confirm(`حذف المستخدم ${username}؟`)) return;
+        showLoading(true);
+        try {
+            await apiCall(`/users/${id}`, 'DELETE');
+            showToast('تم الحذف', 'success');
+            await loadUsers();
+        } catch(e) {
+            showToast('خطأ: ' + e.message, 'error');
+        }
+        showLoading(false);
+    }
+
+    function openEditModal(user) {
+        document.getElementById('editUserId').value = user.id;
+        document.getElementById('editRole').value = user.role;
+        document.getElementById('editPassword').value = '';
+        const factoryGroup = document.getElementById('editFactoryGroup');
+        const factorySelect = document.getElementById('editFactory');
+        if (user.role === 'client') {
+            factoryGroup.style.display = 'flex';
+            factorySelect.value = user.factory || '';
+        } else {
+            factoryGroup.style.display = 'none';
+        }
+        document.getElementById('editUserModal').classList.add('active');
+    }
+
+    async function saveUserEdit() {
+        const id = document.getElementById('editUserId').value;
+        const role = document.getElementById('editRole').value;
+        const password = document.getElementById('editPassword').value;
+        let factory = '';
+        if (role === 'client') {
+            factory = document.getElementById('editFactory').value;
+            if (!factory) {
+                showToast('الرجاء اختيار مصنع للعميل', 'error');
+                return;
+            }
+        }
+        const data = { role };
+        if (factory) data.factory = factory;
+        if (password) data.password = password;
+        showLoading(true);
+        try {
+            await apiCall(`/users/${id}`, 'PUT', data);
+            showToast('✅ تم التعديل', 'success');
+            closeModal();
+            await loadUsers();
+        } catch(e) {
+            showToast('خطأ: ' + e.message, 'error');
+        }
+        showLoading(false);
+    }
+
+    function renderUsersTable() {
+        const tbody = document.getElementById('usersBody');
+        if (!users.length) {
+            tbody.innerHTML = '<tr><td colspan="6">لا يوجد مستخدمين</td></tr>';
+            return;
+        }
+        tbody.innerHTML = users.map((u, i) => {
+            let formattedDate = 'غير محدد';
+            if (u.created_at) {
+                try {
+                    const date = new Date(u.created_at);
+                    if (!isNaN(date.getTime())) formattedDate = date.toLocaleDateString('ar-SA');
+                } catch(e) {}
+            }
+            return `
+            <tr>
+                <td>${i+1}</td>
+                <td>${escapeHtml(u.username)}</td>
+                <td>${u.role === 'admin' ? 'مدير' : (u.role === 'client' ? 'عميل مصنع' : 'مستخدم')}</td>
+                <td>${escapeHtml(u.factory || '')}</td>
+                <td>${formattedDate}</td>
+                <td>
+                    <button class="btn btn-warning" onclick='openEditModal(${JSON.stringify(u).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
+                    <button class="btn btn-danger" onclick="deleteUser(${u.id}, '${escapeHtml(u.username)}')">🗑️ حذف</button>
+                 </td>
+            </tr>`;
+        }).join('');
+    }
+
+    function escapeHtml(str) { return str ? str.replace(/[&<>]/g, function(m){ return m==='&'?'&amp;':m==='<'?'&lt;':'&gt;'; }) : ''; }
+    function showToast(msg, type) {
+        const c = document.getElementById('toastContainer');
+        const t = document.createElement('div');
+        t.className = `toast toast-${type}`;
+        t.innerText = msg;
+        c.appendChild(t);
+        setTimeout(() => t.remove(), 3000);
+    }
+    function showLoading(show) { document.getElementById('loading').classList.toggle('active', show); }
+    function closeModal() { document.getElementById('editUserModal').classList.remove('active'); }
+    function logout() {
+        if (confirm('تسجيل الخروج؟')) {
+            fetch('/api/logout', { method: 'POST', credentials: 'include' }).then(() => window.location.href = '/login.html');
+        }
+    }
+    
+    function loadNav() {
+        fetch('/api/me', { credentials: 'include' })
+            .then(r => r.json())
+            .then(data => {
+                if (data.user) {
+                    const nav = document.getElementById('navLinks');
+                    if (nav) {
+                        nav.innerHTML = `
+                            <a href="index.html" class="nav-link">📊 الرئيسية</a>
+                            <a href="orders.html" class="nav-link">📝 الطلبات</a>
+                            <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
+                            <a href="trucks.html" class="nav-link">🚛 السيارات</a>
+                            <a href="products.html" class="nav-link">📦 أنواع البحص</a>
+                            <a href="factories.html" class="nav-link">🏭 المصانع</a>
+                            <a href="reports.html" class="nav-link">📊 تقارير الكسارة</a>
+                            <a href="scale_report.html" class="nav-link">⚖️ تقارير الميزان الشهرية</a>
+                            <a href="trucks-failed.html" class="nav-link">⚠️ السيارات غير المستوفية</a>
+                            <a href="trucks-failed-report.html" class="nav-link">📊 تقرير السيارات غير المستوفية</a>
+                            <a href="distribution-quality.html" class="nav-link">📈 جودة التوزيع</a>
+                            <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
+                            <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
+                            <a href="users.html" class="nav-link active">👥 المستخدمين</a>
+                            <a href="logs.html" class="nav-link">📜 السجلات</a>
+                        `;
+                    }
+                } else {
+                    window.location.href = '/login.html';
+                }
+            })
+            .catch(() => window.location.href = '/login.html');
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+        loadNav();
+        loadUsers();
+    });
+</script>
+</body>
+</html>
