@@ -96,6 +96,20 @@
             border-radius: 6px;
             white-space: nowrap;
         }
+        .permissions-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 15px;
+            margin-top: 5px;
+        }
+        .permissions-group label {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            background: rgba(255,255,255,0.1);
+            padding: 5px 10px;
+            border-radius: 20px;
+        }
         table {
             width: 100%;
             border-collapse: collapse;
@@ -156,10 +170,8 @@
             background: #1a1a2e;
             border-radius: 20px;
             padding: 30px;
-            max-width: 600px;
+            max-width: 500px;
             width: 90%;
-            max-height: 80vh;
-            overflow-y: auto;
         }
         .unauthorized {
             text-align: center;
@@ -168,53 +180,6 @@
             font-size: 1.2em;
         }
         .hidden { display: none; }
-        
-        /* ★★★ أنماط الصلاحيات ★★★ */
-        .permissions-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-            gap: 10px;
-            margin-top: 10px;
-            padding: 15px;
-            background: rgba(255,255,255,0.03);
-            border-radius: 8px;
-        }
-        .permission-item {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            padding: 8px;
-            background: rgba(255,255,255,0.05);
-            border-radius: 6px;
-        }
-        .permission-item input[type="checkbox"] {
-            width: 18px;
-            height: 18px;
-            cursor: pointer;
-        }
-        .permission-item label {
-            cursor: pointer;
-            font-size: 0.9em;
-            color: #e0e6ed;
-        }
-        .select-all-btn {
-            background: #4facfe;
-            color: white;
-            border: none;
-            padding: 6px 12px;
-            border-radius: 6px;
-            cursor: pointer;
-            font-size: 0.85em;
-            margin-bottom: 10px;
-        }
-        .permissions-badge {
-            display: inline-block;
-            background: rgba(102,126,234,0.3);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 0.75em;
-            margin: 2px;
-        }
     </style>
 </head>
 <body>
@@ -223,9 +188,6 @@
 <div class="container">
     <div class="header">
         <h1>👥 إدارة المستخدمين</h1>
-        <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
-            <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
-        </div>
     </div>
     <div class="nav-links" id="navLinks"></div>
 
@@ -257,18 +219,20 @@
                     <label>المصنع</label>
                     <select id="newFactory"></select>
                 </div>
-            </div>
-            
-            <!-- ★★★ قسم الصلاحيات الجديد ★★★ -->
-            <div id="newPermissionsSection" style="display:none;">
-                <label style="font-size: 0.9em; color: #a8b2d1; margin-bottom: 10px; display: block;">🔐 الصلاحيات (الصفحات المسموح بالوصول إليها)</label>
-                <button type="button" class="select-all-btn" onclick="toggleAllPermissions('new', true)">✓ تحديد الكل</button>
-                <button type="button" class="select-all-btn" style="background: #6c757d;" onclick="toggleAllPermissions('new', false)">✗ إلغاء الكل</button>
-                <div class="permissions-grid" id="newPermissionsGrid"></div>
-            </div>
-            
-            <div class="form-row" style="margin-top: 15px;">
-                <button class="btn btn-success" onclick="addUser()">➕ إضافة</button>
+                <div class="form-group" id="permissionsGroupNew" style="display:none;">
+                    <label>الصلاحيات (للمستخدم العادي)</label>
+                    <div class="permissions-group">
+                        <label><input type="checkbox" value="reports"> 📊 تقارير الكسارة</label>
+                        <label><input type="checkbox" value="scale_reports"> ⚖️ تقارير الميزان</label>
+                        <label><input type="checkbox" value="failed_trucks"> ⚠️ السيارات غير المستوفية</label>
+                        <label><input type="checkbox" value="quality"> 📈 جودة التوزيع</label>
+                        <label><input type="checkbox" value="settings"> ⚙️ الإعدادات</label>
+                        <label><input type="checkbox" value="restrictions"> ⛔ الحظر</label>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <button class="btn btn-success" onclick="addUser()">➕ إضافة</button>
+                </div>
             </div>
         </div>
 
@@ -289,62 +253,27 @@
     <div class="modal-content">
         <h3>✏️ تعديل المستخدم</h3>
         <input type="hidden" id="editUserId">
-        <div class="form-group">
-            <label>الدور</label>
-            <select id="editRole">
-                <option value="user">مستخدم</option>
-                <option value="admin">مدير</option>
-                <option value="client">عميل مصنع</option>
-            </select>
-        </div>
-        <div class="form-group" id="editFactoryGroup" style="display:none;">
-            <label>المصنع</label>
-            <select id="editFactory"></select>
-        </div>
-        <div class="form-group">
-            <label>كلمة مرور جديدة (اختياري)</label>
-            <div class="password-wrapper">
-                <input type="password" id="editPassword">
-                <button type="button" class="toggle-password" onclick="togglePassword('editPassword', this)">👁️ إظهار</button>
+        <div class="form-group"><label>الدور</label><select id="editRole"><option value="user">مستخدم</option><option value="admin">مدير</option><option value="client">عميل مصنع</option></select></div>
+        <div class="form-group" id="editFactoryGroup" style="display:none;"><label>المصنع</label><select id="editFactory"></select></div>
+        <div class="form-group" id="editPermissionsGroup" style="display:none;">
+            <label>الصلاحيات</label>
+            <div class="permissions-group">
+                <label><input type="checkbox" value="reports"> 📊 تقارير الكسارة</label>
+                <label><input type="checkbox" value="scale_reports"> ⚖️ تقارير الميزان</label>
+                <label><input type="checkbox" value="failed_trucks"> ⚠️ السيارات غير المستوفية</label>
+                <label><input type="checkbox" value="quality"> 📈 جودة التوزيع</label>
+                <label><input type="checkbox" value="settings"> ⚙️ الإعدادات</label>
+                <label><input type="checkbox" value="restrictions"> ⛔ الحظر</label>
             </div>
         </div>
-        
-        <!-- ★★★ قسم الصلاحيات في المودال ★★★ -->
-        <div id="editPermissionsSection" style="display:none; margin-top: 15px;">
-            <label style="font-size: 0.9em; color: #a8b2d1; margin-bottom: 10px; display: block;">🔐 الصلاحيات</label>
-            <button type="button" class="select-all-btn" onclick="toggleAllPermissions('edit', true)">✓ تحديد الكل</button>
-            <button type="button" class="select-all-btn" style="background: #6c757d;" onclick="toggleAllPermissions('edit', false)">✗ إلغاء الكل</button>
-            <div class="permissions-grid" id="editPermissionsGrid"></div>
-        </div>
-        
-        <div style="margin-top:20px;">
-            <button class="btn btn-danger" onclick="closeModal()">إلغاء</button>
-            <button class="btn btn-success" onclick="saveUserEdit()">حفظ</button>
-        </div>
+        <div class="form-group"><label>كلمة مرور جديدة (اختياري)</label><div class="password-wrapper"><input type="password" id="editPassword"><button type="button" class="toggle-password" onclick="togglePassword('editPassword', this)">👁️ إظهار</button></div></div>
+        <div style="margin-top:20px;"><button class="btn btn-danger" onclick="closeModal()">إلغاء</button><button class="btn btn-success" onclick="saveUserEdit()">حفظ</button></div>
     </div>
 </div>
 
-<script src="navbar.js"></script>
 <script>
     const API_BASE = '/api';
     let users = [], currentUserRole = '', factoriesList = [];
-
-    // ★★★ قائمة الصلاحيات المتاحة ★★★
-    const AVAILABLE_PERMISSIONS = [
-        { value: 'index', label: '📊 الرئيسية' },
-        { value: 'orders', label: '📝 الطلبات' },
-        { value: 'distribution', label: '🚚 التوزيع' },
-        { value: 'trucks', label: '🚛 السيارات' },
-        { value: 'products', label: '📦 أنواع البحص' },
-        { value: 'factories', label: '🏭 المصانع' },
-        { value: 'reports', label: '📊 تقارير الكسارة' },
-        { value: 'scale_report', label: '⚖️ تقارير الميزان' },
-        { value: 'trucks-failed', label: '⚠️ السيارات غير المستوفية' },
-        { value: 'trucks-failed-report', label: '📊 تقرير الغير مستوفية' },
-        { value: 'distribution-quality', label: '📈 جودة التوزيع' },
-        { value: 'settings', label: '⚙️ الإعدادات' },
-        { value: 'restrictions', label: '⛔ الحظر' }
-    ];
 
     function togglePassword(inputId, btn) {
         const input = document.getElementById(inputId);
@@ -391,35 +320,6 @@
         } catch(e) { console.error('فشل تحميل المصانع', e); }
     }
 
-    // ★★★ رسم checkboxes الصلاحيات ★★★
-    function renderPermissionsCheckboxes(containerId, selectedPermissions = []) {
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        container.innerHTML = AVAILABLE_PERMISSIONS.map(perm => `
-            <div class="permission-item">
-                <input type="checkbox" id="${containerId}_${perm.value}" value="${perm.value}" 
-                    ${selectedPermissions.includes(perm.value) ? 'checked' : ''}>
-                <label for="${containerId}_${perm.value}">${perm.label}</label>
-            </div>
-        `).join('');
-    }
-
-    // ★★★ جمع الصلاحيات المحددة ★★★
-    function getSelectedPermissions(containerId) {
-        const container = document.getElementById(containerId);
-        if (!container) return [];
-        const checkboxes = container.querySelectorAll('input[type="checkbox"]:checked');
-        return Array.from(checkboxes).map(cb => cb.value);
-    }
-
-    // ★★★ تحديد/إلغاء تحديد الكل ★★★
-    function toggleAllPermissions(prefix, checked) {
-        const containerId = prefix === 'new' ? 'newPermissionsGrid' : 'editPermissionsGrid';
-        const container = document.getElementById(containerId);
-        if (!container) return;
-        container.querySelectorAll('input[type="checkbox"]').forEach(cb => cb.checked = checked);
-    }
-
     async function loadUsers() {
         showLoading(true);
         try {
@@ -441,30 +341,14 @@
             
             const roleSelect = document.getElementById('newRole');
             const factoryGroup = document.getElementById('factoryGroup');
-            const permissionsSection = document.getElementById('newPermissionsSection');
-            
-            function toggleFieldsByRole() {
+            const permissionsGroupNew = document.getElementById('permissionsGroupNew');
+            function toggleFields() {
                 const role = roleSelect.value;
                 factoryGroup.style.display = role === 'client' ? 'flex' : 'none';
-                
-                // ★★★ إظهار/إخفاء الصلاحيات ★★★
-                if (role === 'admin') {
-                    permissionsSection.style.display = 'none';
-                } else if (role === 'client') {
-                    permissionsSection.style.display = 'block';
-                    renderPermissionsCheckboxes('newPermissionsGrid', ['orders']);
-                } else {
-                    permissionsSection.style.display = 'block';
-                    renderPermissionsCheckboxes('newPermissionsGrid', [
-                        'index', 'orders', 'distribution', 'trucks', 'products', 'factories',
-                        'reports', 'scale_report', 'trucks-failed', 'trucks-failed-report',
-                        'distribution-quality', 'settings', 'restrictions'
-                    ]);
-                }
+                permissionsGroupNew.style.display = role === 'user' ? 'flex' : 'none';
             }
-            
-            roleSelect.addEventListener('change', toggleFieldsByRole);
-            toggleFieldsByRole();
+            roleSelect.addEventListener('change', toggleFields);
+            toggleFields();
         } catch(e) { 
             showToast('خطأ: ' + e.message, 'error');
         }
@@ -480,8 +364,6 @@
         const password = document.getElementById('newPassword').value;
         let role = document.getElementById('newRole').value;
         let factory = '';
-        let permissions = [];
-        
         if (role === 'client') {
             factory = document.getElementById('newFactory').value;
             if (!factory) {
@@ -489,23 +371,14 @@
                 return;
             }
         }
-        
+        let permissions = [];
+        if (role === 'user') {
+            permissions = Array.from(document.querySelectorAll('#permissionsGroupNew input:checked')).map(cb => cb.value);
+        }
         if (!username || !password) {
             showToast('املأ جميع الحقول', 'error');
             return;
         }
-        
-        // ★★★ جمع الصلاحيات ★★★
-        if (role === 'admin') {
-            permissions = ['all'];
-        } else {
-            permissions = getSelectedPermissions('newPermissionsGrid');
-            if (permissions.length === 0 && role !== 'admin') {
-                showToast('يجب اختيار صلاحية واحدة على الأقل', 'error');
-                return;
-            }
-        }
-        
         showLoading(true);
         try {
             const payload = { username, password, role, permissions };
@@ -515,8 +388,7 @@
             await loadUsers();
             document.getElementById('newUsername').value = '';
             document.getElementById('newPassword').value = '';
-            const passInput = document.getElementById('newPassword');
-            if (passInput) passInput.type = 'password';
+            document.querySelectorAll('#permissionsGroupNew input').forEach(cb => cb.checked = false);
         } catch(e) {
             showToast('خطأ: ' + e.message, 'error');
         }
@@ -548,51 +420,25 @@
         document.getElementById('editUserId').value = user.id;
         document.getElementById('editRole').value = user.role;
         document.getElementById('editPassword').value = '';
-        
         const factoryGroup = document.getElementById('editFactoryGroup');
+        const permissionsGroup = document.getElementById('editPermissionsGroup');
         const factorySelect = document.getElementById('editFactory');
-        const permissionsSection = document.getElementById('editPermissionsSection');
-        
         if (user.role === 'client') {
             factoryGroup.style.display = 'flex';
             factorySelect.value = user.factory || '';
         } else {
             factoryGroup.style.display = 'none';
         }
-        
-        // ★★★ عرض الصلاحيات ★★★
-        if (user.role === 'admin') {
-            permissionsSection.style.display = 'none';
+        if (user.role === 'user') {
+            permissionsGroup.style.display = 'block';
+            // تفعيل الـ checkboxes حسب الصلاحيات الحالية
+            const perms = user.permissions || [];
+            document.querySelectorAll('#editPermissionsGroup input').forEach(cb => {
+                cb.checked = perms.includes(cb.value);
+            });
         } else {
-            permissionsSection.style.display = 'block';
-            const userPermissions = user.permissions || [];
-            renderPermissionsCheckboxes('editPermissionsGrid', userPermissions);
+            permissionsGroup.style.display = 'none';
         }
-        
-        // ★★★ تحديث الصلاحيات عند تغيير الدور ★★★
-        const editRoleSelect = document.getElementById('editRole');
-        editRoleSelect.onchange = function() {
-            const newRole = this.value;
-            const fg = document.getElementById('editFactoryGroup');
-            const ps = document.getElementById('editPermissionsSection');
-            
-            fg.style.display = newRole === 'client' ? 'flex' : 'none';
-            
-            if (newRole === 'admin') {
-                ps.style.display = 'none';
-            } else if (newRole === 'client') {
-                ps.style.display = 'block';
-                renderPermissionsCheckboxes('editPermissionsGrid', ['orders']);
-            } else {
-                ps.style.display = 'block';
-                renderPermissionsCheckboxes('editPermissionsGrid', [
-                    'index', 'orders', 'distribution', 'trucks', 'products', 'factories',
-                    'reports', 'scale_report', 'trucks-failed', 'trucks-failed-report',
-                    'distribution-quality', 'settings', 'restrictions'
-                ]);
-            }
-        };
-        
         document.getElementById('editUserModal').classList.add('active');
     }
 
@@ -601,8 +447,6 @@
         const role = document.getElementById('editRole').value;
         const password = document.getElementById('editPassword').value;
         let factory = '';
-        let permissions = [];
-        
         if (role === 'client') {
             factory = document.getElementById('editFactory').value;
             if (!factory) {
@@ -610,22 +454,13 @@
                 return;
             }
         }
-        
-        // ★★★ جمع الصلاحيات ★★★
-        if (role === 'admin') {
-            permissions = ['all'];
-        } else {
-            permissions = getSelectedPermissions('editPermissionsGrid');
-            if (permissions.length === 0) {
-                showToast('يجب اختيار صلاحية واحدة على الأقل', 'error');
-                return;
-            }
+        let permissions = [];
+        if (role === 'user') {
+            permissions = Array.from(document.querySelectorAll('#editPermissionsGroup input:checked')).map(cb => cb.value);
         }
-        
         const data = { role, permissions };
         if (factory) data.factory = factory;
         if (password) data.password = password;
-        
         showLoading(true);
         try {
             await apiCall(`/users/${id}`, 'PUT', data);
@@ -652,38 +487,31 @@
                     if (!isNaN(date.getTime())) formattedDate = date.toLocaleDateString('ar-SA');
                 } catch(e) {}
             }
-            
-            // ★★★ عرض الصلاحيات ★★★
-            let permissionsDisplay = '';
-            if (u.role === 'admin') {
-                permissionsDisplay = '<span class="permissions-badge">🔓 كل الصلاحيات</span>';
-            } else {
+            let permsText = '';
+            if (u.role === 'user') {
                 const perms = u.permissions || [];
-                if (perms.length === 0) {
-                    permissionsDisplay = '<span style="color: #f5576c;">⚠️ لا يوجد</span>';
-                } else {
-                    permissionsDisplay = perms.slice(0, 3).map(p => {
-                        const permObj = AVAILABLE_PERMISSIONS.find(ap => ap.value === p);
-                        return `<span class="permissions-badge">${permObj ? permObj.label : p}</span>`;
-                    }).join('');
-                    if (perms.length > 3) {
-                        permissionsDisplay += `<span class="permissions-badge">+${perms.length - 3}</span>`;
-                    }
-                }
+                const permMap = {
+                    'reports': 'تقارير', 'scale_reports': 'ميزان', 'failed_trucks': 'غير مستوفية',
+                    'quality': 'جودة', 'settings': 'إعدادات', 'restrictions': 'حظر'
+                };
+                permsText = perms.map(p => permMap[p] || p).join(', ');
+            } else if (u.role === 'client') {
+                permsText = 'عميل مصنع';
+            } else {
+                permsText = 'مدير كامل';
             }
-            
             return `
             <tr>
                 <td>${i+1}</td>
                 <td>${escapeHtml(u.username)}</td>
                 <td>${u.role === 'admin' ? 'مدير' : (u.role === 'client' ? 'عميل مصنع' : 'مستخدم')}</td>
                 <td>${escapeHtml(u.factory || '')}</td>
-                <td>${permissionsDisplay}</td>
+                <td>${permsText}</td>
                 <td>${formattedDate}</td>
                 <td>
                     <button class="btn btn-warning" onclick='openEditModal(${JSON.stringify(u).replace(/'/g, "&#39;")})'>✏️ تعديل</button>
                     <button class="btn btn-danger" onclick="deleteUser(${u.id}, '${escapeHtml(u.username)}')">🗑️ حذف</button>
-                 </td>
+                  </td>
             </tr>`;
         }).join('');
     }
@@ -705,7 +533,24 @@
         }
     }
 
-    document.addEventListener('DOMContentLoaded', loadUsers);
+    document.addEventListener('DOMContentLoaded', () => {
+        // إضافة زر logout في header
+        const header = document.querySelector('.header');
+        if (header && !document.getElementById('logout-btn-container')) {
+            const logoutDiv = document.createElement('div');
+            logoutDiv.id = 'logout-btn-container';
+            logoutDiv.style.cssText = 'position: absolute; top: 20px; left: 20px;';
+            const logoutBtn = document.createElement('button');
+            logoutBtn.innerHTML = '🚪 تسجيل الخروج';
+            logoutBtn.style.cssText = `background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;`;
+            logoutBtn.onclick = logout;
+            logoutDiv.appendChild(logoutBtn);
+            header.style.position = 'relative';
+            header.appendChild(logoutDiv);
+        }
+        loadUsers();
+    });
 </script>
+<script src="navbar.js"></script>
 </body>
 </html>
