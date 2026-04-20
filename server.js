@@ -54,7 +54,7 @@ app.use(session({
     cookie: {
         maxAge: 24 * 60 * 60 * 1000,
         httpOnly: true,
-        secure: false,  // تأكد أنها false في التطوير المحلي
+        secure: process.env.NODE_ENV === 'production',
         sameSite: 'lax'
     }
 }));
@@ -97,7 +97,6 @@ async function checkUserPermission(req, requiredPermission) {
         const result = await query('SELECT role, permissions FROM users WHERE id = $1', [req.session.userId]);
         if (result.rows.length === 0) return false;
         const user = result.rows[0];
-        // إذا كان المدير، يسمح بكل شيء
         if (user.role === 'admin') return true;
         const perms = parsePermissions(user.permissions);
         return perms.includes(requiredPermission);
@@ -107,13 +106,11 @@ async function checkUserPermission(req, requiredPermission) {
     }
 }
 
-// ==================== Middleware للتحقق من الصلاحيات (آمن ويعتمد على قاعدة البيانات) ====================
+// ==================== Middleware للتحقق من الصلاحيات ====================
 function authorize(permission) {
     return async (req, res, next) => {
         const hasPerm = await checkUserPermission(req, permission);
-        if (hasPerm) {
-            return next();
-        }
+        if (hasPerm) return next();
         res.status(403).json({ error: `غير مصرح: تحتاج صلاحية ${permission}` });
     };
 }
@@ -132,7 +129,7 @@ async function initTables() {
         await query(`CREATE TABLE IF NOT EXISTS restrictions ( id SERIAL PRIMARY KEY, truck_number TEXT NOT NULL, driver_name TEXT NOT NULL, restricted_factories JSONB NOT NULL, reason TEXT, active BOOLEAN DEFAULT true, created_by TEXT, created_at TIMESTAMP DEFAULT NOW(), updated_at TIMESTAMP DEFAULT NOW() )`);
         await query(`CREATE TABLE IF NOT EXISTS backup_metadata ( id SERIAL PRIMARY KEY, backup_date TIMESTAMP DEFAULT NOW(), backup_type TEXT, description TEXT )`);
 
-        // إصلاح المستخدم admin: تأكد من وجوده وصلاحياته ودوره
+        // إصلاح المستخدم admin
         const adminCheck = await query(`SELECT * FROM users WHERE LOWER(username) = 'admin'`);
         const allPerms = getAvailablePermissions();
         if (adminCheck.rows.length === 0) {
@@ -142,12 +139,11 @@ async function initTables() {
             );
             console.log('✅ تم إنشاء المستخدم admin');
         } else {
-            // تحديث دور admin وصلاحياته للتأكد
             await query(`UPDATE users SET role = 'admin', permissions = $1 WHERE LOWER(username) = 'admin'`, [stringifyPermissions(allPerms)]);
             console.log('✅ تم تحديث صلاحيات admin');
         }
 
-        // المستخدمين الافتراضيين الآخرين إذا لم يكونوا موجودين
+        // المستخدمين الافتراضيين
         const userCheck = await query(`SELECT * FROM users WHERE LOWER(username) = 'user'`);
         if (userCheck.rows.length === 0) {
             await query(
@@ -305,10 +301,7 @@ app.post('/api/login', async (req, res) => {
         req.session.factory = user.factory;
         req.session.permissions = parsePermissions(user.permissions);
         req.session.save((err) => {
-            if (err) {
-                console.error('خطأ في حفظ الجلسة:', err);
-                return res.status(500).json({ error: 'خطأ في إنشاء الجلسة' });
-            }
+            if (err) return res.status(500).json({ error: 'خطأ في إنشاء الجلسة' });
             logAction(user.username, 'تسجيل دخول', 'تم تسجيل الدخول بنجاح', req);
             res.json({ success: true, role: user.role });
         });
@@ -334,17 +327,6 @@ app.get('/api/me', async (req, res) => {
     } });
 });
 
-// نقطة نهاية لتصحيح أخطاء الجلسة (للتأكد من وجود role)
-app.get('/api/debug-session', (req, res) => {
-    res.json({
-        sessionId: req.sessionID,
-        userId: req.session.userId,
-        username: req.session.username,
-        role: req.session.role,
-        permissions: req.session.permissions
-    });
-});
-
 // ==================== السجلات ====================
 app.get('/api/logs', authorize('view_logs'), async (req, res) => {
     const page = parseInt(req.query.page) || 1;
@@ -366,7 +348,7 @@ app.delete('/api/logs/clear', authorize('view_logs'), async (req, res) => {
 });
 
 // ==================== الإعدادات والمنتجات ====================
-app.get('/api/settings', async (req, res) => {
+app.get('/api/settings', authorize('view_settings'), async (req, res) => {
     const settings = await loadSettings();
     res.json(settings);
 });
@@ -375,7 +357,7 @@ app.put('/api/settings', authorize('manage_settings'), async (req, res) => {
     await logAction(req.session.username, 'تحديث الإعدادات', 'تم تحديث إعدادات النظام', req);
     res.json({ success: true });
 });
-app.get('/api/products', async (req, res) => {
+app.get('/api/products', authorize('view_products'), async (req, res) => {
     const result = await query('SELECT name FROM products ORDER BY id');
     res.json(result.rows.map(r => r.name));
 });
@@ -391,8 +373,8 @@ app.delete('/api/products/:name', authorize('edit_products'), async (req, res) =
     res.json({ success: true });
 });
 
-// ==================== بيانات اليوم (مع صلاحيات client) ====================
-app.get('/api/day/:date', async (req, res) => {
+// ==================== بيانات اليوم (مع صلاحيات view_orders و edit_distribution) ====================
+app.get('/api/day/:date', authorize('view_orders'), async (req, res) => {
     const { date } = req.params;
     if (!date || isNaN(new Date(date).getTime())) return res.status(400).json({ error: 'تاريخ غير صالح' });
     const data = await getDayData(date);
@@ -404,7 +386,7 @@ app.get('/api/day/:date', async (req, res) => {
     }
     res.json({ orders, distribution });
 });
-app.put('/api/day/:date', async (req, res) => {
+app.put('/api/day/:date', authorize('edit_distribution'), async (req, res) => {
     const { date } = req.params;
     let { orders, distribution } = req.body;
     if (!date || isNaN(new Date(date).getTime())) return res.status(400).json({ error: 'تاريخ غير صالح' });
@@ -420,7 +402,7 @@ app.put('/api/day/:date', async (req, res) => {
     await query(`INSERT INTO day_data (date, orders, distribution) VALUES ($1, $2::jsonb, $3::jsonb) ON CONFLICT (date) DO UPDATE SET orders = $2::jsonb, distribution = $3::jsonb`, [date, ordersJson, distributionJson]);
     res.json({ success: true });
 });
-app.get('/api/range/:startDate/:endDate', async (req, res) => {
+app.get('/api/range/:startDate/:endDate', authorize('view_orders'), async (req, res) => {
     const { startDate, endDate } = req.params;
     const result = await query(`SELECT date, orders, distribution FROM day_data WHERE date BETWEEN $1 AND $2 ORDER BY date`, [startDate, endDate]);
     const data = {};
@@ -476,13 +458,13 @@ app.delete('/api/users/:id', authorize('manage_users'), async (req, res) => {
 });
 
 // ==================== تقارير الميزان المحفوظة ====================
-app.get('/api/scale-reports', async (req, res) => {
+app.get('/api/scale-reports', authorize('view_scale_report'), async (req, res) => {
     try {
         const result = await query('SELECT id, report_name, report_date, created_at FROM scale_reports ORDER BY created_at DESC');
         res.json(result.rows.map(r => ({ id: r.id, reportName: r.report_name, reportDate: r.report_date, createdAt: r.created_at })));
     } catch (err) { res.status(500).json({ error: 'خطأ في جلب قائمة التقارير' }); }
 });
-app.get('/api/scale-reports/:id', async (req, res) => {
+app.get('/api/scale-reports/:id', authorize('view_scale_report'), async (req, res) => {
     try {
         const id = parseInt(req.params.id);
         if (isNaN(id)) return res.status(400).json({ error: 'معرّف غير صالح' });
@@ -491,17 +473,16 @@ app.get('/api/scale-reports/:id', async (req, res) => {
         const row = result.rows[0];
         let reportData = row.data;
         if (typeof reportData === 'string') { try { reportData = JSON.parse(reportData); } catch(e) { reportData = {}; } }
-        if (!reportData || typeof reportData !== 'object') reportData = {};
         res.json({ id, reportName: row.report_name, reportDate: row.report_date, data: reportData, createdAt: row.created_at });
     } catch (err) { res.status(500).json({ error: 'خطأ في جلب التقرير' }); }
 });
-app.post('/api/scale-reports', async (req, res) => {
+app.post('/api/scale-reports', authorize('manage_reports'), async (req, res) => {
     try {
         const { reportName, reportDate, data } = req.body;
         if (!reportName || !data) return res.status(400).json({ error: 'اسم التقرير والبيانات مطلوبة' });
         const dataJson = JSON.stringify(data);
         await query('INSERT INTO scale_reports (report_name, report_date, data) VALUES ($1, $2, $3::jsonb)', [reportName, reportDate || new Date().toISOString().split('T')[0], dataJson]);
-        if (req.session.username) await logAction(req.session.username, 'حفظ تقرير', `حفظ تقرير "${reportName}"`, req);
+        await logAction(req.session.username, 'حفظ تقرير', `حفظ تقرير "${reportName}"`, req);
         res.status(201).json({ success: true });
     } catch (err) { res.status(500).json({ error: 'خطأ في حفظ التقرير: ' + err.message }); }
 });
@@ -525,7 +506,7 @@ app.delete('/api/scale-reports/:id', authorize('manage_reports'), async (req, re
 });
 
 // ==================== بيانات الميزان الشهرية (الخام) ====================
-app.get('/api/scale/monthly/:year/:month', async (req, res) => {
+app.get('/api/scale/monthly/:year/:month', authorize('view_scale_report'), async (req, res) => {
     try {
         const year = parseInt(req.params.year);
         const month = parseInt(req.params.month);
@@ -561,7 +542,7 @@ function analyzeTruckViolationsForDay(date, orders, distribution, trucksList) {
     });
     return violations;
 }
-app.get('/api/truck-violations/stats/:startDate/:endDate', async (req, res) => {
+app.get('/api/truck-violations/stats/:startDate/:endDate', authorize('view_failed_trucks'), async (req, res) => {
     try {
         const { startDate, endDate } = req.params;
         const dates = [];
@@ -599,7 +580,7 @@ app.get('/api/truck-violations/stats/:startDate/:endDate', async (req, res) => {
         });
     } catch (err) { console.error(err); res.status(500).json({ error: 'خطأ في جلب الإحصائيات' }); }
 });
-app.get('/api/truck-violations/report/:startDate/:endDate', async (req, res) => {
+app.get('/api/truck-violations/report/:startDate/:endDate', authorize('view_failed_trucks'), async (req, res) => {
     try {
         const { startDate, endDate } = req.params;
         const dates = [];
@@ -619,7 +600,7 @@ app.get('/api/truck-violations/report/:startDate/:endDate', async (req, res) => 
         res.json(report);
     } catch (err) { console.error(err); res.status(500).json({ error: 'خطأ في جلب التقرير' }); }
 });
-app.get('/api/truck-violations/:date', async (req, res) => {
+app.get('/api/truck-violations/:date', authorize('view_failed_trucks'), async (req, res) => {
     const { date } = req.params;
     try {
         const result = await query('SELECT truck_number, reason, details FROM truck_violations WHERE date = $1', [date]);
@@ -640,8 +621,7 @@ app.post('/api/truck-violations/save', authorize('edit_violations'), async (req,
 });
 
 // ==================== القيود ====================
-app.get('/api/restrictions', async (req, res) => {
-    if (req.session.role !== 'admin' && req.session.role !== 'user') return res.status(403).json({ error: 'غير مصرح' });
+app.get('/api/restrictions', authorize('manage_restrictions'), async (req, res) => {
     try {
         const restrictions = await getRestrictions();
         res.json(restrictions);
