@@ -1,3 +1,4 @@
+// navbar.js - شريط التنقل الديناميكي حسب الصلاحيات
 (function() {
     setInterval(async () => {
         try {
@@ -13,10 +14,11 @@
                 window.location.href = '/login.html';
                 return;
             }
-            
-            const role = data.user.role;
-            const permissions = data.user.permissions || [];
-            const isAdmin = (role === 'admin' || permissions.includes('all'));
+            const user = data.user;
+            const role = user.role;
+            const permissions = user.permissions || [];
+
+            const hasPermission = (perm) => permissions.includes(perm) || role === 'admin';
 
             let navContainer = document.querySelector('.nav-links');
             if (!navContainer) {
@@ -28,60 +30,44 @@
                 } else return;
             }
 
-            // ★★★ تعريف جميع الصفحات مع مفاتيح الصلاحيات ★★★
-            const allPages = [
-                { href: 'index.html', text: '📊 الرئيسية', permission: 'index' },
-                { href: 'orders.html', text: '📝 الطلبات', permission: 'orders' },
-                { href: 'distribution.html', text: '🚚 التوزيع', permission: 'distribution' },
-                { href: 'trucks.html', text: '🚛 السيارات', permission: 'trucks' },
-                { href: 'products.html', text: '📦 أنواع البحص', permission: 'products' },
-                { href: 'factories.html', text: '🏭 المصانع', permission: 'factories' },
+            // تعريف جميع الروابط مع الصلاحية المطلوبة (للمستخدم العادي)
+            const allLinks = [
+                { href: 'index.html', text: '📊 الرئيسية', permission: null },
+                { href: 'orders.html', text: '📝 الطلبات', permission: null },
+                { href: 'distribution.html', text: '🚚 التوزيع', permission: null },
+                { href: 'trucks.html', text: '🚛 السيارات', permission: null },
+                { href: 'products.html', text: '📦 أنواع البحص', permission: null },
+                { href: 'factories.html', text: '🏭 المصانع', permission: null },
                 { href: 'reports.html', text: '📊 تقارير الكسارة', permission: 'reports' },
-                { href: 'scale_report.html', text: '⚖️ تقارير الميزان الشهرية', permission: 'scale_report' },
-                { href: 'trucks-failed.html', text: '⚠️ السيارات غير المستوفية', permission: 'trucks-failed' },
-                { href: 'trucks-failed-report.html', text: '📊 تقرير الغير مستوفية', permission: 'trucks-failed-report' },
-                { href: 'distribution-quality.html', text: '📈 جودة التوزيع', permission: 'distribution-quality' },
+                { href: 'scale_report.html', text: '⚖️ تقارير الميزان الشهرية', permission: 'scale_reports' },
+                { href: 'trucks-failed.html', text: '⚠️ السيارات غير المستوفية', permission: 'failed_trucks' },
+                { href: 'trucks-failed-report.html', text: '📊 تقرير الغير مستوفية', permission: 'failed_trucks' },
+                { href: 'distribution-quality.html', text: '📈 جودة التوزيع', permission: 'quality' },
                 { href: 'settings.html', text: '⚙️ الإعدادات', permission: 'settings' },
                 { href: 'restrictions.html', text: '⛔ الحظر', permission: 'restrictions' }
             ];
 
-            const adminOnlyPages = [
-                { href: 'users.html', text: '👥 المستخدمين', permission: 'admin_only' },
-                { href: 'logs.html', text: '📜 السجلات', permission: 'admin_only' }
+            const adminOnlyLinks = [
+                { href: 'users.html', text: '👥 المستخدمين', permission: null },
+                { href: 'logs.html', text: '📜 السجلات', permission: null }
             ];
 
             let linksToShow = [];
-
-            // ★★★ فلترة الصفحات حسب الصلاحيات ★★★
-            if (isAdmin) {
-                // المدير يرى كل شيء
-                linksToShow = [...allPages, ...adminOnlyPages];
-            } else {
-                // المستخدم العادي: فقط الصفحات المسموح بها
-                linksToShow = allPages.filter(page => permissions.includes(page.permission));
+            if (role === 'admin') {
+                linksToShow = [...allLinks, ...adminOnlyLinks];
+            } else if (role === 'client') {
+                linksToShow = [{ href: 'orders.html', text: '📝 الطلبات', permission: null }];
+            } else if (role === 'user') {
+                linksToShow = allLinks.filter(link => {
+                    if (!link.permission) return true;
+                    return hasPermission(link.permission);
+                });
             }
 
             const currentPage = window.location.pathname.split('/').pop();
-            navContainer.innerHTML = linksToShow.map(link => 
-                `<a href="${link.href}" class="nav-link ${currentPage === link.href ? 'active' : ''}">${link.text}</a>`
-            ).join('');
+            navContainer.innerHTML = linksToShow.map(link => `<a href="${link.href}" class="nav-link ${currentPage === link.href ? 'active' : ''}">${link.text}</a>`).join('');
 
-            // ★★★ منع الوصول المباشر للصفحات غير المصرح بها ★★★
-            const currentPermission = allPages.find(p => p.href === currentPage)?.permission;
-            const isAdminPage = adminOnlyPages.find(p => p.href === currentPage);
-            
-            if (currentPermission && !isAdmin && !permissions.includes(currentPermission)) {
-                alert('⛔ ليس لديك صلاحية للوصول إلى هذه الصفحة');
-                window.location.href = 'index.html';
-                return;
-            }
-            
-            if (isAdminPage && !isAdmin) {
-                alert('⛔ هذه الصفحة متاحة فقط للمديرين');
-                window.location.href = 'index.html';
-                return;
-            }
-
+            // زر تسجيل الخروج
             if (!document.getElementById('logout-btn-container')) {
                 const logoutDiv = document.createElement('div');
                 logoutDiv.id = 'logout-btn-container';
@@ -102,7 +88,6 @@
                 }
             }
         } catch(e) {
-            console.error('Navbar error:', e);
             window.location.href = '/login.html';
         }
     }
