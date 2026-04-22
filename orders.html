@@ -6,7 +6,7 @@
     <title>الطلبات - نظام إدارة طلبات كسارة الحبردي</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <style>
-        /* نفس الأنماط السابقة - لم تتغير */
+        /* جميع الأنماط كما هي دون تغيير */
         * { margin: 0; padding: 0; box-sizing: border-box; }
         body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%); color: #fff; }
         .container { max-width: 1400px; margin: 0 auto; padding: 20px; }
@@ -54,6 +54,8 @@
         .fixed-factory { background: rgba(102,126,234,0.3); padding: 12px 15px; border-radius: 10px; font-weight: bold; }
         .client-notice { background: rgba(102,126,234,0.2); border: 1px solid rgba(102,126,234,0.4); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; text-align: center; font-size: 1.1em; }
         .client-notice .factory-name { color: #38ef7d; font-weight: bold; font-size: 1.2em; }
+        .unauthorized { text-align: center; padding: 50px; background: rgba(235,51,73,0.2); border-radius: 20px; margin: 50px auto; max-width: 600px; }
+        .hidden { display: none; }
         @media (max-width:768px){ .header h1 { font-size:1.5em; } }
     </style>
 </head>
@@ -61,45 +63,53 @@
     <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
-        <div class="header"><h1>📝 إدارة الطلبات - كسارة الحبردي</h1>
-            <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
-                <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
+        <div id="authorizedContent">
+            <div class="header"><h1>📝 إدارة الطلبات - كسارة الحبردي</h1>
+                <div id="logout-btn-container" style="position: absolute; top: 20px; left: 20px;">
+                    <button onclick="logout()" style="background: linear-gradient(135deg, #f5576c, #eb3349); border: none; padding: 8px 20px; border-radius: 25px; color: white; font-weight: bold; cursor: pointer;">🚪 تسجيل الخروج</button>
+                </div>
             </div>
-        </div>
-        <div class="nav-links" id="navLinks"></div>
+            <div class="nav-links" id="navLinks"></div>
 
-        <!-- إشعار للعميل بالمصنع المحدد -->
-        <div id="clientNotice" class="client-notice" style="display:none;">
-            🏭 أنت تعرض طلبات مصنع: <span class="factory-name" id="clientFactoryName"></span> فقط
-        </div>
-
-        <div class="date-section">
-            <div><label>📅 تاريخ العمل: </label><input type="date" id="orderDate" onchange="loadDayData()"></div>
-            <div id="adminButtons">
-                <button class="btn btn-info" onclick="exportOrdersToExcel()">📥 تصدير Excel</button>
-                <button class="btn btn-primary" onclick="manualDistribute()">🔄 توزيع يدوي</button>
+            <div id="clientNotice" class="client-notice" style="display:none;">
+                🏭 أنت تعرض طلبات مصنع: <span class="factory-name" id="clientFactoryName"></span> فقط
             </div>
-        </div>
 
-        <h2>➕ إضافة طلب جديد</h2>
-        <div class="order-form">
-            <div class="form-group" id="factoryFieldContainer">
-                <label>🏭 المصنع</label>
-                <div id="factorySelectContainer"></div>
+            <div class="date-section">
+                <div><label>📅 تاريخ العمل: </label><input type="date" id="orderDate" onchange="loadDayData()"></div>
+                <div id="adminButtons">
+                    <button class="btn btn-info" id="exportExcelBtn" onclick="exportOrdersToExcel()">📥 تصدير Excel</button>
+                    <button class="btn btn-primary" id="manualDistributeBtn" onclick="manualDistribute()">🔄 توزيع يدوي</button>
+                </div>
             </div>
-            <div class="form-group"><label>📦 نوع البحص</label><select id="materialType"></select></div>
-            <div class="form-group"><label>🔢 العدد</label><input type="number" id="orderCount" min="1" value="1"></div>
-            <div class="form-group"><label>⏰ التوقيت (اختياري)</label><input type="text" id="orderTime" placeholder="مثال: 8 PM"></div>
-        </div>
-        <button class="btn btn-success" onclick="addOrder()">✅ إضافة الطلب</button>
 
-        <div class="quick-add-section">
-            <h4>⚡ إضافة سريعة <span id="quickAddNote">(اختر المصنع أولاً)</span></h4>
-            <div class="quick-add-grid" id="quickAddButtons"></div>
+            <div id="addOrderSection">
+                <h2>➕ إضافة طلب جديد</h2>
+                <div class="order-form">
+                    <div class="form-group" id="factoryFieldContainer">
+                        <label>🏭 المصنع</label>
+                        <div id="factorySelectContainer"></div>
+                    </div>
+                    <div class="form-group"><label>📦 نوع البحص</label><select id="materialType"></select></div>
+                    <div class="form-group"><label>🔢 العدد</label><input type="number" id="orderCount" min="1" value="1"></div>
+                    <div class="form-group"><label>⏰ التوقيت (اختياري)</label><input type="text" id="orderTime" placeholder="مثال: 8 PM"></div>
+                </div>
+                <button class="btn btn-success" id="addOrderBtn" onclick="addOrder()">✅ إضافة الطلب</button>
+            </div>
+
+            <div id="quickAddSection" class="quick-add-section">
+                <h4>⚡ إضافة سريعة <span id="quickAddNote">(اختر المصنع أولاً)</span></h4>
+                <div class="quick-add-grid" id="quickAddButtons"></div>
+            </div>
+
+            <h3 style="margin-top: 30px;">📋 <span id="ordersTitle">طلبات اليوم</span> (<span id="ordersCount">0</span> طلب)</h3>
+            <div id="todayOrders"></div>
         </div>
 
-        <h3 style="margin-top: 30px;">📋 <span id="ordersTitle">طلبات اليوم</span> (<span id="ordersCount">0</span> طلب)</h3>
-        <div id="todayOrders"></div>
+        <div id="unauthorizedMsg" class="unauthorized hidden">
+            ⛔ غير مصرح لك بالوصول إلى صفحة الطلبات. <br>
+            يلزم صلاحية <strong>عرض الطلبات (viewOrders)</strong>.
+        </div>
     </div>
 
     <div class="modal" id="editOrderModal"><div class="modal-content"><div class="modal-header"><h3>✏️ تعديل الطلب</h3><button class="close-modal" onclick="closeModal('editOrderModal')">&times;</button></div><div class="modal-body"><input type="hidden" id="editOrderId"><div class="form-group" id="editFactoryFieldContainer"><label>🏭 المصنع</label><div id="editFactoryContainer"></div></div><div class="form-group"><label>📦 نوع البحص</label><select id="editOrderMaterial"></select></div><div class="form-group"><label>⏰ التوقيت</label><input type="text" id="editOrderTime" placeholder="اختياري"></div></div><div class="modal-footer"><button class="btn btn-danger" onclick="closeModal('editOrderModal')">إلغاء</button><button class="btn btn-success" onclick="saveOrderEdit()">حفظ</button></div></div></div>
@@ -111,6 +121,7 @@
         let currentUser = null;
         let currentUserFactory = null;
         let currentUserRole = null;
+        let currentUserPermissions = {};
 
         async function apiCall(endpoint, method = 'GET', data = null) {
             const options = { method, headers: { 'Content-Type': 'application/json' }, credentials: 'include' };
@@ -123,23 +134,106 @@
 
         setInterval(async () => { try { await fetch('/api/me', { credentials: 'include' }); } catch(e) {} }, 4 * 60 * 1000);
 
+        // ==== دالة التحقق من الصلاحيات ====
+        function hasViewOrders() {
+            return (currentUserRole === 'admin') || (currentUserPermissions.viewOrders === true);
+        }
+        function hasAddOrders() {
+            return (currentUserRole === 'admin') || (currentUserPermissions.addOrders === true);
+        }
+        function hasEditOrders() {
+            return (currentUserRole === 'admin') || (currentUserPermissions.editOrders === true);
+        }
+        function hasDeleteOrders() {
+            return (currentUserRole === 'admin') || (currentUserPermissions.deleteOrders === true);
+        }
+        function hasManageDistribution() {
+            return (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
+        }
+        function hasExportReports() {
+            return (currentUserRole === 'admin') || (currentUserPermissions.exportReports === true);
+        }
+
         async function loadCurrentUser() {
             try {
                 const me = await apiCall('/me');
                 currentUser = me.user;
                 currentUserRole = me.user.role;
                 currentUserFactory = me.user.factory;
+                currentUserPermissions = me.user.permissions || {};
+                
+                // التحقق من صلاحية عرض الطلبات
+                if (!hasViewOrders()) {
+                    document.getElementById('authorizedContent').classList.add('hidden');
+                    document.getElementById('unauthorizedMsg').classList.remove('hidden');
+                    showLoading(false);
+                    return;
+                } else {
+                    document.getElementById('authorizedContent').classList.remove('hidden');
+                    document.getElementById('unauthorizedMsg').classList.add('hidden');
+                }
+                
+                // إظهار/إخفاء أقسام الإضافة بناءً على صلاحية addOrders
+                const canAdd = hasAddOrders();
+                const addOrderSection = document.getElementById('addOrderSection');
+                const quickAddSection = document.getElementById('quickAddSection');
+                if (addOrderSection) addOrderSection.style.display = canAdd ? 'block' : 'none';
+                if (quickAddSection) quickAddSection.style.display = canAdd ? 'block' : 'none';
+                
+                // أزرار التوزيع والتصدير
+                const canManageDist = hasManageDistribution();
+                const canExport = hasExportReports();
+                const manualBtn = document.getElementById('manualDistributeBtn');
+                const exportBtn = document.getElementById('exportExcelBtn');
+                if (manualBtn) manualBtn.style.display = canManageDist ? 'inline-flex' : 'none';
+                if (exportBtn) exportBtn.style.display = canExport ? 'inline-flex' : 'none';
                 
                 if (currentUserRole === 'client') {
                     document.getElementById('clientNotice').style.display = 'block';
                     document.getElementById('clientFactoryName').textContent = currentUserFactory || 'غير محدد';
                     document.getElementById('ordersTitle').textContent = `طلباتي - ${currentUserFactory}`;
-                    document.getElementById('adminButtons').style.display = 'none';
-                    document.getElementById('quickAddNote').textContent = `(مصنع: ${currentUserFactory})`;
+                    if (manualBtn) manualBtn.style.display = 'none';
+                    if (exportBtn) exportBtn.style.display = 'none';
                 } else {
                     document.getElementById('adminButtons').style.display = 'flex';
                 }
-            } catch(e) {}
+            } catch(e) {
+                showToast('خطأ في تحميل صلاحيات المستخدم', 'error');
+            }
+        }
+
+        // ==== بناء شريط التنقل ديناميكياً (نفس نظام index) ====
+        function buildNavLinks() {
+            const links = [];
+            if (hasViewOrders()) links.push('<a href="index.html" class="nav-link">📊 الرئيسية</a>');
+            if (hasViewOrders()) links.push('<a href="orders.html" class="nav-link active">📝 الطلبات</a>');
+            if (currentUserPermissions.viewDistribution === true || currentUserRole === 'admin') 
+                links.push('<a href="distribution.html" class="nav-link">🚚 التوزيع</a>');
+            if (currentUserPermissions.viewTrucks === true || currentUserRole === 'admin') 
+                links.push('<a href="trucks.html" class="nav-link">🚛 السيارات</a>');
+            if (currentUserPermissions.viewSettings === true || currentUserRole === 'admin') {
+                links.push('<a href="products.html" class="nav-link">📦 أنواع البحص</a>');
+                links.push('<a href="factories.html" class="nav-link">🏭 المصانع</a>');
+            }
+            if (currentUserPermissions.viewReports === true || currentUserRole === 'admin') {
+                links.push('<a href="reports.html" class="nav-link">📊 تقارير الكسارة</a>');
+                links.push('<a href="scale_report.html" class="nav-link">⚖️ تقارير الميزان الشهرية</a>');
+                links.push('<a href="trucks-failed.html" class="nav-link">⚠️ السيارات الغير مستوفية</a>');
+                links.push('<a href="distribution-quality.html" class="nav-link">📈 جودة التوزيع</a>');
+            }
+            if (currentUserPermissions.viewSettings === true || currentUserRole === 'admin') 
+                links.push('<a href="settings.html" class="nav-link">⚙️ الإعدادات</a>');
+            if (currentUserPermissions.manageRestrictions === true || currentUserRole === 'admin') 
+                links.push('<a href="restrictions.html" class="nav-link">⛔ الحظر</a>');
+            if (currentUserPermissions.manageUsers === true || currentUserRole === 'admin') 
+                links.push('<a href="users.html" class="nav-link">👥 المستخدمين</a>');
+            if (currentUserPermissions.viewBackup === true || currentUserRole === 'admin') 
+                links.push('<a href="logs.html" class="nav-link">📜 السجلات</a>');
+            return links.join('');
+        }
+
+        function loadNav() {
+            document.getElementById('navLinks').innerHTML = buildNavLinks();
         }
 
         async function loadSettings() {
@@ -193,17 +287,15 @@
             container.innerHTML = valid.map(m => `<button class="quick-btn" onclick="quickAdd('${m}',1)">${m} ×1</button><button class="quick-btn" onclick="quickAdd('${m}',5)">${m} ×5</button><button class="quick-btn" onclick="quickAdd('${m}',10)">${m} ×10</button>`).join('');
         }
 
-        // ★★★ الدالة الرئيسية: تحميل بيانات اليوم (الخادم يفلتر الآن) ★★★
         async function loadDayData() {
             currentDate = document.getElementById('orderDate').value;
             if (!currentDate) return;
             showLoading(true);
             try {
                 const data = await apiCall(`/day/${currentDate}`);
-                // الخادم يعيد الطلبات المفلترة حسب صلاحية المستخدم
                 allOrders = data.orders || [];
                 currentDistribution = data.distribution || [];
-                orders = [...allOrders]; // مباشرة دون فلترة إضافية
+                orders = [...allOrders];
                 renderOrders();
             } catch(e) { 
                 orders = []; 
@@ -214,7 +306,6 @@
             showLoading(false);
         }
 
-        // ★★★ حفظ البيانات - الخادم يتحقق من الصلاحيات ★★★
         async function saveData() {
             try {
                 const cleaned = orders.map(o => ({
@@ -224,8 +315,7 @@
                     time: (o.time && o.time !== 'undefined' && o.time !== 'null') ? o.time : '',
                     timestamp: o.timestamp
                 }));
-                // العميل لا يرسل أي توزيع
-                const distToSend = (currentUserRole === 'client') ? [] : currentDistribution;
+                const distToSend = (currentUserRole === 'client' || !hasManageDistribution()) ? [] : currentDistribution;
                 await apiCall(`/day/${currentDate}`, 'PUT', { orders: cleaned, distribution: distToSend });
                 return true;
             } catch(e) { 
@@ -235,6 +325,10 @@
         }
 
         async function manualDistribute() {
+            if (!hasManageDistribution()) {
+                showToast('❌ ليس لديك صلاحية للتوزيع', 'error');
+                return;
+            }
             if (currentUserRole === 'client') {
                 showToast('❌ ليس لديك صلاحية للتوزيع', 'error');
                 return;
@@ -291,6 +385,10 @@
         }
 
         async function addOrder() {
+            if (!hasAddOrders()) {
+                showToast('❌ غير مصرح لك بإضافة طلبات', 'error');
+                return;
+            }
             const factory = getSelectedFactory();
             const material = document.getElementById('materialType').value;
             const count = parseInt(document.getElementById('orderCount').value);
@@ -327,6 +425,10 @@
         }
 
         async function quickAdd(material, count) {
+            if (!hasAddOrders()) {
+                showToast('❌ غير مصرح لك بإضافة طلبات', 'error');
+                return;
+            }
             const factory = getSelectedFactory();
             let time = document.getElementById('orderTime').value.trim();
             if (time === 'undefined' || time === 'null') time = '';
@@ -354,6 +456,10 @@
         }
 
         async function deleteOrder(id) {
+            if (!hasDeleteOrders()) {
+                showToast('❌ غير مصرح لك بحذف الطلبات', 'error');
+                return;
+            }
             if (currentUserRole === 'client') {
                 const orderToDelete = orders.find(o => o.id === id);
                 if (orderToDelete && orderToDelete.factory !== currentUserFactory) {
@@ -368,6 +474,10 @@
         }
 
         function openEditOrderModal(id) {
+            if (!hasEditOrders()) {
+                showToast('❌ غير مصرح لك بتعديل الطلبات', 'error');
+                return;
+            }
             let o = orders.find(o => o.id === id);
             if (!o) return;
             if (currentUserRole === 'client' && o.factory !== currentUserFactory) {
@@ -409,7 +519,7 @@
 
         function renderOrders() {
             const container = document.getElementById('todayOrders');
-            const displayOrders = orders; // orders مفلترة بالفعل من الخادم
+            const displayOrders = orders;
             document.getElementById('ordersCount').textContent = displayOrders.length;
             if (!displayOrders.length) {
                 if (currentUserRole === 'client') {
@@ -420,6 +530,9 @@
                 return;
             }
             let orderNumber = 0;
+            const canEdit = hasEditOrders();
+            const canDelete = hasDeleteOrders();
+            
             container.innerHTML = displayOrders.map((o, i) => {
                 orderNumber++;
                 let timeDisplay = '';
@@ -427,6 +540,10 @@
                     timeDisplay = `<span>⏰ ${o.time}</span>`;
                 }
                 const factoryDisplay = (currentUserRole === 'client') ? '' : `<span>🏭 ${o.factory}</span>`;
+                let actionButtons = '';
+                if (canEdit) actionButtons += `<button class="btn btn-sm btn-warning" onclick="openEditOrderModal('${o.id}')">✏️</button>`;
+                if (canDelete) actionButtons += `<button class="btn btn-sm btn-danger" onclick="deleteOrder('${o.id}')">🗑️</button>`;
+                
                 return `
                     <div class="order-item">
                         <div class="order-info">
@@ -437,8 +554,7 @@
                             <span>🕐 ${o.timestamp || '—'}</span>
                         </div>
                         <div class="order-actions">
-                            <button class="btn btn-sm btn-warning" onclick="openEditOrderModal('${o.id}')">✏️</button>
-                            <button class="btn btn-sm btn-danger" onclick="deleteOrder('${o.id}')">🗑️</button>
+                            ${actionButtons}
                         </div>
                     </div>
                 `;
@@ -446,6 +562,10 @@
         }
 
         function exportOrdersToExcel() {
+            if (!hasExportReports()) {
+                showToast('❌ غير مصرح لك بتصدير التقارير', 'error');
+                return;
+            }
             const exportOrders = orders;
             if (!exportOrders.length) { showToast('لا توجد طلبات للتصدير', 'error'); return; }
             const data = exportOrders.map((o, i) => ({
@@ -480,40 +600,9 @@
         function closeModal(id) { document.getElementById(id).classList.remove('active'); }
         function logout() { if(confirm('تسجيل الخروج؟')) fetch('/api/logout',{method:'POST',credentials:'include'}).then(()=>window.location.href='/login.html'); }
         
-        function loadNav() { 
-            fetch('/api/me',{credentials:'include'}).then(r=>r.json()).then(data=>{ 
-                if(data.user) {
-                    const role = data.user.role;
-                    let navHtml = '';
-                    if (role === 'admin' || role === 'user') {
-                        navHtml = `
-                        <a href="index.html" class="nav-link">📊 الرئيسية</a>
-                        <a href="orders.html" class="nav-link active">📝 الطلبات</a>
-                        <a href="distribution.html" class="nav-link">🚚 التوزيع</a>
-                        <a href="trucks.html" class="nav-link">🚛 السيارات</a>
-                        <a href="products.html" class="nav-link">📦 أنواع البحص</a>
-                        <a href="factories.html" class="nav-link">🏭 المصانع</a>
-                        <a href="reports.html" class="nav-link">📊 تقارير الكسارة</a>
-                        <a href="scale_report.html" class="nav-link">⚖️ تقارير الميزان الشهرية</a>
-                        <a href="trucks-failed.html" class="nav-link">⚠️ السيارات غير المستوفية</a>
-                        <a href="trucks-failed-report.html" class="nav-link">📊 تقرير السيارات غير المستوفية</a>
-                        <a href="distribution-quality.html" class="nav-link">📈 جودة التوزيع</a>
-                        <a href="settings.html" class="nav-link">⚙️ الإعدادات</a>
-                        <a href="restrictions.html" class="nav-link">⛔ الحظر</a>
-                        <a href="users.html" class="nav-link">👥 المستخدمين</a>
-                        <a href="logs.html" class="nav-link">📜 السجلات</a>
-                        `;
-                    } else if (role === 'client') {
-                        navHtml = `<a href="orders.html" class="nav-link active">📝 طلباتي</a>`;
-                    }
-                    document.getElementById('navLinks').innerHTML = navHtml;
-                } else window.location.href='/login.html'; 
-            }).catch(()=>window.location.href='/login.html'); 
-        }
-
         document.addEventListener('DOMContentLoaded', async () => { 
-            loadNav(); 
-            await loadCurrentUser();
+            await loadCurrentUser();     // تحميل المستخدم والصلاحيات أولاً
+            loadNav();                   // بناء شريط التنقل حسب الصلاحيات
             const today = new Date().toISOString().split('T')[0]; 
             document.getElementById('orderDate').value = today; 
             currentDate = today; 
@@ -538,6 +627,6 @@
             }
         });
     </script>
-    <script src="navbar.js"></script>
+    <!-- تم إزالة سطر navbar.js لأن الروابط أصبحت ديناميكية -->
 </body>
 </html>
