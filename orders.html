@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
@@ -300,6 +299,7 @@
             }
         }
 
+        // ==================== دالة التوزيع اليدوي المعدلة ====================
         async function manualDistribute() {
             const canManageDist = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
             if (!canManageDist) {
@@ -315,16 +315,40 @@
                 const today = new Date().toISOString().split('T')[0];
                 const settings = await apiCall('/settings');
                 const trucks = settings.trucks || [];
-                if (trucks.length === 0) { showToast('لا توجد سيارات للتوزيع', 'error'); showLoading(false); return; }
+                if (trucks.length === 0) {
+                    showToast('لا توجد سيارات للتوزيع', 'error');
+                    showLoading(false);
+                    return;
+                }
                 const dayData = await apiCall(`/day/${today}`);
                 let allDayOrders = dayData.orders || [];
-                if (allDayOrders.length === 0) { showToast('لا توجد طلبات لتوزيعها', 'error'); showLoading(false); return; }
-                
+                if (allDayOrders.length === 0) {
+                    showToast('لا توجد طلبات لتوزيعها', 'error');
+                    showLoading(false);
+                    return;
+                }
+
+                const totalOrders = allDayOrders.length;
+                const totalTrucks = trucks.length;
+
+                // إذا كان عدد الطلبات أقل من أو يساوي عدد السيارات، لا نقوم بأي توزيع تلقائي
+                if (totalOrders <= totalTrucks) {
+                    showToast(`📌 عدد الطلبات (${totalOrders}) أقل من أو يساوي عدد السيارات (${totalTrucks}). الرجاء توزيع الرود الأول يدوياً من صفحة التوزيع.`, 'info');
+                    showLoading(false);
+                    return;
+                }
+
+                // عدد الطلبات التي سيتم توزيعها تلقائياً (الرود الثاني فما فوق) = إجمالي الطلبات - عدد السيارات
+                const ordersToAutoDistribute = totalOrders - totalTrucks;
+                showToast(`🔄 سيتم توزيع ${ordersToAutoDistribute} طلب تلقائياً (الرود الثاني وما بعده)، بينما سيتم ترك أول ${totalTrucks} طلب (الرود الأول) للتوزيع اليدوي.`, 'info');
+
+                // نقوم بتوزيع الطلبات بدءاً من الرقم (totalTrucks) أي الرود الثاني
                 let lastFactoryForTruck = {};
                 trucks.forEach(t => { lastFactoryForTruck[t.number] = null; });
                 let availableTrucks = [...trucks];
                 let newDistribution = [];
-                for (let i = 0; i < allDayOrders.length; i++) {
+
+                for (let i = totalTrucks; i < totalOrders; i++) {
                     const order = allDayOrders[i];
                     const requiredFactory = order.factory;
                     let selectedTruck = null, candidateIndex = -1;
@@ -335,11 +359,14 @@
                             break;
                         }
                     }
-                    if (!selectedTruck && availableTrucks.length) { selectedTruck = availableTrucks[0]; candidateIndex = 0; }
+                    if (!selectedTruck && availableTrucks.length) {
+                        selectedTruck = availableTrucks[0];
+                        candidateIndex = 0;
+                    }
                     if (!selectedTruck) break;
                     availableTrucks.splice(candidateIndex, 1);
                     lastFactoryForTruck[selectedTruck.number] = requiredFactory;
-                    const currentRoad = Math.floor(i / trucks.length) + 1;
+                    const currentRoad = Math.floor((i - totalTrucks) / totalTrucks) + 2; // الرود يبدأ من 2
                     newDistribution.push({
                         orderId: order.id,
                         orderIndex: i + 1,
@@ -351,13 +378,27 @@
                     });
                     if (availableTrucks.length === 0) availableTrucks = [...trucks];
                 }
+
                 if (newDistribution.length) {
-                    await apiCall(`/day/${today}`, 'PUT', { orders: allDayOrders, distribution: newDistribution });
-                    const trucksUsed = new Set(newDistribution.map(d => d.truck?.number)).size;
-                    showToast(`✅ تم توزيع ${allDayOrders.length} طلب على ${trucksUsed} سيارة`, 'success');
+                    // ندمج التوزيع الجديد مع أي توزيع سابق (إذا كان موجوداً)
+                    const existingDistribution = dayData.distribution || [];
+                    // نحتفظ بالتوزيعات القديمة التي لا تتعارض مع الطلبات الجديدة (نحافظ على توزيع الرود الأول)
+                    const mergedDistribution = [...existingDistribution];
+                    // نضيف التوزيعات الجديدة فقط للطلبات التي لم توزع بعد
+                    for (let newDist of newDistribution) {
+                        const alreadyDistributed = mergedDistribution.some(d => d.orderId === newDist.orderId);
+                        if (!alreadyDistributed) mergedDistribution.push(newDist);
+                    }
+                    await apiCall(`/day/${today}`, 'PUT', { orders: allDayOrders, distribution: mergedDistribution });
+                    const trucksUsed = new Set(mergedDistribution.map(d => d.truck?.number)).size;
+                    showToast(`✅ تم توزيع ${newDistribution.length} طلب تلقائياً (الرود الثاني وما بعده). الرود الأول (${totalTrucks} طلب) ينتظر التوزيع اليدوي.`, 'success');
                     await loadDayData();
-                } else { showToast('فشل في توزيع الطلبات', 'error'); }
-            } catch(e) { showToast('خطأ في التوزيع: ' + e.message, 'error'); }
+                } else {
+                    showToast('لا توجد طلبات جديدة لتوزيعها تلقائياً', 'info');
+                }
+            } catch(e) {
+                showToast('خطأ في التوزيع: ' + e.message, 'error');
+            }
             showLoading(false);
         }
 
