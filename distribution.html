@@ -65,7 +65,6 @@
     <div class="loading" id="loading"><div class="spinner"></div><p>جاري التحميل...</p></div>
     <div class="toast-container" id="toastContainer"></div>
     <div class="container">
-        <!-- المحتوى المصرح به -->
         <div id="authorizedContent">
             <div class="header">
                 <h1>🚚 التوزيع الجغرافي المتوازن (حسب المسافات)</h1>
@@ -121,7 +120,6 @@
             </div>
         </div>
 
-        <!-- رسالة عدم التصريح -->
         <div id="unauthorizedMsg" class="unauthorized hidden">
             ⛔ غير مصرح لك بالوصول إلى صفحة التوزيع. <br>
             يلزم صلاحية <strong>عرض التوزيع (viewDistribution)</strong>.
@@ -176,7 +174,6 @@
         let restrictions = [];
         let excludedDriversLog = [];
 
-        // متغيرات الصلاحيات
         let currentUserRole = null;
         let currentUserPermissions = {};
 
@@ -263,7 +260,6 @@
         function renderUndistributed(undistributed) {
             const tbody = document.getElementById('undistributedBody');
             if (!undistributed.length) { tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;">لا توجد طلبات غير موزعة</td></tr>'; return; }
-            // التحكم في ظهور زر التوزيع اليدوي بناءً على صلاحية manageDistribution
             const canManage = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
             tbody.innerHTML = undistributed.map((order, i) => {
                 const dist = getFactoryDistance(order.factory);
@@ -325,12 +321,8 @@
         }
 
         async function autoDistribute() {
-            // التحقق من صلاحية إدارة التوزيع
             const canManage = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
-            if (!canManage) {
-                showToast('❌ غير مصرح لك بتوزيع الطلبات', 'error');
-                return;
-            }
+            if (!canManage) { showToast('❌ غير مصرح لك بتوزيع الطلبات', 'error'); return; }
             await loadRestrictions();
             const distributedOrderIds = new Set(distribution.map(d => d.orderId));
             let undistributed = orders.filter(o => !distributedOrderIds.has(o.id));
@@ -438,10 +430,7 @@
 
         async function resetDistribution() {
             const canManage = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
-            if (!canManage) {
-                showToast('❌ غير مصرح لك بإعادة تعيين التوزيع', 'error');
-                return;
-            }
+            if (!canManage) { showToast('❌ غير مصرح لك بإعادة تعيين التوزيع', 'error'); return; }
             if (!confirm('إعادة تعيين التوزيع؟ سيتم حذف جميع التوزيعات الحالية.')) return;
             distribution = [];
             excludedDriversLog = [];
@@ -452,10 +441,7 @@
 
         function refreshExcludedLog() {
             const canManage = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
-            if (!canManage) {
-                showToast('❌ غير مصرح لك بحفظ سجل الاستبعادات', 'error');
-                return;
-            }
+            if (!canManage) { showToast('❌ غير مصرح لك بحفظ سجل الاستبعادات', 'error'); return; }
             if (excludedDriversLog.length) {
                 sessionStorage.setItem(`excluded_log_${currentDate}`, JSON.stringify(excludedDriversLog));
                 showToast('تم تحديث سجل الاستبعادات', 'success');
@@ -466,10 +452,7 @@
 
         function openManualDistributeModalForOrder(order) {
             const canManage = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
-            if (!canManage) {
-                showToast('❌ غير مصرح لك بالتوزيع اليدوي', 'error');
-                return;
-            }
+            if (!canManage) { showToast('❌ غير مصرح لك بالتوزيع اليدوي', 'error'); return; }
             currentOrderToDistribute = order;
             document.getElementById('manualFactory').value = order.factory;
             document.getElementById('manualMaterial').value = order.material;
@@ -481,6 +464,7 @@
 
         function closeManualModal() { document.getElementById('manualDistributeModal').classList.remove('active'); currentOrderToDistribute = null; }
 
+        // ========== الدالة المعدلة لمنع رسالة التوصية في أول يوم ==========
         async function confirmManualDistribute() {
             const canManage = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
             if (!canManage) {
@@ -493,7 +477,7 @@
             const selectedTruck = trucks.find(t => t.number === truckNumber);
             if (!selectedTruck) { showToast('سيارة غير موجودة', 'error'); return; }
             if (!currentOrderToDistribute) { showToast('لا يوجد طلب محدد', 'error'); return; }
-            
+
             let currentTrips = {}, currentDistances = {}, currentLastFactory = {};
             trucks.forEach(t => { currentTrips[t.number] = 0; currentDistances[t.number] = 0; currentLastFactory[t.number] = null; });
             distribution.forEach(d => {
@@ -503,29 +487,35 @@
                     currentLastFactory[d.truck.number] = d.factory;
                 }
             });
-            
+
+            const totalTrips = distribution.filter(d => d.truck).length;
+            let manualOverride = false;
+            let overrideReason = '';
             let fairTruck = null;
-            let sorted = [...trucks].sort((a, b) => {
-                const tripsA = currentTrips[a.number] || 0;
-                const tripsB = currentTrips[b.number] || 0;
-                if (tripsA !== tripsB) return tripsA - tripsB;
-                const distA = currentDistances[a.number] || 0;
-                const distB = currentDistances[b.number] || 0;
-                return distB - distA;
-            });
-            for (let t of sorted) {
-                if (currentLastFactory[t.number] !== currentOrderToDistribute.factory) { fairTruck = t; break; }
+
+            // فقط في حالة وجود توزيعات سابقة (أكثر من 0) نقوم بحساب التوصية
+            if (totalTrips > 0) {
+                let sorted = [...trucks].sort((a, b) => {
+                    const tripsA = currentTrips[a.number] || 0;
+                    const tripsB = currentTrips[b.number] || 0;
+                    if (tripsA !== tripsB) return tripsA - tripsB;
+                    const distA = currentDistances[a.number] || 0;
+                    const distB = currentDistances[b.number] || 0;
+                    return distB - distA;
+                });
+                for (let t of sorted) {
+                    if (currentLastFactory[t.number] !== currentOrderToDistribute.factory) { fairTruck = t; break; }
+                }
+                if (!fairTruck) fairTruck = sorted[0];
+                const isFair = (fairTruck.number === selectedTruck.number);
+                if (!isFair) {
+                    const confirmMsg = `⚠️ تحذير: التوزيع العادل يوصي بالسائق ${fairTruck.number} - ${fairTruck.driver} (عدد رحلاته: ${currentTrips[fairTruck.number]}، مسافة: ${currentDistances[fairTruck.number].toFixed(1)} كم).\nأنت تختار السائق ${selectedTruck.number} - ${selectedTruck.driver}.\n\nإذا واصلت، سيتم تسجيل هذا كتوزيع يدوي مخالف للعدالة وقد يظهر في تقرير الجودة.\n\nهل تريد المتابعة؟`;
+                    if (!confirm(confirmMsg)) return;
+                    manualOverride = true;
+                    overrideReason = `تم اختيار السائق ${selectedTruck.number} (${selectedTruck.driver}) بدلاً من الموصى به ${fairTruck.number} (${fairTruck.driver})`;
+                }
             }
-            if (!fairTruck) fairTruck = sorted[0];
-            const isFair = (fairTruck.number === selectedTruck.number);
-            let manualOverride = false, overrideReason = '';
-            if (!isFair) {
-                const confirmMsg = `⚠️ تحذير: التوزيع العادل يوصي بالسائق ${fairTruck.number} - ${fairTruck.driver} (عدد رحلاته: ${currentTrips[fairTruck.number]}، مسافة: ${currentDistances[fairTruck.number].toFixed(1)} كم).\nأنت تختار السائق ${selectedTruck.number} - ${selectedTruck.driver}.\n\nإذا واصلت، سيتم تسجيل هذا كتوزيع يدوي مخالف للعدالة وقد يظهر في تقرير الجودة.\n\nهل تريد المتابعة؟`;
-                if (!confirm(confirmMsg)) return;
-                manualOverride = true;
-                overrideReason = `تم اختيار السائق ${selectedTruck.number} (${selectedTruck.driver}) بدلاً من الموصى به ${fairTruck.number} (${fairTruck.driver})`;
-            }
-            
+
             showLoading(true);
             try {
                 const alreadyDistributed = distribution.some(d => d.orderId === currentOrderToDistribute.id);
@@ -540,7 +530,7 @@
                     road: road,
                     manualOverride: manualOverride,
                     overrideReason: overrideReason,
-                    recommendedTruck: fairTruck.number,
+                    recommendedTruck: fairTruck ? fairTruck.number : null,
                     timestamp: new Date().toISOString()
                 });
                 await saveData();
@@ -553,7 +543,7 @@
             showLoading(false);
         }
 
-        // بناء شريط التنقل ديناميكياً (مثل index و orders)
+        // بناء شريط التنقل ديناميكياً
         function buildNavLinks() {
             const links = [];
             if (currentUserPermissions.viewOrders === true || currentUserRole === 'admin') 
@@ -590,8 +580,6 @@
                 const me = await apiCall('/me');
                 currentUserRole = me.user.role;
                 currentUserPermissions = me.user.permissions || {};
-                console.log('✅ صلاحيات المستخدم (صفحة التوزيع):', currentUserPermissions);
-                
                 const hasViewDist = (currentUserRole === 'admin') || (currentUserPermissions.viewDistribution === true);
                 if (!hasViewDist) {
                     document.getElementById('authorizedContent').classList.add('hidden');
@@ -602,7 +590,6 @@
                 document.getElementById('authorizedContent').classList.remove('hidden');
                 document.getElementById('unauthorizedMsg').classList.add('hidden');
                 
-                // إظهار/إخفاء أزرار الإدارة بناءً على صلاحية manageDistribution
                 const canManage = (currentUserRole === 'admin') || (currentUserPermissions.manageDistribution === true);
                 const autoBtn = document.getElementById('autoDistributeBtn');
                 const resetBtn = document.getElementById('resetDistBtn');
@@ -631,9 +618,8 @@
             const today = new Date().toISOString().split('T')[0];
             document.getElementById('orderDate').value = today;
             currentDate = today;
-            await loadNav();  // loadNav تقوم بكل شيء: تحقق الصلاحيات، تحميل البيانات
+            await loadNav();
         });
     </script>
-    <!-- تم إزالة سطر navbar.js لأن الروابط أصبحت ديناميكية -->
 </body>
 </html>
