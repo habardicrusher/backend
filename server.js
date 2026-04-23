@@ -7,10 +7,16 @@ const { Pool } = require('pg');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// ==================== التحقق من متغيرات البيئة الأساسية ====================
+if (!process.env.DATABASE_URL) {
+    console.error('❌ خطأ: متغير البيئة DATABASE_URL غير موجود');
+    process.exit(1);
+}
+
 // ==================== إعداد قاعدة البيانات ====================
 const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === 'production' ? { rejectUnauthorized: false } : false,
+    ssl: { rejectUnauthorized: true },  // إلزامي لـ Render مع Neon
     connectionTimeoutMillis: 10000,
     idleTimeoutMillis: 30000,
     max: 10
@@ -19,6 +25,7 @@ const pool = new Pool({
 pool.connect((err, client, release) => {
     if (err) {
         console.error('❌ فشل الاتصال بقاعدة البيانات:', err.message);
+        process.exit(1);
     } else {
         console.log('✅ تم الاتصال بقاعدة البيانات بنجاح');
         release();
@@ -72,7 +79,6 @@ async function logAction(username, action, details, req = null) {
     } catch (err) { console.error('فشل تسجيل السجل:', err); }
 }
 
-// دالة للتحقق من صلاحية إدارة المستخدمين
 function canManageUsers(req) {
     return req.session.role === 'admin' || (req.session.permissions && req.session.permissions.manageUsers === true);
 }
@@ -131,7 +137,7 @@ async function initTables() {
             )
         `);
         // التأكد من وجود عمود permissions (للترقية)
-        await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::jsonb`).catch(e => console.log('Column permissions already exists or cannot be added:', e.message));
+        await query(`ALTER TABLE users ADD COLUMN IF NOT EXISTS permissions JSONB DEFAULT '{}'::jsonb`).catch(e => console.log('ملاحظة:', e.message));
 
         await query(`
             CREATE TABLE IF NOT EXISTS truck_violations (
@@ -178,7 +184,7 @@ async function initTables() {
             )
         `);
 
-        // المستخدمون الافتراضيون مع صلاحيات كاملة للمدير
+        // المستخدمون الافتراضيون
         const adminCheck = await query(`SELECT * FROM users WHERE LOWER(username) = 'admin'`);
         if (adminCheck.rows.length === 0) {
             const defaultAdminPermissions = {
@@ -207,7 +213,6 @@ async function initTables() {
             );
             console.log('✅ تم إنشاء المستخدمين الافتراضيين مع الصلاحيات');
         } else {
-            // التأكد من أن المدير لديه صلاحية manageUsers (في حالة الترقية)
             const adminRow = adminCheck.rows[0];
             if (!adminRow.permissions || !adminRow.permissions.manageUsers) {
                 const newPerms = { ...(adminRow.permissions || {}), manageUsers: true };
@@ -507,7 +512,7 @@ app.get('/api/range/:startDate/:endDate', async (req, res) => {
     res.json(data);
 });
 
-// ==================== إدارة المستخدمين (مع صلاحية manageUsers) ====================
+// ==================== إدارة المستخدمين ====================
 app.get('/api/users', async (req, res) => {
     if (!canManageUsers(req)) return res.status(403).json({ error: 'غير مصرح' });
     const result = await query('SELECT id, username, role, factory, permissions, created_at FROM users ORDER BY id');
